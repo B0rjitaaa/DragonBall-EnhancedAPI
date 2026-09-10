@@ -1,0 +1,636 @@
+{
+ "source": "https://www.dbs-cardgame.com/us-en/rule/banned-limited-cards.php",
+ "updated": "June 19, 2026",
+ "entries": [
+  {
+   "card_number": "BT5-050",
+   "status": "banned",
+   "card_name": "Dimension Magic",
+   "limit": 0,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "BT27-098",
+   "status": "banned",
+   "card_name": "SS Rosé Goku Black, Bloodthirsty Saiyan",
+   "limit": 0,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "P-180",
+   "status": "banned",
+   "card_name": "Caulifla, Spunky Allure",
+   "limit": 0,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "P-456",
+   "status": "banned",
+   "card_name": "Syn Shenron, Coldhearted Shadow Dragon",
+   "limit": 0,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "BT3-050",
+   "status": "banned",
+   "card_name": "Majin Buu, Dawn of the Rampage",
+   "limit": 0,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "BT10-097",
+   "status": "banned",
+   "card_name": "Son Goku, Absolute Annihilation",
+   "limit": 0,
+   "since": "From September 1, 2025 onward."
+  },
+  {
+   "card_number": "BT10-117",
+   "status": "banned",
+   "card_name": "Haze Shenron, Venomous Mist",
+   "limit": 0,
+   "since": "From September 1, 2025 onward."
+  },
+  {
+   "card_number": "EX16-03",
+   "status": "banned",
+   "card_name": "Dark Broly, Unbridled Destruction",
+   "limit": 0,
+   "since": "From September 1, 2025 onward."
+  },
+  {
+   "card_number": "SD16-03",
+   "status": "banned",
+   "card_name": "Dark Broly, Spirit Boost Berserker",
+   "limit": 0,
+   "since": "From September 1, 2025 onward."
+  },
+  {
+   "card_number": "P-262",
+   "status": "banned",
+   "card_name": "SS4 Son Goku, Beyond All Limits",
+   "limit": 0,
+   "since": "From March 7, 2025 onward."
+  },
+  {
+   "card_number": "BT10-011",
+   "status": "banned",
+   "card_name": "Bulma the Bunny Girl",
+   "limit": 0,
+   "since": "From January 1, 2025 onward."
+  },
+  {
+   "card_number": "P-285",
+   "status": "banned",
+   "card_name": "Nuova Shenron, Fair and Square",
+   "limit": 0,
+   "since": "From January 1, 2025 onward."
+  },
+  {
+   "card_number": "BT10-003",
+   "status": "banned",
+   "card_name": "Vegito Unison of Might",
+   "limit": 0,
+   "since": "August 2, 2024"
+  },
+  {
+   "card_number": "BT20-029",
+   "status": "banned",
+   "card_name": "Android 21, in the Name of Peace",
+   "limit": 0,
+   "since": "Pre-release date of [BT24] ZENKAI Series Set 07 -BEYOND GENERATIONS- in your region."
+  },
+  {
+   "card_number": "DB2-108",
+   "status": "banned",
+   "card_name": "Bergamo, Ferocious Roar",
+   "limit": 0,
+   "since": "Pre-release date of [BT24] ZENKAI Series Set 07 -BEYOND GENERATIONS- in your region."
+  },
+  {
+   "card_number": "EX06-27",
+   "status": "banned",
+   "card_name": "Swift Retaliation Cooler",
+   "limit": 0,
+   "since": "Pre-release date of [BT24] ZENKAI Series Set 07 -BEYOND GENERATIONS- in your region."
+  },
+  {
+   "card_number": "BT1-083",
+   "status": "banned",
+   "card_name": "Frieza/Ultimate Form Golden Frieza",
+   "limit": 0,
+   "since": "From December 1, 2023 onward."
+  },
+  {
+   "card_number": "BT21-074",
+   "status": "banned",
+   "card_name": "Android 16, Final Wish",
+   "limit": 0,
+   "since": "From December 1, 2023 onward."
+  },
+  {
+   "card_number": "DB2-104",
+   "status": "banned",
+   "card_name": "Hit, the Revoker",
+   "limit": 0,
+   "since": "From December 1, 2023 onward."
+  },
+  {
+   "card_number": "EX07-02",
+   "status": "banned",
+   "card_name": "Vegeta, Preparing for Battle",
+   "limit": 0,
+   "since": "From July 9, 2023 onward."
+  },
+  {
+   "card_number": "BT18-001",
+   "status": "banned",
+   "card_name": "Son Goku & Vegeta/ SS4 Son Goku & SS4 Vegeta, In It Together",
+   "limit": 0,
+   "since": "Pre-release date of [BT21] ZENKAI Series Set 4 -Wild Resurgence- in your region."
+  },
+  {
+   "card_number": "BT18-002",
+   "status": "banned",
+   "card_name": "One-Star Ball/ Syn Shenron, Despair Made Manifest",
+   "limit": 0,
+   "since": "Pre-release date of [BT21] ZENKAI Series Set 4 -Wild Resurgence- in your region."
+  },
+  {
+   "card_number": "BT18-019",
+   "status": "banned",
+   "card_name": "SS4 Gogeta, Triumphant Together",
+   "limit": 0,
+   "since": "Pre-release date of [BT21] ZENKAI Series Set 4 -Wild Resurgence- in your region."
+  },
+  {
+   "card_number": "BT17-032",
+   "status": "banned",
+   "card_name": "Gamma 1 & Gamma 2/ Gamma 1 & Gamma 2, Newfound Foes",
+   "limit": 0,
+   "since": "Pre-release date of [BT21] ZENKAI Series Set 4 -Wild Resurgence- in your region."
+  },
+  {
+   "card_number": "DB2-062",
+   "status": "banned",
+   "card_name": "Dirty Burst",
+   "limit": 0,
+   "since": "Pre-release date of [BT21] ZENKAI Series Set 4 -Wild Resurgence- in your region."
+  },
+  {
+   "card_number": "BT16-020",
+   "status": "banned",
+   "card_name": "Son Goku/SSG Son Goku, Crimson Warrior",
+   "limit": 0,
+   "since": "From March 31, 2023 onward."
+  },
+  {
+   "card_number": "BT1-005",
+   "status": "banned",
+   "card_name": "Furthering Destruction Champa",
+   "limit": 0,
+   "since": "From March 31, 2023 onward."
+  },
+  {
+   "card_number": "TB2-012",
+   "status": "banned",
+   "card_name": "Hidden Power, East Supreme Kai",
+   "limit": 0,
+   "since": "From March 31, 2023 onward."
+  },
+  {
+   "card_number": "BT10-044",
+   "status": "banned",
+   "card_name": "SS Trunks, God-Sealing Technique",
+   "limit": 0,
+   "since": "From January 1, 2023 onward."
+  },
+  {
+   "card_number": "BT18-011",
+   "status": "banned",
+   "card_name": "SS4 Son Goku, Digging Deep",
+   "limit": 0,
+   "since": "From January 1, 2023 onward."
+  },
+  {
+   "card_number": "BT18-022",
+   "status": "banned",
+   "card_name": "Haze Shenron, Gathering Evil",
+   "limit": 0,
+   "since": "From January 1, 2023 onward."
+  },
+  {
+   "card_number": "BT8-110",
+   "status": "banned",
+   "card_name": "SS4 Son Goku, A Heartfelt Plea",
+   "limit": 0,
+   "since": "From October 28, 2022 onward."
+  },
+  {
+   "card_number": "DB3-015",
+   "status": "banned",
+   "card_name": "King Piccolo, the New Ruler",
+   "limit": 0,
+   "since": "From October 28, 2022 onward."
+  },
+  {
+   "card_number": "BT12-023",
+   "status": "banned",
+   "card_name": "Piano, Reign of Terror",
+   "limit": 0,
+   "since": "Date of Unison Warrior Series -BOOST- Ultimate Squad [DBS-B17] Pre-Release."
+  },
+  {
+   "card_number": "P-261",
+   "status": "banned",
+   "card_name": "SS4 Bardock, Fighting Against Fate",
+   "limit": 0,
+   "since": "Date of Unison Warrior Series -BOOST- Ultimate Squad [DBS-B17] Pre-Release."
+  },
+  {
+   "card_number": "BT9-112",
+   "status": "banned",
+   "card_name": "Cell, Perfection Surpassed",
+   "limit": 0,
+   "since": "Date of Unison Warrior Series -BOOST- Realm of the Gods [DBS-B16] Pre-Release."
+  },
+  {
+   "card_number": "BT3-112",
+   "status": "banned",
+   "card_name": "Unrelenting Assault Trunks",
+   "limit": 0,
+   "since": "Date of Unison Warrior Series -BOOST- Realm of the Gods [DBS-B16] Pre-Release."
+  },
+  {
+   "card_number": "BT3-118",
+   "status": "banned",
+   "card_name": "Fu, Shrouded in Mystery",
+   "limit": 0,
+   "since": "Date of Unison Warrior Series -BOOST- Realm of the Gods [DBS-B16] Pre-Release."
+  },
+  {
+   "card_number": "EX13-35",
+   "status": "banned",
+   "card_name": "Violent Rush Boujack",
+   "limit": 0,
+   "since": "From November 1, 2021 onward."
+  },
+  {
+   "card_number": "BT9-050",
+   "status": "banned",
+   "card_name": "Belmod, Double Devastation",
+   "limit": 0,
+   "since": "From September 3, 2021 onward."
+  },
+  {
+   "card_number": "BT10-027",
+   "status": "banned",
+   "card_name": "Mercenary Tao, Unequaled Assassin",
+   "limit": 0,
+   "since": "From September 3, 2021 onward."
+  },
+  {
+   "card_number": "BT10-127",
+   "status": "banned",
+   "card_name": "Bardock the Resolute",
+   "limit": 0,
+   "since": "From September 3, 2021 onward."
+  },
+  {
+   "card_number": "BT10-128",
+   "status": "banned",
+   "card_name": "Son Goku, Power of Legend",
+   "limit": 0,
+   "since": "From September 3, 2021 onward."
+  },
+  {
+   "card_number": "P-265",
+   "status": "banned",
+   "card_name": "Mecha Frieza, Resurrected Monarch",
+   "limit": 0,
+   "since": "From September 3, 2021 onward."
+  },
+  {
+   "card_number": "BT8-053",
+   "status": "banned",
+   "card_name": "Beerus, Godly Majesty",
+   "limit": 0,
+   "since": "From August 6, 2021 onward."
+  },
+  {
+   "card_number": "BT8-070",
+   "status": "banned",
+   "card_name": "Pan, Great Ape Whisperer",
+   "limit": 0,
+   "since": "From August 6, 2021 onward."
+  },
+  {
+   "card_number": "BT9-128",
+   "status": "banned",
+   "card_name": "Father-Son Kamehameha Goku & Gohan",
+   "limit": 0,
+   "since": "From August 6, 2021 onward."
+  },
+  {
+   "card_number": "EX10-02",
+   "status": "banned",
+   "card_name": "Master Roshi, Kamehameha Origins",
+   "limit": 0,
+   "since": "May 14, 2021"
+  },
+  {
+   "card_number": "TB3-065",
+   "status": "banned",
+   "card_name": "No Escape Son Goku",
+   "limit": 0,
+   "since": "From January 15, 2021 onward."
+  },
+  {
+   "card_number": "DB2-137",
+   "status": "banned",
+   "card_name": "Anilaza, The Towering Atrocity",
+   "limit": 0,
+   "since": "From July 17, 2020 onward."
+  },
+  {
+   "card_number": "DB2-140",
+   "status": "banned",
+   "card_name": "Secret Technique Paparoni",
+   "limit": 0,
+   "since": "From July 17, 2020 onward."
+  },
+  {
+   "card_number": "DB2-151",
+   "status": "banned",
+   "card_name": "Nigrisshi, from the Shadows",
+   "limit": 0,
+   "since": "From July 17, 2020 onward."
+  },
+  {
+   "card_number": "DB2-153",
+   "status": "banned",
+   "card_name": "Viara, Everlasting Assault",
+   "limit": 0,
+   "since": "From July 17, 2020 onward."
+  },
+  {
+   "card_number": "BT5-038",
+   "status": "banned",
+   "card_name": "Gogeta, Hero Revived",
+   "limit": 0,
+   "since": "From June 5, 2020 onward."
+  },
+  {
+   "card_number": "BT8-122",
+   "status": "banned",
+   "card_name": "Android 21, Violent Predator",
+   "limit": 0,
+   "since": "From June 5, 2020 onward."
+  },
+  {
+   "card_number": "TB2-027",
+   "status": "banned",
+   "card_name": "Begrudging Respect Piccolo",
+   "limit": 0,
+   "since": "From June 5, 2020 onward."
+  },
+  {
+   "card_number": "EX03-27",
+   "status": "banned",
+   "card_name": "Forced Ejection Masked Saiyan",
+   "limit": 0,
+   "since": "From June 5, 2020 onward."
+  },
+  {
+   "card_number": "EX06-14",
+   "status": "banned",
+   "card_name": "Plan for Destruction",
+   "limit": 0,
+   "since": "From June 5, 2020 onward."
+  },
+  {
+   "card_number": "P-167",
+   "status": "banned",
+   "card_name": "Turles, the Unstoppable Ghost Warrior",
+   "limit": 0,
+   "since": "From June 5, 2020 onward."
+  },
+  {
+   "card_number": "BT1-052",
+   "status": "banned",
+   "card_name": "Objection",
+   "limit": 0,
+   "since": "From February 7, 2020 onward."
+  },
+  {
+   "card_number": "BT2-044",
+   "status": "banned",
+   "card_name": "Unyielding Spirit Trunks",
+   "limit": 0,
+   "since": "From February 7, 2020 onward."
+  },
+  {
+   "card_number": "BT6-111",
+   "status": "banned",
+   "card_name": "Tien Shinhan, Returning Fire",
+   "limit": 0,
+   "since": "From February 7, 2020 onward."
+  },
+  {
+   "card_number": "BT6-112",
+   "status": "banned",
+   "card_name": "Mercenary Tao, Ruthless Trainer",
+   "limit": 0,
+   "since": "From February 7, 2020 onward."
+  },
+  {
+   "card_number": "BT2-067",
+   "status": "banned",
+   "card_name": "Zen-Oh Button",
+   "limit": 0,
+   "since": "From January 17, 2020 onward."
+  },
+  {
+   "card_number": "BT1-108",
+   "status": "banned",
+   "card_name": "Bad Ring Laser",
+   "limit": 0,
+   "since": "From Friday, July 26, 2019 onward."
+  },
+  {
+   "card_number": "BT3-100",
+   "status": "banned",
+   "card_name": "Unwavering Solidarity Shugesh",
+   "limit": 0,
+   "since": "From Friday, July 26, 2019 onward."
+  },
+  {
+   "card_number": "BT4-122",
+   "status": "banned",
+   "card_name": "Minus Kili Zone",
+   "limit": 0,
+   "since": "From Friday, July 26, 2019 onward."
+  },
+  {
+   "card_number": "BT4-073",
+   "status": "banned",
+   "card_name": "Bardock, the Progenitor",
+   "limit": 0,
+   "since": "From June 1,2019 forward"
+  },
+  {
+   "card_number": "BT5-118",
+   "status": "banned",
+   "card_name": "A Child’s Wish",
+   "limit": 0,
+   "since": "From June 1,2019 forward"
+  },
+  {
+   "card_number": "BT3-032",
+   "status": "banned",
+   "card_name": "Heightened Evolution Super Saiyan 3 Son Goku",
+   "limit": 0,
+   "since": "From September 28, 2018 forward"
+  },
+  {
+   "card_number": "BT4-045",
+   "status": "banned",
+   "card_name": "The Legendary Flute",
+   "limit": 0,
+   "since": "From February 1, 2019"
+  },
+  {
+   "card_number": "BT11-132",
+   "status": "limited",
+   "card_name": "SS Bardock, the Tenacious",
+   "limit": 1,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "BT22-127",
+   "status": "limited",
+   "card_name": "SS Cumber, Assailant’s Fury",
+   "limit": 1,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "BT26-065",
+   "status": "limited",
+   "card_name": "Gowasu, Instructor",
+   "limit": 1,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "P-651",
+   "status": "limited",
+   "card_name": "SS Trunks, Journey Through Time",
+   "limit": 1,
+   "since": "From July 3 2026 onward."
+  },
+  {
+   "card_number": "BT23-016",
+   "status": "limited",
+   "card_name": "Trunks, Powerful Sentiments",
+   "limit": 1,
+   "since": "Pre-release date of [BT24] ZENKAI Series Set 07 -BEYOND GENERATIONS- in your region."
+  },
+  {
+   "card_number": "BT23-109",
+   "status": "limited",
+   "card_name": "Son Goku, Multiple Awakenings",
+   "limit": 1,
+   "since": "Pre-release date of [BT24] ZENKAI Series Set 07 -BEYOND GENERATIONS- in your region."
+  },
+  {
+   "card_number": "BT23-103",
+   "status": "limited",
+   "card_name": "Kamehameha, Omen of Victory",
+   "limit": 1,
+   "since": "Pre-release date of [BT24] ZENKAI Series Set 07 -BEYOND GENERATIONS- in your region."
+  },
+  {
+   "card_number": "BT10-075",
+   "status": "limited",
+   "card_name": "Frieza, Charismatic Villain",
+   "limit": 1,
+   "since": "From December 1, 2023 onward."
+  },
+  {
+   "card_number": "BT20-096",
+   "status": "limited",
+   "card_name": "SS Son Goku & SS Vegeta, Ultimate Duo",
+   "limit": 1,
+   "since": "From December 1, 2023 onward."
+  },
+  {
+   "card_number": "BT13-034",
+   "status": "limited",
+   "card_name": "Majin Buu, Assault of the Agents of Destruction",
+   "limit": 1,
+   "since": "From March 31, 2023 onward."
+  },
+  {
+   "card_number": "BT10-008",
+   "status": "limited",
+   "card_name": "Yamcha, Merciless Barrage",
+   "limit": 1,
+   "since": "From October 28, 2022 onward."
+  },
+  {
+   "card_number": "P-308",
+   "status": "limited",
+   "card_name": "SS3 Gogeta, Thwarting the Dark Empire",
+   "limit": 1,
+   "since": "Date of Unison Warrior Series -BOOST- Ultimate Squad [DBS-B17] Pre-Release."
+  },
+  {
+   "card_number": "BT13-120",
+   "status": "limited",
+   "card_name": "The Power of a Super Saiyan",
+   "limit": 1,
+   "since": "Date of Unison Warrior Series -BOOST- Realm of the Gods [DBS-B16] Pre-Release."
+  },
+  {
+   "card_number": "BT12-045",
+   "status": "limited",
+   "card_name": "Janemba, Bewitching Blow",
+   "limit": 1,
+   "since": "From September 3, 2021 onward."
+  },
+  {
+   "card_number": "BT12-022",
+   "status": "limited",
+   "card_name": "Drum, Reign of Terror",
+   "limit": 1,
+   "since": "From August 6, 2021 onward."
+  },
+  {
+   "card_number": "TB1-052",
+   "status": "limited",
+   "card_name": "Son Goku, Hope of Universe 7",
+   "limit": 1,
+   "since": "May 14, 2021"
+  },
+  {
+   "card_number": "BT10-130",
+   "status": "limited",
+   "card_name": "Trunks, Elite Descendant",
+   "limit": 1,
+   "since": "From January 15, 2021 onward."
+  },
+  {
+   "card_number": "BT1-107",
+   "status": "limited",
+   "card_name": "Cold Bloodlust",
+   "limit": 1,
+   "since": "From Friday, July 26, 2019 onward."
+  },
+  {
+   "card_number": "BT2-086",
+   "status": "limited",
+   "card_name": "Growing Evil Lifeform Cell",
+   "limit": 1,
+   "since": "From February 1, 2019 forward"
+  }
+ ]
+}
