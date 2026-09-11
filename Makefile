@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps import sync sync-full test shell superuser psql reset
+.PHONY: up down build logs ps deploy hooks migrate import sync sync-full test shell superuser psql reset
 
 up:            ## Levanta todo en segundo plano
 	docker compose up -d --build
@@ -8,6 +8,16 @@ down:          ## Para los contenedores (los datos se conservan)
 
 build:
 	docker compose build
+
+deploy:        ## git pull + rebuild si hace falta + migraciones + reinicio
+	bash scripts/deploy.sh
+
+hooks:         ## Activa el hook: cada `git pull` en main ejecuta scripts/deploy.sh
+	git config core.hooksPath .githooks
+	@echo "Hook post-merge activado en este clon."
+
+migrate:       ## Aplica migraciones pendientes
+	docker compose exec backend python manage.py migrate
 
 logs:          ## Logs de todos los servicios
 	docker compose logs -f --tail=100

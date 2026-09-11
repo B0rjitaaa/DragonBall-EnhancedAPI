@@ -28,6 +28,23 @@ make up                           # = docker compose up -d --build
 Si `data/cartas_dbs.json` existe y la BD está vacía, se importa solo al arrancar.
 Si no, lanza `make sync` y el worker descargará todo desde Bandai.
 
+## Actualizar tras un `git pull` (migraciones incluidas)
+
+```bash
+make deploy   # git pull + rebuild si cambian dependencias + migraciones + reinicio de backend/Celery
+```
+
+Para que ocurra solo en cada `git pull` sobre `main` (recomendado en el servidor / Raspberry Pi),
+activa una vez el hook del repositorio:
+
+```bash
+make hooks    # = git config core.hooksPath .githooks
+```
+
+A partir de ahí, `git pull` ejecuta `scripts/deploy.sh`: reconstruye imágenes solo si cambian
+`requirements.txt`, `package.json` o los Dockerfiles, aplica migraciones y reinicia backend y Celery.
+Para saltarlo puntualmente: `SKIP_DEPLOY_HOOK=1 git pull`.
+
 ## Sincronización con Bandai (Celery)
 
 Programado en `config/settings.py → CELERY_BEAT_SCHEDULE` (editable luego desde `/admin` → *Periodic tasks*):
