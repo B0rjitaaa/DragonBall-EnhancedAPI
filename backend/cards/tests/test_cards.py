@@ -58,13 +58,24 @@ class ParsingTests(TestCase):
         self.assertEqual(normalize_attr("Son Gohan : Adolescence"), "Son Gohan : Adolescence")
 
     def test_keywords_and_families(self):
-        kws, fams = extract_keywords("[Activate : Main/Battle][Limit 1][+1][Counter : Play][Revive Blue/Green]")
+        kws, fams, mentions = extract_keywords("[Activate : Main/Battle][Limit 1][+1][Counter : Play][Revive Blue/Green]")
+        self.assertEqual(mentions, [])
         self.assertIn("Activate: Main/Battle", kws)
         self.assertIn("Activate: Main", kws)
         self.assertIn("Activate: Battle", kws)
         self.assertIn("Limit 1", kws)
         self.assertNotIn("+1", kws)
         self.assertEqual(set(fams), {"Activate", "Limit", "Counter", "Revive"})
+
+    def test_own_skills_vs_mentions(self):
+        text = ("[Deflect] (This card isn't affected by [Counter : Play] skills)<br>[Triple Strike]<br>"
+                "[Auto][Once per turn] When you play this card with [Swap], it gains [Barrier].")
+        kws, _, mentions = extract_keywords(text)
+        self.assertEqual(kws, ["Deflect", "Triple Strike", "Auto", "Once Per Turn"])
+        self.assertEqual(mentions, ["Counter: Play", "Swap", "Barrier"])
+        kws, _, mentions = extract_keywords(
+            "[Dark Over Realm 3] (If you have… to your Warp. [Over Realm] and [Dark Over Realm] can only…)")
+        self.assertEqual((kws, mentions), (["Dark Over Realm 3"], ["Over Realm", "Dark Over Realm"]))
 
     def test_parse_card(self):
         c = parse_card(GOKU)

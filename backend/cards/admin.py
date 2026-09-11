@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import BanListEntry, Card, SyncRun
+from .models import BanListEntry, Card, KeywordSkill, SyncRun
 
 
 @admin.register(Card)
@@ -23,3 +23,10 @@ class BanListEntryAdmin(admin.ModelAdmin):
     list_display = ("card_number", "card_name", "status", "limit", "since", "source", "list_updated")
     list_filter = ("status", "source")
     search_fields = ("card_number", "card_name")
+
+
+@admin.register(KeywordSkill)
+class KeywordSkillAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "order", "source", "list_updated")
+    list_filter = ("category", "source")
+    search_fields = ("name", "description")

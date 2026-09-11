@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { colorClass } from '../lib/colors'
 import { valueLabel } from '../lib/labels'
+import type { SkillIndex } from '../lib/skills'
 import type { Facet, FacetSelection, FacetState, FieldDef } from '../lib/types'
+import Tooltip from './Tooltip'
+
+const KEYWORD_RULES_URL = 'https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php'
 
 type Mode = 'chips' | 'list' | 'range'
 
@@ -10,6 +14,7 @@ interface Section {
   mode: Mode
   open?: boolean
   sort?: 'count' | 'alpha'
+  skills?: boolean // tooltips con el texto oficial + variantes ('Over Realm X' -> 3, 4, 5…)
 }
 
 // Orden y forma de cada filtro en el panel lateral
@@ -19,8 +24,9 @@ const SECTIONS: Section[] = [
   { key: 'color', mode: 'chips', open: true },
   { key: 'energy', mode: 'chips', open: true },
   { key: 'power', mode: 'range', open: true },
-  { key: 'keyword', mode: 'list', open: true, sort: 'alpha' },
-  { key: 'keyword_family', mode: 'list' },
+  { key: 'timing', mode: 'chips', open: true, skills: true },
+  { key: 'keyword_skill', mode: 'list', open: true, sort: 'alpha', skills: true },
+  { key: 'keyword_rule', mode: 'list', open: true, sort: 'alpha', skills: true },
   { key: 'special_trait', mode: 'list' },
   { key: 'character', mode: 'list' },
   { key: 'rarity', mode: 'list' },
@@ -42,9 +48,10 @@ interface Props {
   context: Record<string, Facet> | null
   state: FacetState
   onChange: (next: FacetState) => void
+  skills: SkillIndex
 }
 
-export default function FacetPanel({ fields, global, context, state, onChange }: Props) {
+export default function FacetPanel({ fields, global, context, state, onChange, skills }: Props) {
   const byKey = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, f])), [fields])
 
   const update = (key: string, sel: FacetSelection) => {
@@ -57,7 +64,7 @@ export default function FacetPanel({ fields, global, context, state, onChange }:
 
   return (
     <div className="facets">
-      {SECTIONS.map(({ key, mode, open, sort }) => {
+      {SECTIONS.map(({ key, mode, open, sort, skills: withSkills }) => {
         const field = byKey[key]
         const facet = global[key]
         if (!field || !facet) return null
@@ -68,6 +75,18 @@ export default function FacetPanel({ fields, global, context, state, onChange }:
           <details key={key} className="facet" open={open || active > 0}>
             <summary>
               <span>{field.label}</span>
+              {withSkills && (
+                <a
+                  className="rules-link"
+                  href={KEYWORD_RULES_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Reglas oficiales de las keyword skills"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  ⓘ
+                </a>
+              )}
               {active > 0 && (
                 <button
                   className="link small"
@@ -86,9 +105,34 @@ export default function FacetPanel({ fields, global, context, state, onChange }:
             {mode === 'range' ? (
               <RangeFilter facet={facet} sel={sel} onChange={(s) => update(key, s)} />
             ) : mode === 'chips' ? (
-              <Chips field={key} facet={facet} counts={counts} sel={sel} onChange={(s) => update(key, s)} />
+              <Chips
+                field={key}
+                facet={facet}
+                counts={counts}
+                sel={sel}
+                skills={withSkills ? skills : undefined}
+                onChange={(s) => update(key, s)}
+              />
             ) : (
-              <ValueList facet={facet} counts={counts} sel={sel} sort={sort} onChange={(s) => update(key, s)} />
+              <ValueList
+                facet={facet}
+                counts={counts}
+                sel={sel}
+                sort={sort}
+                onChange={(s) => update(key, s)}
+                skills={withSkills ? skills : undefined}
+                variants={
+                  withSkills
+                    ? {
+                        sel: state.keyword ?? EMPTY,
+                        counts: new Map(
+                          (context?.keyword?.values ?? global.keyword?.values ?? []).map((v) => [String(v.value), v.count]),
+                        ),
+                        onChange: (s) => update('keyword', s),
+                      }
+                    : undefined
+                }
+              />
             )}
           </details>
         )
@@ -122,21 +166,35 @@ interface ListProps {
   onChange: (s: FacetSelection) => void
 }
 
-function Chips({ field, facet, counts, sel, onChange }: ListProps & { field: string }) {
+function SkillTip({ skills, name, children }: { skills?: SkillIndex; name: string; children: ReactNode }) {
+  const skill = skills?.describe(name)
+  if (!skills) return <>{children}</>
+  return (
+    <Tooltip
+      title={`[${name}]`}
+      text={skill?.description ?? 'No aparece en la página oficial de keyword skills (es posterior a su última actualización).'}
+    >
+      {children}
+    </Tooltip>
+  )
+}
+
+function Chips({ field, facet, counts, sel, onChange, skills }: ListProps & { field: string; skills?: SkillIndex }) {
   return (
     <div className="chips">
       {facet.values.map(({ value }) => {
         const n = counts.get(String(value)) ?? 0
         const on = sel.values.includes(value)
         return (
-          <button
-            key={String(value)}
-            className={`chip ${on ? 'on' : ''} ${!n && !on ? 'zero' : ''} ${colorClass(value)} ${field === 'legality' ? `lg-${value}` : ''}`}
-            onClick={() => onChange(toggle(sel, value))}
-            title={`${n} cartas`}
-          >
-            {valueLabel(field, value)} <small>{n}</small>
-          </button>
+          <SkillTip key={String(value)} skills={skills} name={String(value)}>
+            <button
+              className={`chip ${on ? 'on' : ''} ${!n && !on ? 'zero' : ''} ${colorClass(value)} ${field === 'legality' ? `lg-${value}` : ''}`}
+              onClick={() => onChange(toggle(sel, value))}
+              title={skills ? undefined : `${n} cartas`}
+            >
+              {valueLabel(field, value)} <small>{n}</small>
+            </button>
+          </SkillTip>
         )
       })}
     </div>
@@ -145,12 +203,27 @@ function Chips({ field, facet, counts, sel, onChange }: ListProps & { field: str
 
 const collator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' })
 
-function ValueList({ facet, counts, sel, sort = 'count', onChange }: ListProps & { sort?: 'count' | 'alpha' }) {
+interface VariantProps {
+  sel: FacetSelection
+  counts: Map<string, number>
+  onChange: (s: FacetSelection) => void
+}
+
+function ValueList({
+  facet,
+  counts,
+  sel,
+  sort = 'count',
+  onChange,
+  skills,
+  variants,
+}: ListProps & { sort?: 'count' | 'alpha'; skills?: SkillIndex; variants?: VariantProps }) {
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState(false)
+  const [openVariants, setOpenVariants] = useState<Record<string, boolean>>({})
   const needle = filter.trim().toLowerCase()
   const values = facet.values.filter(({ value }) => !needle || String(value).toLowerCase().includes(needle))
-  // Seleccionados primero; después alfabético ('Burst 2' antes que 'Burst 10') o por recuento
+  // Seleccionados primero, luego por recuento en la búsqueda actual
   const sorted = [...values].sort((a, b) => {
     const sa = sel.values.includes(a.value) ? 1 : 0
     const sb = sel.values.includes(b.value) ? 1 : 0
@@ -173,13 +246,51 @@ function ValueList({ facet, counts, sel, sort = 'count', onChange }: ListProps &
         {sorted.slice(0, limit).map(({ value }) => {
           const n = counts.get(String(value)) ?? 0
           const on = sel.values.includes(value)
+          const name = String(value)
+          const vars = skills && variants ? skills.variants(name) : []
+          const varsOn = vars.filter((v) => variants?.sel.values.includes(v.value)).length
+          const showVars = !!openVariants[name] || varsOn > 0
           return (
-            <li key={String(value)} className={!n && !on ? 'zero' : ''}>
-              <label>
-                <input type="checkbox" checked={on} onChange={() => onChange(toggle(sel, value))} />
-                <span className="value-label">{String(value)}</span>
-                <small>{n}</small>
-              </label>
+            <li key={name} className={!n && !on ? 'zero' : ''}>
+              <div className="value-row">
+                <label>
+                  <input type="checkbox" checked={on} onChange={() => onChange(toggle(sel, value))} />
+                  <SkillTip skills={skills} name={name}>
+                    <span className="value-label">{name}</span>
+                  </SkillTip>
+                  <small>{n}</small>
+                </label>
+                {vars.length > 1 && (
+                  <button
+                    className={`variants-toggle ${showVars ? 'open' : ''}`}
+                    onClick={() => setOpenVariants({ ...openVariants, [name]: !showVars })}
+                    title="Elegir valores concretos"
+                  >
+                    {varsOn > 0 ? varsOn : vars.length}
+                  </button>
+                )}
+              </div>
+              {showVars && variants && (
+                <ul className="variants">
+                  {vars.map((v) => {
+                    const vn = variants.counts.get(String(v.value)) ?? 0
+                    const von = variants.sel.values.includes(v.value)
+                    return (
+                      <li key={String(v.value)} className={!vn && !von ? 'zero' : ''}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={von}
+                            onChange={() => variants.onChange(toggle({ ...variants.sel, match: 'any' }, v.value))}
+                          />
+                          <span className="value-label">{String(v.value)}</span>
+                          <small>{vn}</small>
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </li>
           )
         })}

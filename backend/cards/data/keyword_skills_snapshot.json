@@ -1,0 +1,372 @@
+{
+ "source": "https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php",
+ "updated": "Jul. 22, 2022",
+ "entries": [
+  {
+   "name": "Permanent",
+   "category": "timing",
+   "description": "This skill is always active.",
+   "order": 1
+  },
+  {
+   "name": "Auto",
+   "category": "timing",
+   "description": "This skill activates when its trigger conditions are met. If the skill has a skill cost, it must be paid to activate the skill.",
+   "order": 2
+  },
+  {
+   "name": "Activate : Main",
+   "category": "timing",
+   "description": "This skill can be activated during your Main Phase.",
+   "order": 3
+  },
+  {
+   "name": "Activate : Battle",
+   "category": "timing",
+   "description": "This skill can be activated during your Offense Step during your turn, and during your Defense Step during your opponent's turn.",
+   "order": 4
+  },
+  {
+   "name": "Activate : Main/Battle",
+   "category": "timing",
+   "description": "This skill can be activated during your Main Phase, during your Offense Step during your turn, and during your Defense Step during your opponent's turn.",
+   "order": 5
+  },
+  {
+   "name": "Ultimate",
+   "category": "skill",
+   "description": "You can only include 1 copy of a card with [Ultimate] in your deck. If a card with [Ultimate] would leave your Battle Area, remove it from the game instead.",
+   "order": 6
+  },
+  {
+   "name": "Super Combo",
+   "category": "skill",
+   "description": "You can only include up to 4 cards with [Super Combo] in your deck.",
+   "order": 7
+  },
+  {
+   "name": "Dragon Ball",
+   "category": "skill",
+   "description": "You can include as many copies of cards with [Dragon Ball] in your deck as you like, as long as the total number doesn't exceed 7.",
+   "order": 8
+  },
+  {
+   "name": "Energy-Exhaust",
+   "category": "skill",
+   "description": "If this card is placed in an Energy Area from any area, it must be placed there in Rest Mode.",
+   "order": 9
+  },
+  {
+   "name": "Deflect",
+   "category": "skill",
+   "description": "This card isn't affected by [Counter : Play] skills.",
+   "order": 10
+  },
+  {
+   "name": "Unique",
+   "category": "skill",
+   "description": "Only 1 copy of this card can be played in your Battle Area.",
+   "order": 11
+  },
+  {
+   "name": "Over Realm X",
+   "category": "skill",
+   "description": "If you have at least X cards in your Drop, you can play this card by sending all cards from your Drop to your Warp. At the end of that turn, send this card from your Battle Area to its owner's Warp. [Over Realm] can be activated once per turn.",
+   "order": 12
+  },
+  {
+   "name": "Dark Over Realm X",
+   "category": "skill",
+   "description": "If you have at least X black cards in your Drop, you can play this card by sending all cards from your Drop to your Warp. [Over Realm] and [Dark Over Realm] can only be activated once per turn.",
+   "order": 13
+  },
+  {
+   "name": "Evolve",
+   "category": "skill",
+   "description": "Play this card on top of the specified card.",
+   "order": 14
+  },
+  {
+   "name": "EX-Evolve",
+   "category": "skill",
+   "description": "Play this card on top of the specified card.",
+   "order": 15
+  },
+  {
+   "name": "Xeno-Evolve",
+   "category": "skill",
+   "description": "Play this card in Active Mode by sending the specified cards from your Battle Area to its owner's Warp.",
+   "order": 16
+  },
+  {
+   "name": "Union-Fusion",
+   "category": "skill",
+   "description": "Place 1 each of the specified card(s) with the same power from your hand into your Drop and play this card.",
+   "order": 17
+  },
+  {
+   "name": "Union-Potara",
+   "category": "skill",
+   "description": "Place this card in Active Mode on top of the 2 specified cards stacked together.",
+   "order": 18
+  },
+  {
+   "name": "Union-Absorb",
+   "category": "skill",
+   "description": "Follow the effect and play the specified card from the specified area on top of this card.",
+   "order": 19
+  },
+  {
+   "name": "Swap X",
+   "category": "skill",
+   "description": "Play the specified card from your hand, then return this card to your hand.",
+   "order": 20
+  },
+  {
+   "name": "Arrival X/Y",
+   "category": "skill",
+   "description": "Play this card from your hand when you have X and Y cards in your Combo Area.",
+   "order": 21
+  },
+  {
+   "name": "Successor",
+   "category": "skill",
+   "description": "Choose any number of your mono-green, mono-yellow, or Green/Yellow multicolor Battle Cards whose energy costs add up to the energy cost of this card, place them in their owners' Drops, then play this card from your hand.",
+   "order": 22
+  },
+  {
+   "name": "Empower ColorX",
+   "category": "skill",
+   "description": "If this card replaces a Color Unison Card as it enters play, it carries over up to X of its markers.",
+   "order": 23
+  },
+  {
+   "name": "Critical",
+   "category": "skill",
+   "description": "When this card inflicts damage to your opponent's life, they place that many cards in their Drop instead of their hand.",
+   "order": 24
+  },
+  {
+   "name": "Double Strike",
+   "category": "skill",
+   "description": "This card inflicts 2 damage instead of 1 when attacking.",
+   "order": 25
+  },
+  {
+   "name": "Triple Strike",
+   "category": "skill",
+   "description": "This card inflicts 3 damage instead of 1 when attacking.",
+   "order": 26
+  },
+  {
+   "name": "Quadruple Strike",
+   "category": "skill",
+   "description": "This card inflicts 4 damage instead of 1 when attacking.",
+   "order": 27
+  },
+  {
+   "name": "Indestructible",
+   "category": "skill",
+   "description": "This card cannot be KO’d by your opponent’s card skills or battle and does not leave the Battle Area.",
+   "order": 28
+  },
+  {
+   "name": "Barrier",
+   "category": "skill",
+   "description": "This card can't be chosen by the skills of your opponent's cards.",
+   "order": 29
+  },
+  {
+   "name": "Victory Strike",
+   "category": "skill",
+   "description": "When you deal damage by attacking with this card, you win the game.",
+   "order": 30
+  },
+  {
+   "name": "Warrior of Universe 7",
+   "category": "skill",
+   "description": "Treat 《Universe 7》 cards in all areas as if they had no specified cost.",
+   "order": 31
+  },
+  {
+   "name": "Wormhole",
+   "category": "skill",
+   "description": "You can activate [Over Realm] and [Dark Over Realm] up to a total of 2 times a turn.",
+   "order": 32
+  },
+  {
+   "name": "Invoker",
+   "category": "skill",
+   "description": "When paying the energy cost for a Red/Blue multicolor Extra, you can switch 1 Red/Blue multicolor energy to Rest Mode instead.",
+   "order": 33
+  },
+  {
+   "name": "Servant",
+   "category": "skill",
+   "description": "This card gets +10000 power and can't be switched to Active Mode during your Charge Phase.",
+   "order": 34
+  },
+  {
+   "name": "Offering",
+   "category": "skill",
+   "description": "When you play this card, your opponent may choose 1 card from their life and place it in their Drop. If they don't, draw 2 cards.",
+   "order": 35
+  },
+  {
+   "name": "Heroic",
+   "category": "skill",
+   "description": "When you play another 《Heroic》 Battle Card or activate a 《Heroic》 Extra's skill, draw 1 card, then negate this skill for the turn.",
+   "order": 36
+  },
+  {
+   "name": "Villainous",
+   "category": "skill",
+   "description": "When you play another 《Villainous》 Battle Card or activate a 《Villainous》 Extra's skill, your opponent chooses 1 card in their hand and places it in their Drop, then negate this skill for the duration of the turn.",
+   "order": 37
+  },
+  {
+   "name": "Dual Attack",
+   "category": "skill",
+   "description": "Once per turn, when this card attacks, switch this card to Active Mode after the battle.",
+   "order": 38
+  },
+  {
+   "name": "Triple Attack",
+   "category": "skill",
+   "description": "Twice per turn, when this card attacks, switch this card to Active Mode after the battle.",
+   "order": 39
+  },
+  {
+   "name": "Alliance X/Y",
+   "category": "skill",
+   "description": "When this card attacks, you may activate this skill by choosing 1 or more X or Y Battle Cards in your Battle Area and switching them to Rest Mode.",
+   "order": 40
+  },
+  {
+   "name": "Field",
+   "category": "skill",
+   "description": "Place and activate this card in the Battle Area. It remains in the Battle Area until you activate another [Field]. When you do, place this card in its owner's Drop.",
+   "order": 41
+  },
+  {
+   "name": "Overlord",
+   "category": "skill",
+   "description": "Place 1 of your Battle Cards with [Servant] at the bottom of your deck : Draw 1 card.",
+   "order": 42
+  },
+  {
+   "name": "Rejuvenate",
+   "category": "skill",
+   "description": "Place 1 card from under this card in its owner's Drop and pay the skill cost : Place the top card of your deck in your life.",
+   "order": 43
+  },
+  {
+   "name": "Blocker",
+   "category": "skill",
+   "description": "When one of your other cards is attacked, you may switch this card to Rest Mode and change the target of the attack to this card.",
+   "order": 44
+  },
+  {
+   "name": "Revenge",
+   "category": "skill",
+   "description": "When this card is attacked, KO the attacking card after the battle.",
+   "order": 45
+  },
+  {
+   "name": "Aegis X/Y",
+   "category": "skill",
+   "description": "If it's your opponent's turn, you can activate this during the Defense Step by placing cards from your hand in your Drop that match all colors specified by [Aegis] : Choose up to 2 of your energy and switch them to Active Mode.",
+   "order": 46
+  },
+  {
+   "name": "Counter : Play",
+   "category": "skill",
+   "description": "When your opponent announces they're playing a card, or when your opponent activates or resolves a skill to play a card, you can announce the activation of this skill.",
+   "order": 47
+  },
+  {
+   "name": "Counter : Attack",
+   "category": "skill",
+   "description": "When your opponent attacks, you can announce the activation of this skill.",
+   "order": 48
+  },
+  {
+   "name": "Counter : Counter",
+   "category": "skill",
+   "description": "When your opponent activates a [Counter] skill, you can announce the activation of this skill.",
+   "order": 49
+  },
+  {
+   "name": "Counter : Battle Card Attack",
+   "category": "skill",
+   "description": "When your opponent attacks with a Battle Card, you can announce the activation of this skill.",
+   "order": 50
+  },
+  {
+   "name": "Revive X/Y",
+   "category": "skill",
+   "description": "Place cards from your hand in your Drop that match all colors specified by [Revive] : When this card is KO'd, play this card and negate this skill for the turn.",
+   "order": 51
+  },
+  {
+   "name": "Awaken",
+   "category": "skill",
+   "description": "Resolve the effect and flip this card to its back side.",
+   "order": 52
+  },
+  {
+   "name": "Awaken : Surge",
+   "category": "skill",
+   "description": "Resolve the effect and flip this card to its back side.",
+   "order": 53
+  },
+  {
+   "name": "Wish",
+   "category": "skill",
+   "description": "Resolve the effect and flip this card to its back side.",
+   "order": 54
+  },
+  {
+   "name": "Z-Awaken",
+   "category": "skill",
+   "description": "Pay the skill cost and Z-Energy, then place this card from your Z-Deck on top of the specified Leader's back side.",
+   "order": 55
+  },
+  {
+   "name": "Limit X",
+   "category": "keyword",
+   "description": "You can only activate this skill once per turn across all copies of this card.",
+   "order": 56
+  },
+  {
+   "name": "Once per Turn",
+   "category": "keyword",
+   "description": "This skill on this card can only be activated once per turn.",
+   "order": 57
+  },
+  {
+   "name": "Bond X",
+   "category": "keyword",
+   "description": "This skill takes effect when you have X or more of the specified Battle Cards in play.",
+   "order": 58
+  },
+  {
+   "name": "Sparking X",
+   "category": "keyword",
+   "description": "This skill takes effect when you have X or more cards in your Drop.",
+   "order": 59
+  },
+  {
+   "name": "Burst X",
+   "category": "keyword",
+   "description": "You must place the top X cards of your deck in your Drop to activate this skill.",
+   "order": 60
+  },
+  {
+   "name": "Spirit Boost X",
+   "category": "keyword",
+   "description": "You must remove a marker from your Unison Card to activate this skill.",
+   "order": 61
+  }
+ ]
+}

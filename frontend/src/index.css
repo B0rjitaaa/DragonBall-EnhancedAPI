@@ -274,3 +274,37 @@ code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; }
 .legal-banner small { display: block; color: var(--muted); margin-top: 0.15rem; }
 .legal-banner.banned { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.5); }
 .legal-banner.limited { background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.5); }
+
+/* Keyword skills: tooltips, variantes y glosario */
+.tip-anchor { display: inline-flex; min-width: 0; }
+.value-list .tip-anchor { flex: 1; overflow: hidden; }
+.tooltip {
+  position: fixed; z-index: 100; max-width: 320px; pointer-events: none;
+  background: #0b0d12; border: 1px solid var(--accent); border-radius: 8px;
+  padding: 0.55rem 0.7rem; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55); font-size: 0.85rem;
+}
+.tooltip strong { color: var(--accent-2); display: block; margin-bottom: 0.2rem; }
+.tooltip p { margin: 0; line-height: 1.4; }
+.tooltip small { display: block; margin-top: 0.35rem; color: var(--muted); }
+.rules-link { color: var(--muted); text-decoration: none; margin-right: 0.4rem; font-weight: 400; }
+.rules-link:hover { color: var(--accent-2); }
+.value-row { display: flex; align-items: center; gap: 0.3rem; }
+.value-row label { flex: 1; min-width: 0; }
+.variants-toggle {
+  font-size: 0.7rem; background: var(--bg-3); border: 1px solid var(--line); color: var(--muted);
+  border-radius: 999px; padding: 0 0.45rem; line-height: 1.5;
+}
+.variants-toggle::before { content: '▸ '; }
+.variants-toggle.open::before { content: '▾ '; }
+.variants-toggle.open { border-color: var(--accent); color: var(--accent-2); }
+.value-list ul.variants { margin: 0.1rem 0 0.35rem 1.5rem; border-left: 1px solid var(--line); padding-left: 0.5rem; }
+.deck-badge {
+  position: absolute; bottom: 6px; left: 6px; z-index: 2; font-size: 0.65rem; font-weight: 800;
+  padding: 0.1rem 0.4rem; border-radius: 4px; background: #7c3aed; color: #fff;
+}
+.legal-banner.deck { background: rgba(124, 58, 237, 0.14); border-color: rgba(124, 58, 237, 0.55); }
+.glossary { margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.glossary-item { background: var(--bg-3); border-radius: 8px; padding: 0.5rem 0.65rem; }
+.glossary-item dt { display: flex; align-items: center; gap: 0.5rem; }
+.glossary-item dt small { color: var(--muted); font-size: 0.75rem; }
+.glossary-item dd { margin: 0.35rem 0 0; font-size: 0.9em; color: #cfd3dd; }

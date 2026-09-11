@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterable
 from typing import Any
 
 BRACKET_RE = re.compile(r"\[([^\[\]]{1,60})\]")
@@ -102,24 +103,53 @@ def keyword_family(kw: str) -> str:
     return FAMILY_SUFFIX_RE.sub("", kw) or kw
 
 
-def extract_keywords(*texts: str | None) -> tuple[list[str], list[str]]:
-    """Devuelve (keywords, familias) encontradas entre corchetes en los textos."""
+def _is_own_skill(text: str, start: int) -> bool:
+    """¿El corchete que empieza en `start` es una habilidad de la carta o solo una mención?
+
+    Las habilidades propias van al inicio de línea o encadenadas: '[Auto][Once per turn] …',
+    '…<br>[Barrier]'. Las menciones van dentro de una frase: 'it gains [Barrier]',
+    'activates [Revive]', 'isn't affected by [Counter : Play] skills'.
+    """
+    line = text[:start].rsplit("\n", 1)[-1]
+    if line.count("(") > line.count(")"):
+        return False  # texto recordatorio entre paréntesis: '(… [Over Realm] can only be …)'
+    before = line.rstrip(" \t")
+    return not before or before[-1] in "]).:"
+
+
+def _expand(kw: str) -> list[str]:
+    # 'Activate: Main/Battle' también cuenta como 'Activate: Main' y 'Activate: Battle'
+    out = [kw]
+    if ": " in kw:
+        prefix, rest = kw.split(": ", 1)
+        if "/" in rest:
+            out += [f"{prefix}: {part}" for part in rest.split("/")]
+    return out
+
+
+def extract_keywords(*texts: str | None, own: Iterable[str] = ()) -> tuple[list[str], list[str], list[str]]:
+    """Devuelve (habilidades propias, familias, menciones) a partir de los corchetes del texto.
+
+    `own` son valores que siempre cuentan como propios (p. ej. el campo 'Keyword Skill').
+    """
     keywords: dict[str, None] = {}
-    for text in texts:
-        for raw in BRACKET_RE.findall(text or ""):
+    mentions: dict[str, None] = {}
+    for value in own:
+        for raw in BRACKET_RE.findall(value or "") or [value or ""]:
             kw = normalize_keyword(raw)
+            if kw and not NUMERIC_TOKEN_RE.match(kw):
+                keywords.update(dict.fromkeys(_expand(kw)))
+    for text in texts:
+        plain = BR_RE.sub("\n", text or "")
+        for match in BRACKET_RE.finditer(plain):
+            kw = normalize_keyword(match.group(1))
             if not kw or NUMERIC_TOKEN_RE.match(kw):
                 continue  # [+1], [-3]… son marcadores de coste, no habilidades
-            keywords[kw] = None
-            # 'Activate: Main/Battle' también cuenta como 'Activate: Main' y 'Activate: Battle'
-            if ": " in kw:
-                prefix, rest = kw.split(": ", 1)
-                if "/" in rest:
-                    for part in rest.split("/"):
-                        keywords[f"{prefix}: {part}"] = None
+            target = keywords if _is_own_skill(plain, match.start()) else mentions
+            target.update(dict.fromkeys(_expand(kw)))
 
     families = dict.fromkeys(keyword_family(kw) for kw in keywords)
-    return list(keywords), list(families)
+    return list(keywords), list(families), [m for m in mentions if m not in keywords]
 
 
 # --- Card ---------------------------------------------------------------------
@@ -154,12 +184,11 @@ def parse_card(data: dict) -> dict[str, Any]:
     rarity, rarity_code = parse_rarity(cfg.get("Rarity"))
     card_number = clean(data.get("card_number")) or ""
 
-    keywords, families = extract_keywords(
+    keywords, families, mentions = extract_keywords(
         data.get("card_text"),
         data.get("card_text2"),
         data.get("backcard_card_text"),
-        cfg.get("Keyword Skill"),
-        back_cfg.get("Keyword Skill"),
+        own=[cfg.get("Keyword Skill") or "", back_cfg.get("Keyword Skill") or ""],
     )
 
     return {
@@ -187,6 +216,7 @@ def parse_card(data: dict) -> dict[str, Any]:
         "notes": cfg.get("Notes") or "",
         "keywords": keywords,
         "keyword_families": families,
+        "keyword_mentions": mentions,
         "regulations": [r["title"] for r in (data.get("regulations") or []) if r.get("title")],
         "back_id": data.get("backcard_id") or None,
         "back_name": clean(data.get("backcard_card_name")) or "",

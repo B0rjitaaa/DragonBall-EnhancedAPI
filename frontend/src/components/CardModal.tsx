@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import type { CardDetail } from '../lib/types'
+import { CATEGORY_LABEL, type SkillIndex } from '../lib/skills'
+import type { CardDetail, SkillCategory } from '../lib/types'
 import CardText from './CardText'
+import Tooltip from './Tooltip'
 
 interface Props {
   id: number
+  skills: SkillIndex
   onClose: () => void
   onFilter: (field: string, value: string) => void
 }
 
 const HIDDEN_CONFIG = new Set(['Notes'])
 
-export default function CardModal({ id, onClose, onFilter }: Props) {
+export default function CardModal({ id, skills, onClose, onFilter }: Props) {
   const [card, setCard] = useState<CardDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<'front' | 'back'>('front')
@@ -29,6 +32,14 @@ export default function CardModal({ id, onClose, onFilter }: Props) {
 
   const back = side === 'back' && card?.has_back
   const config = card ? (back ? card.back_config : card.config) : {}
+  const cardSkills: [SkillCategory, string[]][] = card
+    ? [
+        ['timing', card.timing],
+        ['skill', card.keyword_skills],
+        ['keyword', card.keyword_rules],
+      ]
+    : []
+  const deckRules = card ? card.keyword_skills.map((s) => skills.deckRule(s)).filter(Boolean) : []
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -67,7 +78,12 @@ export default function CardModal({ id, onClose, onFilter }: Props) {
                   {card.legality_since && <small> {card.legality_since}</small>}
                 </div>
               )}
-              <CardText text={back ? card.back_text : card.text} onKeyword={(kw) => onFilter('keyword', kw)} />
+              {deckRules.length > 0 && (
+                <div className="legal-banner deck">
+                  <strong>🃏 Construcción de mazo:</strong> {deckRules.join(' · ')}
+                </div>
+              )}
+              <CardText text={back ? card.back_text : card.text} skills={skills} onKeyword={(kw) => onFilter('keyword', kw)} />
 
               <table className="attrs">
                 <tbody>
@@ -82,16 +98,29 @@ export default function CardModal({ id, onClose, onFilter }: Props) {
                 </tbody>
               </table>
 
-              {card.keywords.length > 0 && (
+              {cardSkills.some(([, names]) => names.length > 0) && (
                 <>
-                  <h3>Habilidades</h3>
-                  <div className="chips">
-                    {card.keywords.map((kw) => (
-                      <button key={kw} className="chip" onClick={() => onFilter('keyword', kw)}>
-                        {kw}
-                      </button>
-                    ))}
-                  </div>
+                  <h3>Keyword skills de esta carta</h3>
+                  <dl className="glossary">
+                    {cardSkills.flatMap(([category, names]) =>
+                      names.map((name) => {
+                        const skill = skills.describe(name)
+                        return (
+                          <div key={`${category}-${name}`} className="glossary-item">
+                            <dt>
+                              <Tooltip text={`Filtrar por [${name}]`}>
+                                <button className="chip" onClick={() => onFilter(skills.fieldFor(name), name)}>
+                                  {name}
+                                </button>
+                              </Tooltip>
+                              <small>{CATEGORY_LABEL[category]}</small>
+                            </dt>
+                            <dd>{skill?.description ?? 'No aparece en la página oficial de keyword skills.'}</dd>
+                          </div>
+                        )
+                      }),
+                    )}
+                  </dl>
                 </>
               )}
               {card.special_traits.length > 0 && (

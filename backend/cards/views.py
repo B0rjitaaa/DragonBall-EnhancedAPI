@@ -1,4 +1,5 @@
 import json
+import re
 
 from django.db.models import F, Q, QuerySet
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -9,11 +10,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .facets import cached_facets
-from .models import BanListEntry, Card, SyncRun
+from .models import BanListEntry, Card, KeywordSkill, SyncRun
 from .parsing import normalize_search
 from .query import FIELDS, QueryError, fields_schema, params_to_tree, tree_to_q
 from .serializers import (
-    BanListEntrySerializer, CardDetailSerializer, CardListSerializer, SearchRequestSerializer,
+    BanListEntrySerializer, CardDetailSerializer, KeywordSkillSerializer, CardListSerializer, SearchRequestSerializer,
     SyncRunSerializer,
 )
 from .tasks import sync_cards
@@ -137,6 +138,45 @@ class FacetsView(APIView):
         if only is not None and (not isinstance(only, list) or any(k not in FIELDS for k in only)):
             raise ValidationError({"only": "Lista de campos no válida"})
         return Response(cached_facets(build_queryset(q, tree), {"q": q, "query": tree}, only))
+
+
+class KeywordSkillsView(APIView):
+    """Keyword skills oficiales con su texto, las variantes que existen en las cartas
+    ('Over Realm X' -> 'Over Realm 3', 'Over Realm 4'…) y un mapa alias -> nombre oficial
+    para poner tooltips en el texto de las cartas."""
+
+    def get(self, request):
+        from django.core.cache import cache
+
+        from .facets import _array_counts
+        from .importer import FACETS_VERSION_KEY
+        from .skills import DECK_RULES, Catalog
+
+        key = f"keyword-skills:v{cache.get(FACETS_VERSION_KEY) or 0}"
+        data = cache.get(key)
+        if data is None:
+            catalog = Catalog.from_db()
+            rows = KeywordSkill.objects.all()
+            variants: dict[str, list[dict]] = {}
+            aliases: dict[str, str] = {}
+            qs = Card.objects.all()
+            for item in _array_counts(qs, "keywords"):
+                name = catalog.official_name(item["value"])
+                variants.setdefault(name, []).append(item)
+                aliases[item["value"]] = name
+            for item in _array_counts(qs, "keyword_mentions"):
+                aliases.setdefault(item["value"], catalog.official_name(item["value"]))
+            first = rows.first()
+            data = {
+                "updated": first.list_updated if first else "",
+                "source": first.source if first else "",
+                "skills": KeywordSkillSerializer(rows, many=True).data,
+                "variants": {k: sorted(v, key=lambda x: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", x["value"])]) for k, v in variants.items() if len(v) > 1},
+                "aliases": aliases,
+                "deck_rules": DECK_RULES,
+            }
+            cache.set(key, data, 60 * 60 * 24)
+        return Response(data)
 
 
 class BanListView(APIView):

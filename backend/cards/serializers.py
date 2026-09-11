@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import BanListEntry, Card, SyncRun
+from .models import BanListEntry, Card, KeywordSkill, SyncRun
 
 
 class CardListSerializer(serializers.ModelSerializer):
@@ -11,7 +11,7 @@ class CardListSerializer(serializers.ModelSerializer):
         fields = [
             "id", "card_number", "name", "image_url", "card_type", "colors", "rarity", "rarity_code",
             "energy", "power", "set_code", "card_set", "has_back", "back_name", "back_image_url",
-            "legality", "legality_since",
+            "legality", "legality_since", "keyword_skills",
         ]
 
 
@@ -47,3 +47,9 @@ class BanListEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = BanListEntry
         fields = ["card_number", "status", "card_name", "limit", "since"]
+
+
+class KeywordSkillSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KeywordSkill
+        fields = ["name", "category", "description", "order"]

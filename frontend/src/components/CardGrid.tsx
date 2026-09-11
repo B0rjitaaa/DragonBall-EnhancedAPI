@@ -1,13 +1,18 @@
-import type { CardSummary } from '../lib/types'
 import { colorClass } from '../lib/colors'
+import type { SkillIndex } from '../lib/skills'
+import type { CardSummary } from '../lib/types'
+
+// Etiqueta corta en el listado para las keyword skills que limitan la construcción del mazo
+const DECK_BADGES: Record<string, string> = { Ultimate: '1 COPIA', 'Super Combo': 'SC ≤4', 'Dragon Ball': 'DB ≤7' }
 
 interface Props {
   cards: CardSummary[]
   loading: boolean
+  skills: SkillIndex
   onOpen: (id: number) => void
 }
 
-export default function CardGrid({ cards, loading, onOpen }: Props) {
+export default function CardGrid({ cards, loading, skills, onOpen }: Props) {
   if (!loading && cards.length === 0) {
     return <div className="empty">No hay cartas que cumplan estos filtros.</div>
   }
@@ -25,6 +30,13 @@ export default function CardGrid({ cards, loading, onOpen }: Props) {
                 onError={(e) => e.currentTarget.classList.add('broken')}
               />
               <span className="img-fallback">{c.card_number}</span>
+              {c.keyword_skills
+                .filter((k) => DECK_BADGES[k])
+                .map((k) => (
+                  <span key={k} className="deck-badge" title={skills.deckRule(k)}>
+                    {DECK_BADGES[k]}
+                  </span>
+                ))}
               {c.has_back && <span className="badge">2 caras</span>}
               {c.legality !== 'legal' && (
                 <span className={`legal-badge ${c.legality}`} title={c.legality_since}>

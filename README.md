@@ -37,6 +37,7 @@ Programado en `config/settings.py → CELERY_BEAT_SCHEDULE` (editable luego desd
 | `sync-new-cards-daily`   | Todos los días 04:00 | Descarga solo las cartas nuevas          |
 | `sync-all-cards-weekly`  | Domingos 05:00       | Vuelve a descargar todas (erratas, textos)|
 | `sync-banlist-daily`     | Todos los días 03:30 | Lista oficial Banned/Limited              |
+| `sync-keyword-skills-weekly` | Lunes 03:45      | Keyword skills oficiales y sus textos     |
 
 El cliente (`cards/bandai.py`) usa `curl_cffi` (huella de Chrome), limita el ritmo
 (`BANDAI_REQUEST_DELAY`, `BANDAI_WORKERS`) y, si Bandai devuelve 403/429, pausa y reintenta.
@@ -56,6 +57,26 @@ docker compose exec backend python manage.py sync_banlist --snapshot  # volver a
 
 `GET /api/banlist/` devuelve la lista; en búsquedas: `{"field": "legality", "operator": "in", "value": ["banned"]}`.
 
+## Keyword skills (nombres y textos oficiales)
+
+Las habilidades se clasifican como en <https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php>:
+**Activate Timing** (`timing`), **Keyword Skills** (`keyword_skill`) y **Keywords** (`keyword_rule`),
+con el nombre oficial (`Over Realm X`, `Once per Turn`, `Counter : Play`…) y su texto, que la web
+muestra al pasar el ratón. La variante exacta sigue disponible en `keyword` (`Over Realm 3`).
+
+- Solo cuentan las habilidades **propias** de la carta (al inicio de línea o encadenadas). Las que
+  se mencionan dentro de una frase ("it gains [Barrier]", "activates [Revive]") van a `keyword_mention`.
+- Lo que no está en la web oficial (p. ej. `Z-Stack`, posterior a su última actualización) aparece
+  en Keyword Skills sin descripción.
+- Se actualiza cada lunes a las 03:45 (`sync-keyword-skills-weekly`); la migración carga una copia local.
+
+```bash
+docker compose exec backend python manage.py sync_keyword_skills             # forzar actualización
+docker compose exec backend python manage.py sync_keyword_skills --snapshot  # volver a la copia local
+```
+
+`GET /api/keyword-skills/` devuelve las skills con su texto, sus variantes y el mapa de alias.
+
 ## API
 
 ### Campos filtrables — `GET /api/fields/`
@@ -65,7 +86,7 @@ docker compose exec backend python manage.py sync_banlist --snapshot  # volver a
 | texto    | `name`, `text` (ambas caras), `card_number`                                               | `contains`, `eq`, `startswith`      |
 | número   | `energy`, `power`, `back_power`, `combo_energy`, `combo_power`, `z_energy_cost`           | `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `between`, `isnull` |
 | enum     | `type`, `rarity`, `series`, `set_code`, `card_set`, `legality`                            | `eq`, `in`                          |
-| lista    | `color`, `color_cost`, `character`, `special_trait`, `era`, `keyword`, `keyword_family`, `regulation` | `has`, `has_any`, `has_all`, `is_empty` |
+| lista    | `color`, `color_cost`, `character`, `special_trait`, `era`, `timing`, `keyword_skill`, `keyword_rule`, `keyword`, `keyword_mention`, `keyword_family`, `regulation` | `has`, `has_any`, `has_all`, `is_empty` |
 | booleano | `has_back`                                                                                | `eq`                                |
 
 - `keyword`: habilidad exacta normalizada (`Activate: Main`, `Limit 1`, `Counter: Play`, `Once Per Turn`…).

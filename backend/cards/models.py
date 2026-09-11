@@ -50,6 +50,11 @@ class Card(models.Model):
     # Extraído del texto: [Activate: Main], [Limit 1], [Counter: Play]…
     keywords = _array(96)
     keyword_families = _array(96)  # "Limit 1" -> "Limit", "Counter: Play" -> "Counter"
+    keyword_mentions = _array(96)  # corchetes que solo se mencionan: "it gains [Barrier]"
+    # Nombres oficiales según https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php
+    timing = _array(64)            # Activate Timing: Auto, Permanent, Activate : Main…
+    keyword_skills = _array(64)    # Keyword Skills: Barrier, Over Realm X, Counter : Play…
+    keyword_rules = _array(64)     # Keywords: Limit X, Once per Turn, Burst X…
     regulations = _array(64)
 
     # Cara trasera (Leaders y cartas de dos caras)
@@ -85,6 +90,9 @@ class Card(models.Model):
             GinIndex(fields=["keywords"], name="card_keywords_gin"),
             GinIndex(fields=["keyword_families"], name="card_kwfam_gin"),
             GinIndex(fields=["regulations"], name="card_regulations_gin"),
+            GinIndex(fields=["timing"], name="card_timing_gin"),
+            GinIndex(fields=["keyword_skills"], name="card_kwskills_gin"),
+            GinIndex(fields=["keyword_rules"], name="card_kwrules_gin"),
             GinIndex(fields=["name"], name="card_name_trgm", opclasses=["gin_trgm_ops"]),
             GinIndex(fields=["text"], name="card_text_trgm", opclasses=["gin_trgm_ops"]),
             GinIndex(fields=["effect_text"], name="card_effect_trgm", opclasses=["gin_trgm_ops"]),
@@ -145,3 +153,26 @@ class BanListEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.card_number} ({self.status})"
+
+
+class KeywordSkill(models.Model):
+    """Keyword skill oficial con su texto explicativo (se muestra al pasar el ratón)."""
+
+    class Category(models.TextChoices):
+        TIMING = "timing", "Activate Timing"
+        SKILL = "skill", "Keyword Skills"
+        KEYWORD = "keyword", "Keywords"
+
+    name = models.CharField(max_length=96, primary_key=True, help_text="Nombre oficial: 'Over Realm X'")
+    category = models.CharField(max_length=8, choices=Category.choices)
+    description = models.TextField()
+    order = models.PositiveSmallIntegerField(default=0)
+    list_updated = models.CharField(max_length=64, blank=True)
+    source = models.CharField(max_length=16, default="official", help_text="official | snapshot")
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self) -> str:
+        return self.name

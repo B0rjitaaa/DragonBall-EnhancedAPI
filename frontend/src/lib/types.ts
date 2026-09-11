@@ -62,6 +62,7 @@ export interface CardSummary {
   back_image_url: string
   legality: 'legal' | 'limited' | 'banned'
   legality_since: string
+  keyword_skills: string[]
 }
 
 export interface CardDetail extends CardSummary {
@@ -79,6 +80,9 @@ export interface CardDetail extends CardSummary {
   notes: string
   keywords: string[]
   keyword_families: string[]
+  keyword_mentions: string[]
+  timing: string[]
+  keyword_rules: string[]
   regulations: string[]
   config: Record<string, string | null>
   back_config: Record<string, string | null>
@@ -101,3 +105,23 @@ export interface FacetSelection {
 }
 
 export type FacetState = Record<string, FacetSelection>
+
+export type SkillCategory = 'timing' | 'skill' | 'keyword'
+
+export interface KeywordSkill {
+  name: string
+  category: SkillCategory
+  description: string
+  order: number
+}
+
+export interface KeywordSkillsResponse {
+  updated: string
+  source: string
+  skills: KeywordSkill[]
+  /** 'Over Realm X' -> [{value: 'Over Realm 3', count}, …] */
+  variants: Record<string, FacetValue[]>
+  /** habilidad normalizada ('Once Per Turn', 'Over Realm 3') -> nombre oficial */
+  aliases: Record<string, string>
+  deck_rules: Record<string, string>
+}

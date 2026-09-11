@@ -134,6 +134,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "cards.tasks.sync_banlist",
         "schedule": crontab(hour=3, minute=30),
     },
+    "sync-keyword-skills-weekly": {
+        "task": "cards.tasks.sync_keyword_skills",
+        "schedule": crontab(hour=3, minute=45, day_of_week="mon"),
+    },
     "sync-all-cards-weekly": {
         "task": "cards.tasks.sync_cards",
         "schedule": crontab(hour=5, minute=0, day_of_week="sun"),
@@ -146,6 +150,7 @@ BANDAI_API_URL = env("BANDAI_API_URL", "https://api.bandai-tcg-plus.com/api/user
 BANDAI_GAME_TITLE_ID = int(env("BANDAI_GAME_TITLE_ID", "1"))
 BANDAI_REQUEST_DELAY = float(env("BANDAI_REQUEST_DELAY", "0.25"))
 BANDAI_WORKERS = int(env("BANDAI_WORKERS", "4"))
+KEYWORD_SKILLS_URL = env("KEYWORD_SKILLS_URL", "https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php")
 BANLIST_URL = env("BANLIST_URL", "https://www.dbs-cardgame.com/us-en/rule/banned-limited-cards.php")
 
 LOGGING = {

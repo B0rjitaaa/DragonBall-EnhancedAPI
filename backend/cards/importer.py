@@ -22,11 +22,16 @@ UPDATE_FIELDS = [
 
 def upsert_cards(items: Iterable[dict]) -> tuple[int, int, list[int]]:
     """Inserta/actualiza cartas en bloque. Devuelve (creadas, actualizadas, ids_con_error)."""
+    from .skills import Catalog
+
+    catalog = Catalog.from_db()
     parsed: list[Card] = []
     errors: list[int] = []
     for data in items:
         try:
-            parsed.append(Card(**parse_card(data)))
+            fields = parse_card(data)
+            fields.update(catalog.assign(fields["keywords"]))
+            parsed.append(Card(**fields))
         except Exception:  # noqa: BLE001 - una carta rara no debe tumbar la importación
             logger.exception("No se pudo parsear la carta %s", data.get("id"))
             if data.get("id"):

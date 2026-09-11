@@ -75,8 +75,12 @@ FIELDS: dict[str, Field] = {
     "special_trait": Field("Rasgo especial", "array", ("special_traits",), "Atributos", facet=True),
     "era": Field("Era", "array", ("eras",), "Atributos", facet=True),
     "has_back": Field("Tiene cara trasera", "boolean", ("back_id",), "Atributos"),
-    # Habilidades
-    "keyword": Field("Habilidad", "array", ("keywords",), "Habilidades", facet=True),
+    # Habilidades (categorías oficiales)
+    "timing": Field("Activate Timing", "array", ("timing",), "Habilidades", facet=True),
+    "keyword_skill": Field("Keyword Skills", "array", ("keyword_skills",), "Habilidades", facet=True),
+    "keyword_rule": Field("Keywords", "array", ("keyword_rules",), "Habilidades", facet=True),
+    "keyword": Field("Habilidad (variante exacta)", "array", ("keywords",), "Habilidades", facet=True),
+    "keyword_mention": Field("Menciona la habilidad", "array", ("keyword_mentions",), "Habilidades", facet=True),
     "keyword_family": Field("Familia de habilidad", "array", ("keyword_families",), "Habilidades", facet=True),
 }
 

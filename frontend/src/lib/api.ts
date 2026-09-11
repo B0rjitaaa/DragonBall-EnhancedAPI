@@ -1,4 +1,4 @@
-import type { CardDetail, FacetsResponse, FieldDef, SearchResponse } from './types'
+import type { CardDetail, FacetsResponse, FieldDef, KeywordSkillsResponse, SearchResponse } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -36,4 +36,5 @@ export const api = {
   search: (body: SearchBody, signal?: AbortSignal) =>
     request<SearchResponse>('/cards/search/', { method: 'POST', body: JSON.stringify(body), signal }),
   card: (id: number) => request<CardDetail>(`/cards/${id}/`),
+  keywordSkills: () => request<KeywordSkillsResponse>('/keyword-skills/'),
 }

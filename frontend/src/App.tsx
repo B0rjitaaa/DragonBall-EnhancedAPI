@@ -8,6 +8,7 @@ import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
 } from './lib/query'
 import { valueLabel } from './lib/labels'
+import { SkillIndex } from './lib/skills'
 import type { Facet, FacetState, FieldDef, Group, SearchResponse } from './lib/types'
 
 const PAGE_SIZE = 48
@@ -37,6 +38,7 @@ export default function App() {
   const [globalFacets, setGlobalFacets] = useState<Record<string, Facet>>({})
   const [contextFacets, setContextFacets] = useState<Record<string, Facet> | null>(null)
   const [bootError, setBootError] = useState<string | null>(null)
+  const [skills, setSkills] = useState<SkillIndex>(SkillIndex.empty)
 
   const [q, setQ] = useState(initial.q ?? '')
   const [facets, setFacets] = useState<FacetState>(initial.facets ?? {})
@@ -58,6 +60,10 @@ export default function App() {
         setGlobalFacets(fc.facets)
       })
       .catch((e: Error) => setBootError(e.message))
+    api
+      .keywordSkills()
+      .then((d) => setSkills(new SkillIndex(d)))
+      .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
   }, [])
 
   const query = useMemo(
@@ -124,8 +130,11 @@ export default function App() {
     setPage(1)
   }
 
-  const addFilter = useCallback((field: string, raw: string) => {
-    const value = field === 'keyword' ? normalizeKeyword(raw) : raw
+  const addFilter = useCallback((requested: string, raw: string) => {
+    // Un corchete del texto ('[Over Realm 3]') filtra por su keyword skill oficial ('Over Realm X')
+    const official = requested === 'keyword' ? skills.officialName(raw) : raw
+    const field = requested === 'keyword' ? skills.fieldFor(official) : requested
+    const value = field === 'keyword' ? normalizeKeyword(raw) : official
     setFacets((prev) => {
       const sel = prev[field] ?? { values: [], match: 'all' as const }
       if (sel.values.includes(value)) return prev
@@ -133,7 +142,7 @@ export default function App() {
     })
     setPage(1)
     setOpenId(null)
-  }, [])
+  }, [skills])
 
   const clearAll = () => {
     setQ('')
@@ -207,7 +216,14 @@ export default function App() {
             )}
           </div>
           {fields.length > 0 && (
-            <FacetPanel fields={fields} global={globalFacets} context={contextFacets} state={facets} onChange={changeFacets} />
+            <FacetPanel
+              fields={fields}
+              global={globalFacets}
+              context={contextFacets}
+              state={facets}
+              onChange={changeFacets}
+              skills={skills}
+            />
           )}
         </aside>
 
@@ -271,7 +287,7 @@ export default function App() {
             {error && <span className="error">{error}</span>}
           </div>
 
-          <CardGrid cards={data?.results ?? []} loading={loading} onOpen={setOpenId} />
+          <CardGrid cards={data?.results ?? []} loading={loading} skills={skills} onOpen={setOpenId} />
 
           {data && data.pages > 1 && (
             <nav className="pagination">
@@ -289,7 +305,7 @@ export default function App() {
         </main>
       </div>
 
-      {openId !== null && <CardModal key={openId} id={openId} onClose={() => setOpenId(null)} onFilter={addFilter} />}
+      {openId !== null && <CardModal key={openId} id={openId} skills={skills} onClose={() => setOpenId(null)} onFilter={addFilter} />}
     </div>
   )
 }
