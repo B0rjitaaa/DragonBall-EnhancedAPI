@@ -13,6 +13,7 @@ from .models import Card
 from .query import FIELDS
 
 FACET_TTL = 60 * 60 * 24
+SCHEMA = hashlib.sha1("|".join(f"{k}:{f.type}:{f.facet}" for k, f in FIELDS.items()).encode()).hexdigest()[:8]
 
 
 def _array_counts(qs: QuerySet, column: str) -> list[dict]:
@@ -55,7 +56,8 @@ def compute_facets(qs: QuerySet, only: list[str] | None = None) -> dict:
 
 def cached_facets(qs: QuerySet, query_payload: dict | None = None, only: list[str] | None = None) -> dict:
     version = cache.get(FACETS_VERSION_KEY) or 0
-    digest = hashlib.sha1(json.dumps([query_payload or {}, sorted(only or [])], sort_keys=True).encode()).hexdigest()[:16]
+    # Si cambian los campos filtrables (nuevo código), la caché antigua deja de valer sola
+    digest = f"{SCHEMA}:" + hashlib.sha1(json.dumps([query_payload or {}, sorted(only or [])], sort_keys=True).encode()).hexdigest()[:16]
     key = f"facets:v{version}:{digest}"
     data = cache.get(key)
     if data is None:
