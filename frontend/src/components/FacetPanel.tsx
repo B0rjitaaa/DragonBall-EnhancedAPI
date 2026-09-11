@@ -5,6 +5,7 @@ import type { SkillIndex } from '../lib/skills'
 import type { Facet, FacetSelection, FacetState, FieldDef } from '../lib/types'
 import Tooltip from './Tooltip'
 
+const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
 const KEYWORD_RULES_URL = 'https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php'
 
 type Mode = 'chips' | 'list' | 'range'
@@ -13,7 +14,7 @@ interface Section {
   key: string
   mode: Mode
   open?: boolean
-  sort?: 'count' | 'alpha'
+  sort?: 'count' | 'alpha' // por defecto alfabético
   skills?: boolean // tooltips con el texto oficial + variantes ('Over Realm X' -> 3, 4, 5…)
 }
 
@@ -25,8 +26,8 @@ const SECTIONS: Section[] = [
   { key: 'energy', mode: 'chips', open: true },
   { key: 'power', mode: 'range', open: true },
   { key: 'timing', mode: 'chips', open: true, skills: true },
-  { key: 'keyword_skill', mode: 'list', open: true, sort: 'alpha', skills: true },
-  { key: 'keyword_rule', mode: 'list', open: true, sort: 'alpha', skills: true },
+  { key: 'keyword_skill', mode: 'list', open: true, skills: true },
+  { key: 'keyword_rule', mode: 'list', open: true, skills: true },
   { key: 'special_trait', mode: 'list' },
   { key: 'character', mode: 'list' },
   { key: 'rarity', mode: 'list' },
@@ -182,7 +183,9 @@ function SkillTip({ skills, name, children }: { skills?: SkillIndex; name: strin
 function Chips({ field, facet, counts, sel, onChange, skills }: ListProps & { field: string; skills?: SkillIndex }) {
   return (
     <div className="chips">
-      {facet.values.map(({ value }) => {
+      {[...facet.values]
+        .sort((a, b) => collator.compare(valueLabel(field, a.value), valueLabel(field, b.value)))
+        .map(({ value }) => {
         const n = counts.get(String(value)) ?? 0
         const on = sel.values.includes(value)
         return (
@@ -201,8 +204,6 @@ function Chips({ field, facet, counts, sel, onChange, skills }: ListProps & { fi
   )
 }
 
-const collator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' })
-
 interface VariantProps {
   sel: FacetSelection
   counts: Map<string, number>
@@ -213,7 +214,7 @@ function ValueList({
   facet,
   counts,
   sel,
-  sort = 'count',
+  sort = 'alpha',
   onChange,
   skills,
   variants,
@@ -223,14 +224,13 @@ function ValueList({
   const [openVariants, setOpenVariants] = useState<Record<string, boolean>>({})
   const needle = filter.trim().toLowerCase()
   const values = facet.values.filter(({ value }) => !needle || String(value).toLowerCase().includes(needle))
-  // Seleccionados primero, luego por recuento en la búsqueda actual
-  const sorted = [...values].sort((a, b) => {
-    const sa = sel.values.includes(a.value) ? 1 : 0
-    const sb = sel.values.includes(b.value) ? 1 : 0
-    if (sa !== sb) return sb - sa
-    if (sort === 'alpha') return collator.compare(String(a.value), String(b.value))
-    return (counts.get(String(b.value)) ?? 0) - (counts.get(String(a.value)) ?? 0)
-  })
+  // Orden alfabético ('Burst 2' antes que 'Burst 10'); con la lista plegada se ven los 10
+  // primeros y, además, los que estén marcados
+  const sorted = [...values].sort((a, b) =>
+    sort === 'count'
+      ? (counts.get(String(b.value)) ?? 0) - (counts.get(String(a.value)) ?? 0)
+      : collator.compare(String(a.value), String(b.value)),
+  )
   const limit = expanded || needle ? 200 : 10
   return (
     <div className="value-list">
@@ -243,7 +243,7 @@ function ValueList({
         />
       )}
       <ul>
-        {sorted.slice(0, limit).map(({ value }) => {
+        {sorted.filter((v, i) => i < limit || sel.values.includes(v.value)).map(({ value }) => {
           const n = counts.get(String(value)) ?? 0
           const on = sel.values.includes(value)
           const name = String(value)

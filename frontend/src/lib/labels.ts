@@ -1,6 +1,6 @@
 export const LEGALITY_LABELS: Record<string, string> = {
-  banned: 'Prohibida (Ban)',
-  limited: 'Limitada',
+  banned: 'Banned',
+  limited: 'Limited',
   legal: 'Legal',
 }
 
