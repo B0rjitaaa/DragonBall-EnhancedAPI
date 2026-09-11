@@ -9,6 +9,7 @@ interface Section {
   key: string
   mode: Mode
   open?: boolean
+  sort?: 'count' | 'alpha'
 }
 
 // Orden y forma de cada filtro en el panel lateral
@@ -18,7 +19,7 @@ const SECTIONS: Section[] = [
   { key: 'color', mode: 'chips', open: true },
   { key: 'energy', mode: 'chips', open: true },
   { key: 'power', mode: 'range', open: true },
-  { key: 'keyword', mode: 'list', open: true },
+  { key: 'keyword', mode: 'list', open: true, sort: 'alpha' },
   { key: 'keyword_family', mode: 'list' },
   { key: 'special_trait', mode: 'list' },
   { key: 'character', mode: 'list' },
@@ -56,7 +57,7 @@ export default function FacetPanel({ fields, global, context, state, onChange }:
 
   return (
     <div className="facets">
-      {SECTIONS.map(({ key, mode, open }) => {
+      {SECTIONS.map(({ key, mode, open, sort }) => {
         const field = byKey[key]
         const facet = global[key]
         if (!field || !facet) return null
@@ -87,7 +88,7 @@ export default function FacetPanel({ fields, global, context, state, onChange }:
             ) : mode === 'chips' ? (
               <Chips field={key} facet={facet} counts={counts} sel={sel} onChange={(s) => update(key, s)} />
             ) : (
-              <ValueList facet={facet} counts={counts} sel={sel} onChange={(s) => update(key, s)} />
+              <ValueList facet={facet} counts={counts} sel={sel} sort={sort} onChange={(s) => update(key, s)} />
             )}
           </details>
         )
@@ -142,16 +143,19 @@ function Chips({ field, facet, counts, sel, onChange }: ListProps & { field: str
   )
 }
 
-function ValueList({ facet, counts, sel, onChange }: ListProps) {
+const collator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' })
+
+function ValueList({ facet, counts, sel, sort = 'count', onChange }: ListProps & { sort?: 'count' | 'alpha' }) {
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState(false)
   const needle = filter.trim().toLowerCase()
   const values = facet.values.filter(({ value }) => !needle || String(value).toLowerCase().includes(needle))
-  // Seleccionados primero, luego por recuento en la búsqueda actual
+  // Seleccionados primero; después alfabético ('Burst 2' antes que 'Burst 10') o por recuento
   const sorted = [...values].sort((a, b) => {
     const sa = sel.values.includes(a.value) ? 1 : 0
     const sb = sel.values.includes(b.value) ? 1 : 0
     if (sa !== sb) return sb - sa
+    if (sort === 'alpha') return collator.compare(String(a.value), String(b.value))
     return (counts.get(String(b.value)) ?? 0) - (counts.get(String(a.value)) ?? 0)
   })
   const limit = expanded || needle ? 200 : 10
