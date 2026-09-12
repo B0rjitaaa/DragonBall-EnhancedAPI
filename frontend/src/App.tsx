@@ -151,6 +151,16 @@ export default function App() {
     setPage(1)
   }
 
+  // La bola de dragón vuelve al estado inicial: sin búsqueda, sin filtros y sin modo avanzado
+  const goHome = () => {
+    clearAll()
+    setAdvancedOn(false)
+    setOrdering('number')
+    setOpenId(null)
+    setSidebarOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const labels = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, f.label])), [fields])
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
@@ -170,13 +180,13 @@ export default function App() {
         <button className="icon-btn menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Filtros">
           ☰
         </button>
-        <div className="brand">
+        <button className="brand" onClick={goHome} title="Volver al inicio y limpiar los filtros">
           <span className="ball" aria-hidden>★</span>
-          <div>
+          <span className="brand-text">
             <strong>DragonBall EnhancedAPI</strong>
             <small>Buscador de cartas · Dragon Ball Super Card Game</small>
-          </div>
-        </div>
+          </span>
+        </button>
         <input
           className="input search"
           type="search"

@@ -76,7 +76,12 @@ code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; }
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: center; gap: 0.6rem; margin-right: 0.5rem; }
+.brand {
+  display: flex; align-items: center; gap: 0.6rem; margin-right: 0.5rem;
+  background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.brand:hover .ball { transform: scale(1.12); }
+.brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
 .brand strong { display: block; }
 .brand small { color: var(--muted); font-size: 0.75rem; }
 .ball {
@@ -84,6 +89,7 @@ code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; }
   display: grid; place-items: center;
   background: radial-gradient(circle at 35% 30%, #ffd08a, var(--accent) 55%, #c2410c);
   color: #b91c1c; font-size: 1rem;
+  flex: 0 0 auto; transition: transform 0.15s;
 }
 .search { flex: 1; font-size: 1rem; }
 .menu { display: none; font-size: 1.2rem; }
