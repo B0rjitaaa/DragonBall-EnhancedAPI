@@ -7,6 +7,9 @@ import Tooltip from './Tooltip'
 
 const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
 const KEYWORD_RULES_URL = 'https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php'
+// 'BT31' pertenece a la serie 'BT': el código de set es la serie + el número de expansión
+const SET_NUMBER_RE = /\d+$/
+const setParent = (code: unknown) => String(code).replace(SET_NUMBER_RE, '')
 
 type Mode = 'chips' | 'list' | 'range'
 
@@ -16,6 +19,7 @@ interface Section {
   open?: boolean
   sort?: 'count' | 'alpha' // por defecto alfabético
   skills?: boolean // tooltips con el texto oficial + variantes ('Over Realm X' -> 3, 4, 5…)
+  subsets?: string // al marcar un valor se despliegan debajo sus subsets ('BT' -> BT1, BT2…)
 }
 
 // Orden y forma de cada filtro en el panel lateral
@@ -32,8 +36,7 @@ const SECTIONS: Section[] = [
   { key: 'character', mode: 'list' },
   { key: 'rarity', mode: 'list' },
   { key: 'era', mode: 'list' },
-  { key: 'series', mode: 'chips' },
-  { key: 'set_code', mode: 'list' },
+  { key: 'series', mode: 'chips', subsets: 'set_code' },
   { key: 'color_cost', mode: 'chips' },
   { key: 'combo_energy', mode: 'chips' },
   { key: 'combo_power', mode: 'chips' },
@@ -55,23 +58,34 @@ interface Props {
 export default function FacetPanel({ fields, global, context, state, onChange, skills }: Props) {
   const byKey = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, f])), [fields])
 
-  const update = (key: string, sel: FacetSelection) => {
+  const updateMany = (changes: Record<string, FacetSelection>) => {
     const next = { ...state }
-    const empty = !sel.values.length && (sel.min ?? '') === '' && (sel.max ?? '') === ''
-    if (empty) delete next[key]
-    else next[key] = sel
+    for (const [key, sel] of Object.entries(changes)) {
+      const empty = !sel.values.length && (sel.min ?? '') === '' && (sel.max ?? '') === ''
+      if (empty) delete next[key]
+      else next[key] = sel
+    }
     onChange(next)
   }
+  const update = (key: string, sel: FacetSelection) => updateMany({ [key]: sel })
 
   return (
     <div className="facets">
-      {SECTIONS.map(({ key, mode, open, sort, skills: withSkills }) => {
+      {SECTIONS.map(({ key, mode, open, sort, skills: withSkills, subsets }) => {
         const field = byKey[key]
         const facet = global[key]
         if (!field || !facet) return null
         const sel = state[key] ?? EMPTY
-        const active = sel.values.length + ((sel.min ?? '') !== '' ? 1 : 0) + ((sel.max ?? '') !== '' ? 1 : 0)
+        const child = (subsets && state[subsets]) || EMPTY
+        const active =
+          sel.values.length + ((sel.min ?? '') !== '' ? 1 : 0) + ((sel.max ?? '') !== '' ? 1 : 0) + child.values.length
         const counts = new Map((context?.[key]?.values ?? facet.values).map((v) => [String(v.value), v.count]))
+        // Al desmarcar una serie se quitan también sus subsets seleccionados
+        const changeParent = (s: FacetSelection) => {
+          if (!subsets) return update(key, s)
+          const keep = new Set(s.values.map(String))
+          updateMany({ [key]: s, [subsets]: { ...child, values: child.values.filter((v) => keep.has(setParent(v))) } })
+        }
         return (
           <details key={key} className="facet" open={open || active > 0}>
             <summary>
@@ -93,7 +107,8 @@ export default function FacetPanel({ fields, global, context, state, onChange, s
                   className="link small"
                   onClick={(e) => {
                     e.preventDefault()
-                    update(key, EMPTY)
+                    if (subsets) updateMany({ [key]: EMPTY, [subsets]: EMPTY })
+                    else update(key, EMPTY)
                   }}
                 >
                   limpiar ({active})
@@ -106,14 +121,25 @@ export default function FacetPanel({ fields, global, context, state, onChange, s
             {mode === 'range' ? (
               <RangeFilter facet={facet} sel={sel} onChange={(s) => update(key, s)} />
             ) : mode === 'chips' ? (
-              <Chips
-                field={key}
-                facet={facet}
-                counts={counts}
-                sel={sel}
-                skills={withSkills ? skills : undefined}
-                onChange={(s) => update(key, s)}
-              />
+              <>
+                <Chips
+                  field={key}
+                  facet={facet}
+                  counts={counts}
+                  sel={sel}
+                  skills={withSkills ? skills : undefined}
+                  onChange={changeParent}
+                />
+                {subsets && (
+                  <Subsets
+                    parents={sel.values}
+                    facet={global[subsets]}
+                    counts={new Map((context?.[subsets]?.values ?? global[subsets]?.values ?? []).map((v) => [String(v.value), v.count]))}
+                    sel={child}
+                    onChange={(s) => update(subsets, s)}
+                  />
+                )}
+              </>
             ) : (
               <ValueList
                 facet={facet}
@@ -200,6 +226,58 @@ function Chips({ field, facet, counts, sel, onChange, skills }: ListProps & { fi
           </SkillTip>
         )
       })}
+    </div>
+  )
+}
+
+/** Subsets de los valores marcados arriba: al elegir 'BT' se despliegan BT1, BT2, BT3… */
+function Subsets({
+  parents,
+  facet,
+  counts,
+  sel,
+  onChange,
+}: {
+  parents: (string | number)[]
+  facet?: Facet
+  counts: Map<string, number>
+  sel: FacetSelection
+  onChange: (s: FacetSelection) => void
+}) {
+  if (!facet || !parents.length) return null
+  const groups = parents
+    .map((parent) => ({
+      parent: String(parent),
+      values: facet.values
+        .filter((v) => setParent(v.value) === String(parent))
+        .sort((a, b) => collator.compare(String(a.value), String(b.value))),
+    }))
+    // series sin numerar (P, XD…): el único subset es la serie entera, no aporta nada
+    .filter(({ parent, values }) => values.length > 1 || values.some((v) => String(v.value) !== parent))
+  if (!groups.length) return null
+  return (
+    <div className="subsets">
+      {groups.map(({ parent, values }) => (
+        <div key={parent} className="subset">
+          <span className="subset-label">{parent} · {values.length} sets</span>
+          <div className="chips">
+            {values.map(({ value }) => {
+              const n = counts.get(String(value)) ?? 0
+              const on = sel.values.includes(value)
+              return (
+                <button
+                  key={String(value)}
+                  className={`chip sub ${on ? 'on' : ''} ${!n && !on ? 'zero' : ''}`}
+                  onClick={() => onChange(toggle(sel, value))}
+                  title={`${n} cartas`}
+                >
+                  {String(value)} <small>{n}</small>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
