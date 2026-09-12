@@ -184,10 +184,22 @@ def parse_card(data: dict) -> dict[str, Any]:
     rarity, rarity_code = parse_rarity(cfg.get("Rarity"))
     card_number = clean(data.get("card_number")) or ""
 
+    # Bandai a veces apunta 'backcard_*' a OTRA carta (BT4-107 -> Zamasu BT26-061).
+    # Solo es cara trasera de verdad si comparte número de carta.
+    has_back = bool(data.get("backcard_id")) and (clean(data.get("backcard_card_number")) or card_number) == card_number
+    if not has_back:
+        back_cfg = {}
+    back = {
+        "id": data.get("backcard_id") or None,
+        "card_name": clean(data.get("backcard_card_name")) or "",
+        "card_text": clean(data.get("backcard_card_text")) or "",
+        "image_url": clean(data.get("backcard_image_url")) or "",
+    } if has_back else {}
+
     keywords, families, mentions = extract_keywords(
         data.get("card_text"),
         data.get("card_text2"),
-        data.get("backcard_card_text"),
+        data.get("backcard_card_text") if has_back else None,
         own=[cfg.get("Keyword Skill") or "", back_cfg.get("Keyword Skill") or ""],
     )
 
@@ -218,15 +230,15 @@ def parse_card(data: dict) -> dict[str, Any]:
         "keyword_families": families,
         "keyword_mentions": mentions,
         "regulations": [r["title"] for r in (data.get("regulations") or []) if r.get("title")],
-        "back_id": data.get("backcard_id") or None,
-        "back_name": clean(data.get("backcard_card_name")) or "",
-        "back_text": clean(data.get("backcard_card_text")) or "",
-        "back_image_url": clean(data.get("backcard_image_url")) or "",
+        "back_id": back.get("id"),
+        "back_name": back.get("card_name") or "",
+        "back_text": back.get("card_text") or "",
+        "back_image_url": back.get("image_url") or "",
         "back_power": to_int(back_cfg.get("Power")),
-        "effect_text": normalize_search(f"{data.get('card_text') or ''} {data.get('backcard_card_text') or ''}"),
+        "effect_text": normalize_search(f"{data.get('card_text') or ''} {back.get('card_text') or ''}"),
         "search_text": normalize_search(" ".join(str(x) for x in (
-            data.get("card_name"), data.get("backcard_card_name"), card_number,
-            data.get("card_text"), data.get("backcard_card_text"),
+            data.get("card_name"), back.get("card_name"), card_number,
+            data.get("card_text"), back.get("card_text"),
         ) if x)),
         "config": cfg,
         "back_config": back_cfg,

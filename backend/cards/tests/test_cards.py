@@ -85,6 +85,15 @@ class ParsingTests(TestCase):
         self.assertEqual(c["color_cost_colors"], ["Red", "Red"])
         self.assertEqual((c["energy"], c["power"], c["combo_power"], c["combo_energy"]), (3, 15000, 10000, 1))
 
+    def test_back_from_another_card_is_ignored(self):
+        # Bandai apunta a veces backcard_* a otra carta distinta (BT4-107 -> Zamasu BT26-061)
+        card = {**GOKU, "backcard_id": 999, "backcard_card_number": "BT26-061",
+                "backcard_card_name": "Zamasu", "backcard_card_text": "[Auto] switch up to 1 of your energy."}
+        c = parse_card(card)
+        self.assertIsNone(c["back_id"])
+        self.assertEqual(c["back_name"], "")
+        self.assertNotIn("switch up to", c["search_text"])
+
     def test_parse_leader_back(self):
         c = parse_card(LEADER)
         self.assertEqual(c["back_power"], 15000)
