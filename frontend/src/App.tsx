@@ -125,6 +125,20 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [page])
 
+  // En móvil el panel de filtros tapa la cabecera: Escape también lo cierra y el fondo no scrollea
+  useEffect(() => {
+    if (!sidebarOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSidebarOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.body.classList.add('no-scroll')
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.classList.remove('no-scroll')
+    }
+  }, [sidebarOpen])
+
   const changeFacets = (next: FacetState) => {
     setFacets(next)
     setPage(1)
@@ -177,7 +191,12 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <button className="icon-btn menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Filtros">
+        <button
+          className="icon-btn menu"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Filtros"
+          aria-expanded={sidebarOpen}
+        >
           ☰
         </button>
         <button className="brand" onClick={goHome} title="Volver al inicio y limpiar los filtros">
@@ -216,14 +235,20 @@ export default function App() {
       </header>
 
       <div className="layout">
+        {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} aria-hidden />}
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="sidebar-head">
             <strong>Filtros</strong>
-            {activeCount > 0 && (
-              <button className="link small" onClick={clearAll}>
-                Limpiar todo
+            <span className="sidebar-actions">
+              {activeCount > 0 && (
+                <button className="link small" onClick={clearAll}>
+                  Limpiar todo
+                </button>
+              )}
+              <button className="icon-btn close-filters" onClick={() => setSidebarOpen(false)} aria-label="Cerrar filtros">
+                ✕
               </button>
-            )}
+            </span>
           </div>
           {fields.length > 0 && (
             <FacetPanel
@@ -235,6 +260,11 @@ export default function App() {
               skills={skills}
             />
           )}
+          <div className="sidebar-foot">
+            <button className="btn primary" onClick={() => setSidebarOpen(false)}>
+              Ver {data ? data.count.toLocaleString('es-ES') : ''} cartas
+            </button>
+          </div>
         </aside>
 
         <main className="content">

@@ -104,6 +104,10 @@ code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; }
   overflow-y: auto;
 }
 .sidebar-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.sidebar-actions { display: flex; align-items: center; gap: 0.4rem; }
+/* Solo en móvil: cerrar el panel, velo de fondo y botón de "ver resultados" */
+.close-filters, .sidebar-foot, .backdrop { display: none; }
+body.no-scroll { overflow: hidden; }
 .content { padding: 1.25rem; min-width: 0; }
 
 /* Facetas */
@@ -261,6 +265,16 @@ code { background: var(--bg-3); padding: 0.1em 0.35em; border-radius: 4px; }
     transform: translateX(-100%); transition: transform 0.2s; box-shadow: 8px 0 30px rgba(0, 0, 0, 0.5);
   }
   .sidebar.open { transform: none; }
+  .sidebar { display: flex; flex-direction: column; }
+  .sidebar .facets { flex: 1 0 auto; }
+  .backdrop { display: block; position: fixed; inset: 0; z-index: 35; background: rgba(0, 0, 0, 0.55); }
+  .close-filters { display: block; font-size: 1.05rem; }
+  .sidebar-foot {
+    display: block; position: sticky; bottom: 0; z-index: 1;
+    margin: 0.75rem -1rem 0; padding: 0.65rem 1rem;
+    background: var(--bg-2); border-top: 1px solid var(--line);
+  }
+  .sidebar-foot .btn { width: 100%; }
   .content { padding: 0.75rem; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
   .detail { grid-template-columns: 1fr; }
