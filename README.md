@@ -45,6 +45,21 @@ A partir de ahí, `git pull` ejecuta `scripts/deploy.sh`: reconstruye imágenes 
 `requirements.txt`, `package.json` o los Dockerfiles, aplica migraciones y reinicia backend y Celery.
 Para saltarlo puntualmente: `SKIP_DEPLOY_HOOK=1 git pull`.
 
+## Modo producción (Raspberry Pi)
+
+En máquinas con poca RAM (la Pi 3, 905 MB), usa el modo producción ligero, que ahorra ~250 MB. Añade al `.env`:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+```
+
+- **Frontend:** build estático servido por Nginx en lugar del servidor de Vite (misma URL, `:5173`).
+- **Backend:** gunicorn (1 proceso, 4 hilos) en lugar de `runserver`. WhiteNoise sirve los estáticos de `/admin`.
+
+`scripts/deploy.sh` lo detecta: en este modo, cualquier cambio en `frontend/` reconstruye el build.
+
+En todos los entornos, el worker de Celery corre con concurrencia 1 y `--max-memory-per-child`: tras el sync diario, el proceso se recicla si se queda con más de ~250 MB (antes se quedaba con ~470 MB indefinidamente).
+
 ## Sincronización con Bandai (Celery)
 
 Programado en `config/settings.py → CELERY_BEAT_SCHEDULE` (editable luego desde `/admin` → *Periodic tasks*):

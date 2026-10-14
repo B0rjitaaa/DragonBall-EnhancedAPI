@@ -28,7 +28,15 @@ if changed '^backend/(requirements\.txt|Dockerfile|entrypoint\.sh)$'; then
   docker compose build backend
 fi
 
-if changed '^frontend/(package(-lock)?\.json|Dockerfile)$'; then
+# Modo producción (COMPOSE_FILE con docker-compose.prod.yml, p. ej. la Pi): el
+# frontend es un build estático dentro de la imagen, así que cualquier cambio
+# en frontend/ obliga a reconstruirla.
+if docker compose config 2>/dev/null | grep -q "target: prod"; then
+  if changed '^frontend/'; then
+    echo "→ Cambios en el frontend (modo producción): reconstruyendo build estático…"
+    docker compose up -d --build frontend
+  fi
+elif changed '^frontend/(package(-lock)?\.json|Dockerfile)$'; then
   echo "→ Cambian las dependencias del frontend: reconstruyendo (con node_modules nuevos)…"
   docker compose up -d --build --renew-anon-volumes frontend
 fi
@@ -41,5 +49,8 @@ docker compose exec -T backend python manage.py migrate --noinput
 
 echo "→ Reiniciando backend y Celery para cargar el código nuevo…"
 docker compose restart backend celery_worker celery_beat
+
+echo "→ Limpiando imágenes antiguas…"
+docker image prune -f >/dev/null
 
 echo "✔ Actualizado a $(git log -1 --format='%h %s')"

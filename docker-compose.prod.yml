@@ -1,0 +1,25 @@
+# Modo producción ligero (Raspberry Pi). Se activa en el .env de la Pi con:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+#
+# Frente al modo desarrollo ahorra ~250 MB de RAM:
+# - frontend: build estático servido por Nginx (en vez del servidor de Vite).
+# - backend: gunicorn con 1 proceso y 4 hilos (en vez de runserver + autoreload).
+# Las URLs no cambian: la web sigue en :5173 y la API en :8000.
+
+services:
+  backend:
+    command: >
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 1 --threads 4
+      --timeout 120
+      --access-logfile -
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+    environment: !reset {}
+    volumes: !reset []
+    ports: !override
+      - "5173:80"

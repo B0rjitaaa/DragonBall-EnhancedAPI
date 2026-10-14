@@ -57,7 +57,10 @@ services:
 
   celery_worker:
     <<: *backend
-    command: celery -A config worker -l info --concurrency 2
+    # Concurrencia 1: el sync ya paraleliza las peticiones con hilos (BANDAI_WORKERS).
+    # --max-memory-per-child (KB): si tras una tarea el proceso supera ~250 MB, se
+    # recicla. Sin esto, tras el sync diario el worker se quedaba con ~470 MB.
+    command: celery -A config worker -l info --concurrency 1 --max-memory-per-child 250000
     depends_on:
       backend: { condition: service_healthy }
 
@@ -68,7 +71,9 @@ services:
       backend: { condition: service_healthy }
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
     environment:
       VITE_API_PROXY: http://backend:8000
       CHOKIDAR_USEPOLLING: "true"
