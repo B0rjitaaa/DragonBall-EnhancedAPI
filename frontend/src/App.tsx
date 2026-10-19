@@ -66,6 +66,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [error, setError] = useState<string | null>(null)
   const [openId, setOpenId] = useState<number | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [adjusting, setAdjusting] = useState<Set<number>>(() => new Set())
 
   useEffect(() => {
     Promise.all([api.fields(), api.facets(scope)])
@@ -196,6 +197,46 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     [data, inCollection],
   )
   const openOwned = inCollection ? data?.results.find((c) => c.id === openId) : undefined
+
+  // Mi colección: − / + en cada carta. Se actualiza la página al momento y, si
+  // se quita la última copia, la carta sale de la lista.
+  const adjust = useCallback(
+    async (id: number, delta: number) => {
+      const card = data?.results.find((c) => c.id === id)
+      if (!card || adjusting.has(id)) return
+      if (delta < 0 && (card.quantity ?? 0) <= 1 && !window.confirm(`¿Quitar ${card.name} (${card.card_number}) de tu colección?`)) {
+        return
+      }
+      setAdjusting((s) => new Set(s).add(id))
+      try {
+        const r = await api.adjustCollection(id, delta)
+        setData((prev) => {
+          if (!prev) return prev
+          const before = prev.results.find((c) => c.id === id)?.quantity ?? 0
+          const removed = r.quantity === 0
+          return {
+            ...prev,
+            count: removed ? prev.count - 1 : prev.count,
+            total_copies: (prev.total_copies ?? 0) + (r.quantity - before),
+            results: removed
+              ? prev.results.filter((c) => c.id !== id)
+              : prev.results.map((c) => (c.id === id ? { ...c, quantity: r.quantity, conditions: r.conditions } : c)),
+          }
+        })
+        if (r.quantity === 0 && openId === id) setOpenId(null)
+        setError(null)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setAdjusting((s) => {
+          const next = new Set(s)
+          next.delete(id)
+          return next
+        })
+      }
+    },
+    [data, adjusting, openId],
+  )
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
   if (bootError) {
@@ -370,6 +411,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             skills={skills}
             onOpen={setOpenId}
             quantities={quantities}
+            onAdjust={inCollection ? adjust : undefined}
+            adjusting={adjusting}
             emptyText={
               inCollection && activeCount === 0
                 ? 'Tu colección está vacía: escanea cartas con el escáner y aparecerán aquí.'
@@ -396,11 +439,19 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       {openId !== null && <CardModal key={openId} id={openId} skills={skills} onClose={() => setOpenId(null)} onFilter={addFilter} />}
       {openOwned && (
         <div className="owned-pill" role="status">
-          En tu colección: <strong>×{openOwned.quantity}</strong>
-          {' · '}
-          {Object.entries(openOwned.conditions ?? {})
-            .map(([cond, n]) => `${n} ${CONDITIONS[cond] ?? cond}`)
-            .join(', ')}
+          <button className="qty-btn" onClick={() => adjust(openOwned.id, -1)} disabled={adjusting.has(openOwned.id)} aria-label="Quitar una copia">
+            −
+          </button>
+          <span>
+            En tu colección: <strong>×{openOwned.quantity}</strong>
+            {' · '}
+            {Object.entries(openOwned.conditions ?? {})
+              .map(([cond, n]) => `${n} ${CONDITIONS[cond] ?? cond}`)
+              .join(', ')}
+          </span>
+          <button className="qty-btn" onClick={() => adjust(openOwned.id, 1)} disabled={adjusting.has(openOwned.id)} aria-label="Añadir una copia">
+            +
+          </button>
         </div>
       )}
     </div>

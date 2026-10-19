@@ -92,3 +92,31 @@ class MyCollectionTests(TestCase):
     @override_settings(CARD_CHECKER_URL="")
     def test_not_configured_returns_503(self):
         self.assertEqual(self.search(scope="collection").status_code, 503)
+
+
+    def test_adjust_forwards_to_the_checker_and_drops_the_cache(self):
+        self.search(scope="collection")  # llena la caché
+        calls = []
+
+        def fake(req, *a, **k):
+            if hasattr(req, "data") and req.data:
+                calls.append((req.full_url, json.loads(req.data)))
+                return _response({"bandai_id": 4, "quantity": 4, "conditions": {"near_mint": 3, "played": 1}})
+            return _response(ENTRIES)
+
+        self.urlopen.side_effect = fake
+        data = self.client.post("/api/my-collection/adjust/", {"card_id": 4, "delta": 1}, format="json").data
+        self.assertEqual(calls, [("http://checker/api/collection/adjust/", {"bandai_id": 4, "delta": 1})])
+        self.assertEqual((data["card_id"], data["quantity"]), (4, 4))
+        self.assertIsNone(cache.get(CACHE_KEY))  # la siguiente búsqueda relee la colección
+
+    def test_adjust_validation(self):
+        post = lambda body: self.client.post("/api/my-collection/adjust/", body, format="json")  # noqa: E731
+        self.assertEqual(post({"card_id": 4, "delta": 0}).status_code, 400)
+        self.assertEqual(post({"card_id": 4, "delta": 50}).status_code, 400)
+        self.assertEqual(post({"card_id": 123456, "delta": 1}).status_code, 400)
+
+    def test_adjust_with_checker_down(self):
+        self.urlopen.side_effect = URLError("connection refused")
+        response = self.client.post("/api/my-collection/adjust/", {"card_id": 4, "delta": -1}, format="json")
+        self.assertEqual(response.status_code, 502)

@@ -41,4 +41,10 @@ export const api = {
     request<SearchResponse>('/cards/search/', { method: 'POST', body: JSON.stringify(body), signal }),
   card: (id: number) => request<CardDetail>(`/cards/${id}/`),
   keywordSkills: () => request<KeywordSkillsResponse>('/keyword-skills/'),
+  /** Mi colección: suma (delta > 0) o resta copias de una carta en la colección del escáner. */
+  adjustCollection: (cardId: number, delta: number) =>
+    request<{ card_id: number; quantity: number; conditions: Record<string, number> }>('/my-collection/adjust/', {
+      method: 'POST',
+      body: JSON.stringify({ card_id: cardId, delta }),
+    }),
 }

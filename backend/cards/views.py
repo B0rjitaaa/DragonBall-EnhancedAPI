@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .collection import CollectionUnavailable, Owned, fetch_owned
+from .collection import CollectionUnavailable, Owned, adjust_owned, fetch_owned
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
 from .parsing import normalize_search
@@ -309,3 +309,21 @@ class MyCollectionView(APIView):
             "missing": sorted({n for i, n in owned.numbers.items() if i not in found}),
             "results": with_owned(cards, owned),
         })
+
+
+class MyCollectionAdjustView(APIView):
+    """Botones − / + de Mi colección: POST {card_id, delta} (delta entre -10 y 10, distinto de 0)."""
+
+    def post(self, request):
+        try:
+            card_id, delta = int(request.data.get("card_id")), int(request.data.get("delta"))
+        except (TypeError, ValueError):
+            raise ValidationError({"detail": "card_id y delta deben ser enteros"}) from None
+        if delta == 0 or abs(delta) > 10:
+            raise ValidationError({"delta": "Entre -10 y 10, distinto de 0"})
+        if not Card.objects.filter(id=card_id).exists():
+            raise ValidationError({"card_id": "Carta desconocida"})
+        try:
+            return Response({"card_id": card_id, **adjust_owned(card_id, delta)})
+        except CollectionUnavailable as exc:
+            return collection_error(exc)

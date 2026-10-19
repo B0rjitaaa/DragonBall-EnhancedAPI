@@ -9,8 +9,8 @@ import hashlib
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from urllib.error import URLError
-from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from django.conf import settings
 from django.core.cache import cache
@@ -69,3 +69,27 @@ def fetch_owned() -> Owned:
     owned = Owned(dict(cards), numbers)
     cache.set(CACHE_KEY, owned, CACHE_TTL)
     return owned
+
+
+def adjust_owned(card_id: int, delta: int) -> dict:
+    """Suma o resta copias de una carta en la colección del escáner.
+
+    Devuelve {quantity, conditions} tras el cambio y descarta la colección
+    cacheada para que búsqueda y facetas reflejen el cambio al momento.
+    """
+    base = settings.CARD_CHECKER_URL.rstrip("/")
+    if not base:
+        raise CollectionUnavailable("CARD_CHECKER_URL no está configurado", 503)
+    body = json.dumps({"bandai_id": card_id, "delta": delta}).encode()
+    req = Request(f"{base}/api/collection/adjust/", data=body, method="POST",
+                  headers={"Content-Type": "application/json"})
+    try:
+        with urlopen(req, timeout=5) as resp:  # noqa: S310 - URL de configuración
+            result = json.load(resp)
+    except HTTPError as exc:
+        detail = "la carta no está en el catálogo del escáner" if exc.code == 404 else f"HTTP {exc.code}"
+        raise CollectionUnavailable(f"El escáner rechazó el cambio: {detail}", 502) from exc
+    except (URLError, TimeoutError, ValueError) as exc:
+        raise CollectionUnavailable(f"No se pudo hablar con el escáner ({base}): {exc}", 502) from exc
+    cache.delete(CACHE_KEY)
+    return {"quantity": result["quantity"], "conditions": result["conditions"]}

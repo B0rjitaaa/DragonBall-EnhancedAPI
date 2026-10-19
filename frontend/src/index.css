@@ -370,3 +370,21 @@ body.no-scroll { overflow: hidden; }
 @media (max-width: 760px) {
   .site-nav { padding: 0.35rem 0.6rem; }
 }
+
+/* Mi colección: − ×N + bajo cada carta y en la ficha */
+.grid li { display: flex; flex-direction: column; }
+.qty-controls {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
+  margin-top: 0.35rem; padding: 0.25rem;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2);
+}
+.qty-value { font-weight: 800; color: var(--accent); }
+.qty-btn {
+  width: 2rem; height: 2rem; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--bg-3); color: inherit;
+  font-size: 1.15rem; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.qty-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.qty-btn:disabled { opacity: 0.4; cursor: default; }
+.owned-pill { display: flex; align-items: center; gap: 0.75rem; }
+.owned-pill .qty-btn { background: rgba(0, 0, 0, 0.15); border-color: rgba(0, 0, 0, 0.3); color: #111; }

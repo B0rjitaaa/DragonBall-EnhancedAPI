@@ -10,12 +10,16 @@ interface Props {
   loading: boolean
   skills: SkillIndex
   onOpen: (id: number) => void
-  /** Mi colección: copias de cada carta (se muestra "×N" en la miniatura). */
+  /** Mi colección: copias de cada carta. */
   quantities?: Record<number, number>
+  /** Mi colección: botones − / + para restar o sumar copias. */
+  onAdjust?: (id: number, delta: number) => void
+  /** Cartas con un cambio de copias en curso (botones desactivados). */
+  adjusting?: Set<number>
   emptyText?: string
 }
 
-export default function CardGrid({ cards, loading, skills, onOpen, quantities, emptyText }: Props) {
+export default function CardGrid({ cards, loading, skills, onOpen, quantities, emptyText, onAdjust, adjusting }: Props) {
   if (!loading && cards.length === 0) {
     return <div className="empty">{emptyText ?? 'No hay cartas que cumplan estos filtros.'}</div>
   }
@@ -41,7 +45,7 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
                   </span>
                 ))}
               {c.has_back && <span className="badge">2 caras</span>}
-              {quantities?.[c.id] != null && (
+              {quantities?.[c.id] != null && !onAdjust && (
                 <span className="qty-badge" title={`${quantities[c.id]} copias en tu colección`}>
                   ×{quantities[c.id]}
                 </span>
@@ -71,6 +75,30 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
               </div>
             </div>
           </button>
+          {onAdjust && quantities?.[c.id] != null && (
+            // Fuera del botón de la carta: pulsar − / + no abre la ficha.
+            <div className="qty-controls" aria-label={`Copias de ${c.name}`}>
+              <button
+                className="qty-btn"
+                onClick={() => onAdjust(c.id, -1)}
+                disabled={adjusting?.has(c.id)}
+                aria-label="Quitar una copia"
+                title="Quitar una copia"
+              >
+                −
+              </button>
+              <span className="qty-value" title="Copias en tu colección">×{quantities[c.id]}</span>
+              <button
+                className="qty-btn"
+                onClick={() => onAdjust(c.id, 1)}
+                disabled={adjusting?.has(c.id)}
+                aria-label="Añadir una copia"
+                title="Añadir una copia"
+              >
+                +
+              </button>
+            </div>
+          )}
         </li>
       ))}
     </ul>
