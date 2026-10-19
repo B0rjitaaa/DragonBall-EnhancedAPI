@@ -63,6 +63,9 @@ export interface CardSummary {
   legality: 'legal' | 'limited' | 'banned'
   legality_since: string
   keyword_skills: string[]
+  /** Solo en Mi colección: copias escaneadas y su reparto por estado. */
+  quantity?: number
+  conditions?: Record<string, number>
 }
 
 export interface CardDetail extends CardSummary {
@@ -94,6 +97,9 @@ export interface SearchResponse {
   page_size: number
   pages: number
   results: CardSummary[]
+  /** Solo en Mi colección */
+  total_copies?: number
+  missing?: string[]
 }
 
 /** Estado del panel facetado: valores marcados (OR / AND) o rango numérico por campo. */
@@ -126,17 +132,3 @@ export interface KeywordSkillsResponse {
   deck_rules: Record<string, string>
 }
 
-/** Carta de "Mi colección": la ficha del catálogo + las copias escaneadas. */
-export interface CollectionCard extends CardSummary {
-  quantity: number
-  /** copias por estado: { near_mint: 2, played: 1 } */
-  conditions: Record<string, number>
-}
-
-export interface MyCollectionResponse {
-  total_cards: number
-  total_copies: number
-  /** números de carta escaneados que este catálogo aún no tiene */
-  missing: string[]
-  results: CollectionCard[]
-}

@@ -1,11 +1,7 @@
 import json
 import re
-from collections import defaultdict
-from urllib.error import URLError
-from urllib.request import urlopen
 
-from django.conf import settings
-from django.db.models import F, Q, QuerySet
+from django.db.models import Case, F, IntegerField, Q, QuerySet, Value, When
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -13,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .collection import CollectionUnavailable, Owned, fetch_owned
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
 from .parsing import normalize_search
@@ -108,18 +105,37 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         body = SearchRequestSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         data = body.validated_data
-        qs = apply_ordering(build_queryset(data.get("q"), data.get("query")), data.get("ordering"))
+        try:
+            owned = owned_or_error(data.get("scope"))
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+
+        qs = build_queryset(data.get("q"), data.get("query"))
+        ordering = (data.get("ordering") or "number").strip()
+        if owned is not None:
+            qs = qs.filter(id__in=owned.ids)
+        if owned is not None and ordering.lstrip("-") == "quantity":
+            qs = order_by_quantity(qs, owned, desc=ordering.startswith("-"))
+        else:
+            qs = apply_ordering(qs, ordering)
 
         size, number = data["page_size"], data["page"]
         total = qs.count()
-        items = qs[(number - 1) * size: number * size]
-        return Response({
+        items = CardListSerializer(qs[(number - 1) * size: number * size], many=True).data
+        response = {
             "count": total,
             "page": number,
             "page_size": size,
             "pages": max(1, -(-total // size)),
-            "results": CardListSerializer(items, many=True).data,
-        })
+            "results": items,
+        }
+        if owned is not None:
+            matched = list(qs.values_list("id", flat=True))
+            response["results"] = with_owned(items, owned)
+            response["total_copies"] = sum(owned.quantity(i) for i in matched)
+            catalog = set(Card.objects.filter(id__in=owned.ids).values_list("id", flat=True))
+            response["missing"] = sorted({n for i, n in owned.numbers.items() if i not in catalog})
+        return Response(response)
 
 
 class FieldsView(APIView):
@@ -133,15 +149,29 @@ class FacetsView(APIView):
     """GET: valores y recuentos globales. POST {q, query}: recuentos dentro de la búsqueda actual."""
 
     def get(self, request):
-        return Response(cached_facets(Card.objects.all()))
+        try:
+            owned = owned_or_error(request.query_params.get("scope"))
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        if owned is None:
+            return Response(cached_facets(Card.objects.all()))
+        # Ámbito Mi colección: la huella de la colección en la clave de caché.
+        return Response(cached_facets(Card.objects.filter(id__in=owned.ids), {"owned": owned.fingerprint}))
 
     def post(self, request):
-        """Body: {q, query, only?: [campos]}. `only` limita el cálculo a esos campos."""
+        """Body: {q, query, only?: [campos], scope?: "collection"}. `only` limita el cálculo a esos campos."""
         q, tree = request.data.get("q"), request.data.get("query")
         only = request.data.get("only") or None
         if only is not None and (not isinstance(only, list) or any(k not in FIELDS for k in only)):
             raise ValidationError({"only": "Lista de campos no válida"})
-        return Response(cached_facets(build_queryset(q, tree), {"q": q, "query": tree}, only))
+        try:
+            owned = owned_or_error(request.data.get("scope"))
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        qs, payload = build_queryset(q, tree), {"q": q, "query": tree}
+        if owned is not None:
+            qs, payload["owned"] = qs.filter(id__in=owned.ids), owned.fingerprint
+        return Response(cached_facets(qs, payload, only))
 
 
 class KeywordSkillsView(APIView):
@@ -214,48 +244,45 @@ class SyncRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         return Response({"task_id": result.id, "full": full}, status=status.HTTP_202_ACCEPTED)
 
 
-class MyCollectionView(APIView):
-    """Mi colección: la colección escaneada en DragonBall-CameraCardChecker.
 
-    Se lee de su endpoint /api/collection/export/ y se cruza con este catálogo
-    por el id de Bandai (la clave común de los dos proyectos), así cada carta
-    sale con su ficha completa y el número de copias.
-    """
+def owned_or_error(request_scope: str | None) -> Owned | None:
+    """Colección del escáner si el ámbito es "collection" (o None)."""
+    if request_scope != "collection":
+        return None
+    return fetch_owned()
+
+
+def collection_error(exc: CollectionUnavailable) -> Response:
+    return Response({"detail": str(exc)}, status=exc.status)
+
+
+def order_by_quantity(qs: QuerySet, owned: Owned, desc: bool) -> QuerySet:
+    """Orden por número de copias (solo en Mi colección)."""
+    if not owned.cards:
+        return apply_ordering(qs, "number")
+    qty = Case(*[When(id=i, then=Value(n["quantity"])) for i, n in owned.cards.items()],
+               default=Value(0), output_field=IntegerField())
+    qs = apply_ordering(qs, "number")  # desempate por número de carta
+    return qs.annotate(owned_qty=qty).order_by("-owned_qty" if desc else "owned_qty", *qs.query.order_by)
+
+
+def with_owned(cards: list[dict], owned: Owned) -> list[dict]:
+    return [{**c, **owned.cards[c["id"]]} for c in cards]
+
+
+class MyCollectionView(APIView):
+    """Resumen de Mi colección: totales y cartas escaneadas que este catálogo aún no tiene."""
 
     def get(self, request):
-        base = settings.CARD_CHECKER_URL.rstrip("/")
-        if not base:
-            return Response(
-                {"detail": "CARD_CHECKER_URL no está configurado"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
         try:
-            with urlopen(f"{base}/api/collection/export/", timeout=5) as resp:  # noqa: S310 - URL de configuración
-                entries = json.load(resp)
-        except (URLError, TimeoutError, ValueError) as exc:
-            return Response(
-                {"detail": f"No se pudo leer la colección del escáner ({base}): {exc}"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        owned: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "conditions": {}})
-        for entry in entries:
-            item = owned[entry["bandai_id"]]
-            item["quantity"] += entry["quantity"]
-            item["conditions"][entry["condition"]] = (
-                item["conditions"].get(entry["condition"], 0) + entry["quantity"]
-            )
-
-        cards = CardListSerializer(Card.objects.filter(id__in=owned.keys()), many=True).data
-        results = [{**card, **owned[card["id"]]} for card in cards]
-        found = {card["id"] for card in cards}
-        # Cartas escaneadas que este catálogo aún no tiene (p. ej. un set recién salido).
-        missing = sorted({e["card_number"] for e in entries if e["bandai_id"] not in found})
-        return Response(
-            {
-                "total_cards": len(results),
-                "total_copies": sum(r["quantity"] for r in results),
-                "missing": missing,
-                "results": results,
-            }
-        )
+            owned = fetch_owned()
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        cards = CardListSerializer(Card.objects.filter(id__in=owned.ids), many=True).data
+        found = {c["id"] for c in cards}
+        return Response({
+            "total_cards": len(cards),
+            "total_copies": sum(owned.quantity(c["id"]) for c in cards),
+            "missing": sorted({n for i, n in owned.numbers.items() if i not in found}),
+            "results": with_owned(cards, owned),
+        })

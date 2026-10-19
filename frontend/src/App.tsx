@@ -3,7 +3,7 @@ import CardGrid from './components/CardGrid'
 import CardModal from './components/CardModal'
 import FacetPanel from './components/FacetPanel'
 import QueryBuilder from './components/QueryBuilder'
-import { api } from './lib/api'
+import { api, type Scope } from './lib/api'
 import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
 } from './lib/query'
@@ -12,6 +12,13 @@ import { SkillIndex } from './lib/skills'
 import type { Facet, FacetState, FieldDef, Group, SearchResponse } from './lib/types'
 
 const PAGE_SIZE = 48
+const CONDITIONS: Record<string, string> = {
+  mint: 'Mint', near_mint: 'Near Mint', excellent: 'Excellent', good: 'Good', played: 'Played', poor: 'Poor',
+}
+
+// Escáner de cartas (DragonBall-CameraCardChecker), en el mismo servidor.
+const SCANNER_URL = `http://${window.location.hostname}/`
+
 const ORDERINGS: [string, string][] = [
   ['number', 'Número de carta'],
   ['-newest', 'Más antiguas'],
@@ -32,7 +39,14 @@ function useDebounced<T>(value: T, ms = 300): T {
   return v
 }
 
-export default function App() {
+/**
+ * El buscador. Con scope="collection" (página /coleccion, "Mi colección") se
+ * comporta igual (filtros, modo avanzado, orden, páginas) pero solo sobre las
+ * cartas escaneadas con el escáner, y muestra las copias de cada una.
+ */
+export default function App({ scope = 'all' }: { scope?: Scope }) {
+  const inCollection = scope === 'collection'
+  const orderings: [string, string][] = inCollection ? [...ORDERINGS, ['-quantity', 'Más copias']] : ORDERINGS
   const [initial] = useState(readUrlState)
   const [fields, setFields] = useState<FieldDef[]>([])
   const [globalFacets, setGlobalFacets] = useState<Record<string, Facet>>({})
@@ -54,7 +68,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
-    Promise.all([api.fields(), api.facets()])
+    Promise.all([api.fields(), api.facets(scope)])
       .then(([f, fc]) => {
         setFields(f)
         setGlobalFacets(fc.facets)
@@ -64,7 +78,7 @@ export default function App() {
       .keywordSkills()
       .then((d) => setSkills(new SkillIndex(d)))
       .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
-  }, [])
+  }, [scope])
 
   const query = useMemo(
     () => (fields.length ? buildQuery(facets, advanced, advancedOn, fields) : null),
@@ -74,16 +88,16 @@ export default function App() {
   // (así en "Color: Red" siguen apareciendo cuántas cartas hay de Blue, Green…)
   const facetRequests = useMemo(() => {
     if (!fields.length) return []
-    const reqs: { q: string; query: unknown; only?: string[] }[] = [{ q: q.trim(), query }]
+    const reqs: { q: string; query: unknown; only?: string[]; scope: Scope }[] = [{ q: q.trim(), query, scope }]
     for (const key of Object.keys(facets)) {
       const { [key]: _omit, ...rest } = facets
       void _omit
-      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key] })
+      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key], scope })
     }
     return reqs
-  }, [q, query, facets, advanced, advancedOn, fields])
+  }, [q, query, facets, advanced, advancedOn, fields, scope])
   const filterKey = useDebounced(JSON.stringify(facetRequests))
-  const searchKey = useDebounced(JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE }), 150)
+  const searchKey = useDebounced(JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope }), 150)
 
   // Resultados
   useEffect(() => {
@@ -104,7 +118,7 @@ export default function App() {
   // Recuentos de facetas dentro de la búsqueda actual
   useEffect(() => {
     if (!fields.length) return
-    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[] }[]
+    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[]; scope: Scope }[]
     if (!reqs.length || (!reqs[0].q && !reqs[0].query)) {
       setContextFacets(null)
       return
@@ -176,12 +190,18 @@ export default function App() {
   }
 
   const labels = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, f.label])), [fields])
+  // Mi colección: copias de cada carta de la página (insignia ×N y ficha).
+  const quantities = useMemo(
+    () => (inCollection ? Object.fromEntries((data?.results ?? []).map((c) => [c.id, c.quantity ?? 0])) : undefined),
+    [data, inCollection],
+  )
+  const openOwned = inCollection ? data?.results.find((c) => c.id === openId) : undefined
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
   if (bootError) {
     return (
       <div className="boot-error">
-        <h1>No se puede conectar con la API</h1>
+        <h1>{inCollection ? 'No se puede cargar Mi colección' : 'No se puede conectar con la API'}</h1>
         <p>{bootError}</p>
         <p className="muted">¿Está levantado el backend? Prueba <code>docker compose ps</code>.</p>
       </div>
@@ -202,14 +222,14 @@ export default function App() {
         <button className="brand" onClick={goHome} title="Volver al inicio y limpiar los filtros">
           <span className="ball" aria-hidden>★</span>
           <span className="brand-text">
-            <strong>DragonBall EnhancedAPI</strong>
-            <small>Buscador de cartas · Dragon Ball Super Card Game</small>
+            <strong>{inCollection ? 'Mi colección' : 'DragonBall EnhancedAPI'}</strong>
+            <small>{inCollection ? 'Cartas escaneadas con el escáner de cartas' : 'Buscador de cartas · Dragon Ball Super Card Game'}</small>
           </span>
         </button>
         <input
           className="input search"
           type="search"
-          placeholder="Buscar por nombre, número o texto…"
+          placeholder={inCollection ? 'Buscar en mi colección por nombre, número o texto…' : 'Buscar por nombre, número o texto…'}
           value={q}
           onChange={(e) => {
             setQ(e.target.value)
@@ -217,7 +237,7 @@ export default function App() {
           }}
         />
         <select className="input" value={ordering} onChange={(e) => setOrdering(e.target.value)} aria-label="Ordenar">
-          {ORDERINGS.map(([v, l]) => (
+          {orderings.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
             </option>
@@ -314,20 +334,48 @@ export default function App() {
             </div>
           )}
 
+          {inCollection && data?.missing && data.missing.length > 0 && (
+            <div className="legal-banner limited">
+              {data.missing.length} carta(s) escaneada(s) aún no están en este catálogo (¿set nuevo? aparecerán tras el
+              próximo sync): {data.missing.join(', ')}
+            </div>
+          )}
+
           <div className="results-head">
             <span>
               {data ? (
                 <>
                   <strong>{data.count.toLocaleString('es-ES')}</strong> cartas
+                  {inCollection && data.total_copies != null && (
+                    <>
+                      {' '}· <strong>{data.total_copies.toLocaleString('es-ES')}</strong> copias
+                    </>
+                  )}
                 </>
               ) : (
                 'Cargando…'
               )}
             </span>
             {error && <span className="error">{error}</span>}
+            {inCollection && (
+              <a className="btn primary scan-link" href={SCANNER_URL}>
+                Escanear cartas ↗
+              </a>
+            )}
           </div>
 
-          <CardGrid cards={data?.results ?? []} loading={loading} skills={skills} onOpen={setOpenId} />
+          <CardGrid
+            cards={data?.results ?? []}
+            loading={loading}
+            skills={skills}
+            onOpen={setOpenId}
+            quantities={quantities}
+            emptyText={
+              inCollection && activeCount === 0
+                ? 'Tu colección está vacía: escanea cartas con el escáner y aparecerán aquí.'
+                : undefined
+            }
+          />
 
           {data && data.pages > 1 && (
             <nav className="pagination">
@@ -346,6 +394,15 @@ export default function App() {
       </div>
 
       {openId !== null && <CardModal key={openId} id={openId} skills={skills} onClose={() => setOpenId(null)} onFilter={addFilter} />}
+      {openOwned && (
+        <div className="owned-pill" role="status">
+          En tu colección: <strong>×{openOwned.quantity}</strong>
+          {' · '}
+          {Object.entries(openOwned.conditions ?? {})
+            .map(([cond, n]) => `${n} ${CONDITIONS[cond] ?? cond}`)
+            .join(', ')}
+        </div>
+      )}
     </div>
   )
 }

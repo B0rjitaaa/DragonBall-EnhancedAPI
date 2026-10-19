@@ -3,15 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import SiteNav from './components/SiteNav.tsx'
-import MyCollection from './MyCollection.tsx'
 
-// Dos páginas: el buscador (/) y Mi colección (/coleccion). El buscador guarda
-// su estado en el # de la URL, así que la colección va por ruta.
+// Dos páginas con el mismo buscador: todo el catálogo (/) y Mi colección
+// (/coleccion, solo las cartas escaneadas). El estado de filtros va en el #.
 const isCollection = window.location.pathname.replace(/\/+$/, '') === '/coleccion'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <SiteNav active={isCollection ? 'collection' : 'search'} />
-    {isCollection ? <MyCollection /> : <App />}
+    <App scope={isCollection ? 'collection' : 'all'} />
   </StrictMode>,
 )

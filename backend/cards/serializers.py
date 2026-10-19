@@ -41,6 +41,8 @@ class SearchRequestSerializer(serializers.Serializer):
     ordering = serializers.CharField(required=False, allow_blank=True)
     page = serializers.IntegerField(required=False, min_value=1, default=1)
     page_size = serializers.IntegerField(required=False, min_value=1, max_value=200, default=48)
+    scope = serializers.ChoiceField(choices=["all", "collection"], required=False, default="all",
+                                    help_text="collection: solo las cartas de Mi colección (con sus copias)")
 
 
 class BanListEntrySerializer(serializers.ModelSerializer):

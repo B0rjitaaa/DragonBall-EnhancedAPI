@@ -162,8 +162,3 @@ export function normalizeKeyword(raw: string): string {
   return KEYWORD_ALIASES[s] ?? s
 }
 
-/** URL del buscador con un único filtro puesto (para saltar desde otra página). */
-export function searchUrlWithFilter(field: string, value: string | number): string {
-  const facets: FacetState = { [field]: { values: [value], match: 'all' } }
-  return `/#${encodeURIComponent(JSON.stringify({ facets }))}`
-}

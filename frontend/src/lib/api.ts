@@ -1,4 +1,4 @@
-import type { CardDetail, FacetsResponse, FieldDef, KeywordSkillsResponse, MyCollectionResponse, SearchResponse } from './types'
+import type { CardDetail, FacetsResponse, FieldDef, KeywordSkillsResponse, SearchResponse } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -26,16 +26,19 @@ export interface SearchBody {
   ordering?: string
   page?: number
   page_size?: number
+  /** 'collection': solo las cartas de Mi colección */
+  scope?: Scope
 }
+
+export type Scope = 'all' | 'collection'
 
 export const api = {
   fields: () => request<FieldDef[]>('/fields/'),
-  facets: () => request<FacetsResponse>('/facets/'),
+  facets: (scope: Scope = 'all') => request<FacetsResponse>(scope === 'collection' ? '/facets/?scope=collection' : '/facets/'),
   facetsFor: (body: SearchBody & { only?: string[] }, signal?: AbortSignal) =>
     request<FacetsResponse>('/facets/', { method: 'POST', body: JSON.stringify(body), signal }),
   search: (body: SearchBody, signal?: AbortSignal) =>
     request<SearchResponse>('/cards/search/', { method: 'POST', body: JSON.stringify(body), signal }),
   card: (id: number) => request<CardDetail>(`/cards/${id}/`),
   keywordSkills: () => request<KeywordSkillsResponse>('/keyword-skills/'),
-  myCollection: () => request<MyCollectionResponse>('/my-collection/'),
 }

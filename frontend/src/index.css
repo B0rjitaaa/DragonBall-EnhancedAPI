@@ -353,10 +353,7 @@ body.no-scroll { overflow: hidden; }
 .site-nav a.external { margin-left: auto; }
 
 /* --- Mi colección --- */
-.collection-page { max-width: 1500px; margin: 0 auto; width: 100%; }
-.collection-page .results-head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-.collection-page .results-head .btn { text-decoration: none; }
-a.brand { text-decoration: none; color: inherit; }
+.results-head .scan-link { margin-left: auto; text-decoration: none; }
 .qty-badge {
   position: absolute; bottom: 6px; right: 6px; z-index: 2;
   font-size: 0.85rem; font-weight: 800;
@@ -372,5 +369,4 @@ a.brand { text-decoration: none; color: inherit; }
 }
 @media (max-width: 760px) {
   .site-nav { padding: 0.35rem 0.6rem; }
-  .collection-page .results-head .btn { width: 100%; text-align: center; }
 }
