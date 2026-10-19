@@ -199,14 +199,11 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const openOwned = inCollection ? data?.results.find((c) => c.id === openId) : undefined
 
   // Mi colección: − / + en cada carta. Se actualiza la página al momento y, si
-  // se quita la última copia, la carta sale de la lista.
+  // se quita la última copia, la carta sale de la lista sin preguntar.
   const adjust = useCallback(
     async (id: number, delta: number) => {
       const card = data?.results.find((c) => c.id === id)
       if (!card || adjusting.has(id)) return
-      if (delta < 0 && (card.quantity ?? 0) <= 1 && !window.confirm(`¿Quitar ${card.name} (${card.card_number}) de tu colección?`)) {
-        return
-      }
       setAdjusting((s) => new Set(s).add(id))
       try {
         const r = await api.adjustCollection(id, delta)
