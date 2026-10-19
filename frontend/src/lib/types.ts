@@ -125,3 +125,18 @@ export interface KeywordSkillsResponse {
   aliases: Record<string, string>
   deck_rules: Record<string, string>
 }
+
+/** Carta de "Mi colección": la ficha del catálogo + las copias escaneadas. */
+export interface CollectionCard extends CardSummary {
+  quantity: number
+  /** copias por estado: { near_mint: 2, played: 1 } */
+  conditions: Record<string, number>
+}
+
+export interface MyCollectionResponse {
+  total_cards: number
+  total_copies: number
+  /** números de carta escaneados que este catálogo aún no tiene */
+  missing: string[]
+  results: CollectionCard[]
+}

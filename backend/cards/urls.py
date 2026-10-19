@@ -12,5 +12,6 @@ urlpatterns = [
     path("facets/", views.FacetsView.as_view(), name="facets"),
     path("banlist/", views.BanListView.as_view(), name="banlist"),
     path("keyword-skills/", views.KeywordSkillsView.as_view(), name="keyword-skills"),
+    path("my-collection/", views.MyCollectionView.as_view(), name="my-collection"),
     *router.urls,
 ]

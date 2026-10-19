@@ -10,11 +10,14 @@ interface Props {
   loading: boolean
   skills: SkillIndex
   onOpen: (id: number) => void
+  /** Mi colección: copias de cada carta (se muestra "×N" en la miniatura). */
+  quantities?: Record<number, number>
+  emptyText?: string
 }
 
-export default function CardGrid({ cards, loading, skills, onOpen }: Props) {
+export default function CardGrid({ cards, loading, skills, onOpen, quantities, emptyText }: Props) {
   if (!loading && cards.length === 0) {
-    return <div className="empty">No hay cartas que cumplan estos filtros.</div>
+    return <div className="empty">{emptyText ?? 'No hay cartas que cumplan estos filtros.'}</div>
   }
   return (
     <ul className={`grid ${loading ? 'loading' : ''}`}>
@@ -38,6 +41,11 @@ export default function CardGrid({ cards, loading, skills, onOpen }: Props) {
                   </span>
                 ))}
               {c.has_back && <span className="badge">2 caras</span>}
+              {quantities?.[c.id] != null && (
+                <span className="qty-badge" title={`${quantities[c.id]} copias en tu colección`}>
+                  ×{quantities[c.id]}
+                </span>
+              )}
               {c.legality !== 'legal' && (
                 <span className={`legal-badge ${c.legality}`} title={c.legality_since}>
                   {c.legality === 'banned' ? 'BAN' : 'LIMIT 1'}

@@ -82,6 +82,10 @@ DATABASES = {
 
 REDIS_URL = env("REDIS_URL", "redis://localhost:6379")
 
+# "Mi colección": la colección escaneada vive en DragonBall-CameraCardChecker.
+# URL de su API vista desde este backend (p. ej. http://192.168.178.104).
+CARD_CHECKER_URL = env("CARD_CHECKER_URL", "")
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",

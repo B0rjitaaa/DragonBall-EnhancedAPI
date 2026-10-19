@@ -1,6 +1,10 @@
 import json
 import re
+from collections import defaultdict
+from urllib.error import URLError
+from urllib.request import urlopen
 
+from django.conf import settings
 from django.db.models import F, Q, QuerySet
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, permissions, status, viewsets
@@ -208,3 +212,50 @@ class SyncRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         full = str(request.data.get("full", "false")).lower() in {"1", "true", "yes"}
         result = sync_cards.delay(full=full)
         return Response({"task_id": result.id, "full": full}, status=status.HTTP_202_ACCEPTED)
+
+
+class MyCollectionView(APIView):
+    """Mi colección: la colección escaneada en DragonBall-CameraCardChecker.
+
+    Se lee de su endpoint /api/collection/export/ y se cruza con este catálogo
+    por el id de Bandai (la clave común de los dos proyectos), así cada carta
+    sale con su ficha completa y el número de copias.
+    """
+
+    def get(self, request):
+        base = settings.CARD_CHECKER_URL.rstrip("/")
+        if not base:
+            return Response(
+                {"detail": "CARD_CHECKER_URL no está configurado"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        try:
+            with urlopen(f"{base}/api/collection/export/", timeout=5) as resp:  # noqa: S310 - URL de configuración
+                entries = json.load(resp)
+        except (URLError, TimeoutError, ValueError) as exc:
+            return Response(
+                {"detail": f"No se pudo leer la colección del escáner ({base}): {exc}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        owned: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "conditions": {}})
+        for entry in entries:
+            item = owned[entry["bandai_id"]]
+            item["quantity"] += entry["quantity"]
+            item["conditions"][entry["condition"]] = (
+                item["conditions"].get(entry["condition"], 0) + entry["quantity"]
+            )
+
+        cards = CardListSerializer(Card.objects.filter(id__in=owned.keys()), many=True).data
+        results = [{**card, **owned[card["id"]]} for card in cards]
+        found = {card["id"] for card in cards}
+        # Cartas escaneadas que este catálogo aún no tiene (p. ej. un set recién salido).
+        missing = sorted({e["card_number"] for e in entries if e["bandai_id"] not in found})
+        return Response(
+            {
+                "total_cards": len(results),
+                "total_copies": sum(r["quantity"] for r in results),
+                "missing": missing,
+                "results": results,
+            }
+        )
