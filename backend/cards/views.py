@@ -2,6 +2,8 @@ import json
 import re
 
 from django.db.models import Case, F, IntegerField, Q, QuerySet, Value, When
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -98,6 +100,27 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    @extend_schema(parameters=[OpenApiParameter("updated_since", str, description="ISO 8601: solo cartas creadas o cambiadas desde entonces")])
+    @action(detail=False)
+    def export(self, request):
+        """Registros originales de Bandai TCG+ (el mismo formato que cartas_dbs.json).
+
+        Lo usa DragonBall-CameraCardChecker para mantener su catálogo al día sin
+        hablar directamente con Bandai: GET /api/cards/export/?updated_since=…
+        """
+        qs = Card.objects.order_by("id")
+        raw_since = request.query_params.get("updated_since")
+        if raw_since:
+            since = parse_datetime(raw_since)
+            if since is None:
+                raise ValidationError({"updated_since": "Fecha ISO 8601 no válida"})
+            qs = qs.filter(updated_at__gte=since)
+        return Response({
+            "generated_at": timezone.now().isoformat(),
+            "count": qs.count(),
+            "results": list(qs.values_list("raw", flat=True)),
+        })
 
     @extend_schema(request=SearchRequestSerializer, responses=CardListSerializer(many=True))
     @action(detail=False, methods=["post"])
