@@ -46,18 +46,23 @@ class Owned:
         return self.cards.get(card_id, {}).get("quantity", 0)
 
 
-def fetch_owned() -> Owned:
-    cached = cache.get(CACHE_KEY)
-    if cached is not None:
-        return cached
+def fetch_export() -> list[dict]:
+    """Entradas de la colección tal cual las da el escáner (una por carta y estado)."""
     base = settings.CARD_CHECKER_URL.rstrip("/")
     if not base:
         raise CollectionUnavailable("CARD_CHECKER_URL no está configurado", 503)
     try:
         with urlopen(f"{base}/api/collection/export/", timeout=5) as resp:  # noqa: S310 - URL de configuración
-            entries = json.load(resp)
+            return json.load(resp)
     except (URLError, TimeoutError, ValueError) as exc:
         raise CollectionUnavailable(f"No se pudo leer la colección del escáner ({base}): {exc}", 502) from exc
+
+
+def fetch_owned() -> Owned:
+    cached = cache.get(CACHE_KEY)
+    if cached is not None:
+        return cached
+    entries = fetch_export()
 
     cards: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "conditions": {}})
     numbers: dict[int, str] = {}
@@ -93,3 +98,20 @@ def adjust_owned(card_id: int, delta: int) -> dict:
         raise CollectionUnavailable(f"No se pudo hablar con el escáner ({base}): {exc}", 502) from exc
     cache.delete(CACHE_KEY)
     return {"quantity": result["quantity"], "conditions": result["conditions"]}
+
+
+def backup_document(entries: list[dict], exported_at: str) -> dict:
+    """Copia de seguridad de la colección: una fila por carta y estado, sin nada que sobre."""
+    rows = sorted(entries, key=lambda e: (e["card_number"], e["bandai_id"], e["condition"]))
+    return {
+        "format": "dbs-collection",
+        "version": 1,
+        "exported_at": exported_at,
+        "total_cards": len({e["bandai_id"] for e in rows}),
+        "total_copies": sum(e["quantity"] for e in rows),
+        "cards": [
+            {"id": e["bandai_id"], "number": e["card_number"], "name": e["name"],
+             "qty": e["quantity"], "condition": e["condition"]}
+            for e in rows
+        ],
+    }

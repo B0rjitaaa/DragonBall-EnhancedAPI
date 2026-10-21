@@ -2,6 +2,9 @@ import type { CardDetail, FacetsResponse, FieldDef, KeywordSkillsResponse, Searc
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
+/** Descarga directa (enlace) de la copia de seguridad de Mi colección. */
+export const COLLECTION_BACKUP_URL = `${BASE}/my-collection/backup/`
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,

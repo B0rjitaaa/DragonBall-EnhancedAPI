@@ -3,7 +3,7 @@ import CardGrid from './components/CardGrid'
 import CardModal from './components/CardModal'
 import FacetPanel from './components/FacetPanel'
 import QueryBuilder from './components/QueryBuilder'
-import { api, type Scope } from './lib/api'
+import { api, COLLECTION_BACKUP_URL, type Scope } from './lib/api'
 import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
 } from './lib/query'
@@ -395,6 +395,11 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               )}
             </span>
             {error && <span className="error">{error}</span>}
+            {inCollection && (
+              <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Descarga un JSON con todas tus cartas y copias">
+                Descargar copia
+              </a>
+            )}
             {inCollection && (
               <a className="btn primary scan-link" href={SCANNER_URL}>
                 Escanear cartas ↗

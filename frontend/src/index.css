@@ -354,6 +354,9 @@ body.no-scroll { overflow: hidden; }
 
 /* --- Mi colección --- */
 .results-head .scan-link { margin-left: auto; text-decoration: none; }
+.results-head .backup-link { margin-left: auto; text-decoration: none; }
+.results-head .backup-link + .scan-link { margin-left: 0.5rem; }
+.results-head:has(.backup-link) { flex-wrap: wrap; gap: 0.5rem; }
 .qty-badge {
   position: absolute; bottom: 6px; right: 6px; z-index: 2;
   font-size: 0.85rem; font-weight: 800;

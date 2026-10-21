@@ -84,6 +84,20 @@ class MyCollectionTests(TestCase):
         self.assertEqual((data["total_cards"], data["total_copies"]), (2, 4))
         self.assertEqual(data["missing"], ["BT32-001"])
 
+    def test_backup_downloads_every_entry_as_compact_json(self):
+        response = self.client.get("/api/my-collection/backup/")
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(response["Content-Disposition"], r'attachment; filename="mi-coleccion-\d{4}-\d{2}-\d{2}\.json"')
+        doc = json.loads(response.content)
+        self.assertEqual((doc["format"], doc["version"]), ("dbs-collection", 1))
+        self.assertEqual((doc["total_cards"], doc["total_copies"]), (3, 5))  # incluye las que no están en el catálogo
+        self.assertEqual(doc["cards"][0], {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 2, "condition": "near_mint"})
+        self.assertEqual(len(response.content.decode().splitlines()), len(doc["cards"]) + 2)  # una carta por línea
+
+    def test_backup_with_checker_down(self):
+        self.urlopen.side_effect = URLError("connection refused")
+        self.assertEqual(self.client.get("/api/my-collection/backup/").status_code, 502)
+
     def test_checker_down_returns_502(self):
         self.urlopen.side_effect = URLError("connection refused")
         self.assertEqual(self.search(scope="collection").status_code, 502)

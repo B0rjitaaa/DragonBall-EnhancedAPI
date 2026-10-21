@@ -2,6 +2,7 @@ import json
 import re
 
 from django.db.models import Case, F, IntegerField, Q, QuerySet, Value, When
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -11,7 +12,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .collection import CollectionUnavailable, Owned, adjust_owned, fetch_owned
+from .collection import CollectionUnavailable, Owned, adjust_owned, backup_document, fetch_export, fetch_owned
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
 from .parsing import normalize_search
@@ -327,3 +328,22 @@ class MyCollectionAdjustView(APIView):
             return Response({"card_id": card_id, **adjust_owned(card_id, delta)})
         except CollectionUnavailable as exc:
             return collection_error(exc)
+
+
+class MyCollectionBackupView(APIView):
+    """Descarga la colección como JSON (botón "Descargar copia" de Mi colección)."""
+
+    def get(self, request):
+        try:
+            entries = fetch_export()
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        now = timezone.localtime()
+        doc = backup_document(entries, now.isoformat(timespec="seconds"))
+        # Una carta por línea: ocupa poco y se puede leer o comparar a simple vista.
+        head = json.dumps({k: v for k, v in doc.items() if k != "cards"}, ensure_ascii=False)[:-1]
+        lines = ",\n".join(json.dumps(c, ensure_ascii=False, separators=(",", ":")) for c in doc["cards"])
+        body = f'{head}, "cards": [\n{lines}\n]}}\n'
+        response = HttpResponse(body, content_type="application/json; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.json"'
+        return response
