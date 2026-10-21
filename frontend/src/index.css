@@ -354,7 +354,7 @@ body.no-scroll { overflow: hidden; }
 
 /* --- Mi colección --- */
 .results-head .scan-link { margin-left: auto; text-decoration: none; }
-.results-head .backup-link { margin-left: auto; text-decoration: none; }
+.results-head .backup-link { margin-left: auto; text-decoration: none; color: var(--text); }
 .results-head .backup-link + .scan-link { margin-left: 0.5rem; }
 .results-head:has(.backup-link) { flex-wrap: wrap; gap: 0.5rem; }
 .qty-badge {
