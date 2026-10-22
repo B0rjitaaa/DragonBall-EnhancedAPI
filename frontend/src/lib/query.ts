@@ -120,6 +120,8 @@ export interface UrlState {
   advancedOn: boolean
   ordering: string
   page: number
+  /** Mi colección: ubicación filtrada */
+  location?: number | null
 }
 
 export function readUrlState(): Partial<UrlState> {
@@ -133,7 +135,7 @@ export function readUrlState(): Partial<UrlState> {
 
 export function writeUrlState(state: UrlState): void {
   const empty =
-    !state.q && !Object.keys(state.facets).length && !state.advanced.children.length && state.page === 1
+    !state.q && !Object.keys(state.facets).length && !state.advanced.children.length && state.page === 1 && !state.location
   const hash = empty && state.ordering === 'number' ? '' : `#${encodeURIComponent(JSON.stringify(state))}`
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`)
 }

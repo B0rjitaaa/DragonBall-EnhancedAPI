@@ -63,9 +63,41 @@ export interface CardSummary {
   legality: 'legal' | 'limited' | 'banned'
   legality_since: string
   keyword_skills: string[]
-  /** Solo en Mi colección: copias escaneadas y su reparto por estado. */
+  /** Solo en Mi colección: copias (las de la ubicación filtrada, si hay filtro) y su reparto. */
   quantity?: number
-  conditions?: Record<string, number>
+  /** Con filtro de ubicación: copias en total, en todas las ubicaciones. */
+  total_quantity?: number
+  locations?: OwnedLocation[]
+}
+
+export type LocationKind = 'deck' | 'binder' | 'storage' | 'other'
+
+/** Copias de una carta en una ubicación. */
+export interface OwnedLocation {
+  id: number
+  name: string
+  kind: LocationKind
+  quantity: number
+  notes: string
+}
+
+/** Ubicación de Mi colección (mazo, archivador, almacén…) con sus totales. */
+export interface Location {
+  id: number
+  name: string
+  kind: LocationKind
+  notes: string
+  is_default: boolean
+  position: number
+  cards: number
+  copies: number
+}
+
+/** Respuesta de las operaciones de Mi colección sobre una carta. */
+export interface OwnedSummary {
+  card_id: number
+  quantity: number
+  locations: OwnedLocation[]
 }
 
 export interface CardDetail extends CardSummary {

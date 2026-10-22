@@ -22,14 +22,16 @@ CACHE_TTL = 10
 
 
 class CollectionUnavailable(Exception):
-    def __init__(self, message: str, status: int):
+    def __init__(self, message: str, status: int, data: dict | None = None):
         super().__init__(message)
         self.status = status
+        self.data = data or {}
 
 
 @dataclass
 class Owned:
-    cards: dict[int, dict] = field(default_factory=dict)  # id -> {quantity, conditions}
+    # id -> {quantity, locations: [{id, name, kind, quantity, notes}]}
+    cards: dict[int, dict] = field(default_factory=dict)
     numbers: dict[int, str] = field(default_factory=dict)  # id -> número de carta (para "missing")
 
     @property
@@ -45,12 +47,51 @@ class Owned:
     def quantity(self, card_id: int) -> int:
         return self.cards.get(card_id, {}).get("quantity", 0)
 
+    def in_location(self, location_id: int) -> "Owned":
+        """Solo las cartas con copias en esa ubicación; `quantity` pasa a ser las de allí."""
+        cards = {}
+        for card_id, item in self.cards.items():
+            here = sum(loc["quantity"] for loc in item["locations"] if loc["id"] == location_id)
+            if here:
+                cards[card_id] = {**item, "quantity": here, "total_quantity": item["quantity"]}
+        return Owned(cards, {i: n for i, n in self.numbers.items() if i in cards})
 
-def fetch_export() -> list[dict]:
-    """Entradas de la colección tal cual las da el escáner (una por carta y estado)."""
+
+def _base() -> str:
     base = settings.CARD_CHECKER_URL.rstrip("/")
     if not base:
         raise CollectionUnavailable("CARD_CHECKER_URL no está configurado", 503)
+    return base
+
+
+def checker_request(method: str, path: str, body: dict | None = None):
+    """Llama a la API del escáner. Errores → CollectionUnavailable con el estado a devolver."""
+    base = _base()
+    data = json.dumps(body).encode() if body is not None else None
+    req = Request(f"{base}{path}", data=data, method=method, headers={"Content-Type": "application/json"})
+    try:
+        with urlopen(req, timeout=5) as resp:  # noqa: S310 - URL de configuración
+            raw = resp.read()
+            return json.loads(raw) if raw else None
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read() or b"{}")
+        except ValueError:
+            payload = {}
+        if exc.code in (400, 404, 409):
+            # Errores del usuario (validación, conflicto…): se devuelven tal cual.
+            detail = payload.get("detail") if isinstance(payload, dict) else None
+            if exc.code == 404 and not detail:
+                detail = "No encontrado en el escáner"
+            raise CollectionUnavailable(detail or json.dumps(payload, ensure_ascii=False), exc.code, payload) from exc
+        raise CollectionUnavailable(f"El escáner respondió HTTP {exc.code}", 502) from exc
+    except (URLError, TimeoutError, ValueError) as exc:
+        raise CollectionUnavailable(f"No se pudo hablar con el escáner ({base}): {exc}", 502) from exc
+
+
+def fetch_export() -> list[dict]:
+    """Entradas de la colección tal cual las da el escáner (una por carta y ubicación)."""
+    base = _base()
     try:
         with urlopen(f"{base}/api/collection/export/", timeout=5) as resp:  # noqa: S310 - URL de configuración
             return json.load(resp)
@@ -64,54 +105,77 @@ def fetch_owned() -> Owned:
         return cached
     entries = fetch_export()
 
-    cards: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "conditions": {}})
+    cards: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "locations": []})
     numbers: dict[int, str] = {}
     for entry in entries:
         item = cards[entry["bandai_id"]]
         item["quantity"] += entry["quantity"]
-        item["conditions"][entry["condition"]] = item["conditions"].get(entry["condition"], 0) + entry["quantity"]
+        item["locations"].append({
+            "id": entry.get("location_id"),
+            "name": entry.get("location", ""),
+            "kind": entry.get("location_kind", "other"),
+            "quantity": entry["quantity"],
+            "notes": entry.get("notes", ""),
+        })
         numbers[entry["bandai_id"]] = entry["card_number"]
     owned = Owned(dict(cards), numbers)
     cache.set(CACHE_KEY, owned, CACHE_TTL)
     return owned
 
 
-def adjust_owned(card_id: int, delta: int) -> dict:
+def _summary(result: dict) -> dict:
+    return {"quantity": result["quantity"], "locations": result["locations"]}
+
+
+def adjust_owned(card_id: int, delta: int, location: int | None = None) -> dict:
     """Suma o resta copias de una carta en la colección del escáner.
 
-    Devuelve {quantity, conditions} tras el cambio y descarta la colección
-    cacheada para que búsqueda y facetas reflejen el cambio al momento.
+    Devuelve {quantity, locations} tras el cambio y descarta la colección
+    cacheada para que búsqueda y facetas reflejen el cambio al momento. Si hay
+    que quitar una copia repartida en varias ubicaciones sin decir cuál, el
+    escáner responde 409 con el reparto (CollectionUnavailable.data).
     """
-    base = settings.CARD_CHECKER_URL.rstrip("/")
-    if not base:
-        raise CollectionUnavailable("CARD_CHECKER_URL no está configurado", 503)
-    body = json.dumps({"bandai_id": card_id, "delta": delta}).encode()
-    req = Request(f"{base}/api/collection/adjust/", data=body, method="POST",
-                  headers={"Content-Type": "application/json"})
+    body = {"bandai_id": card_id, "delta": delta}
+    if location:
+        body["location"] = location
     try:
-        with urlopen(req, timeout=5) as resp:  # noqa: S310 - URL de configuración
-            result = json.load(resp)
-    except HTTPError as exc:
-        detail = "la carta no está en el catálogo del escáner" if exc.code == 404 else f"HTTP {exc.code}"
-        raise CollectionUnavailable(f"El escáner rechazó el cambio: {detail}", 502) from exc
-    except (URLError, TimeoutError, ValueError) as exc:
-        raise CollectionUnavailable(f"No se pudo hablar con el escáner ({base}): {exc}", 502) from exc
+        result = checker_request("POST", "/api/collection/adjust/", body)
+    except CollectionUnavailable as exc:
+        if exc.status == 404 and not exc.data.get("detail"):
+            exc.args = ("la carta no está en el catálogo del escáner",)
+        raise
     cache.delete(CACHE_KEY)
-    return {"quantity": result["quantity"], "conditions": result["conditions"]}
+    return _summary(result)
+
+
+def move_owned(card_id: int, source: int, target: int, quantity: int) -> dict:
+    result = checker_request("POST", "/api/collection/move/",
+                             {"bandai_id": card_id, "source": source, "target": target, "quantity": quantity})
+    cache.delete(CACHE_KEY)
+    return _summary(result)
+
+
+def note_owned(card_id: int, location: int, notes: str) -> dict:
+    result = checker_request("POST", "/api/collection/note/", {"bandai_id": card_id, "location": location, "notes": notes})
+    cache.delete(CACHE_KEY)
+    return _summary(result)
 
 
 def backup_document(entries: list[dict], exported_at: str) -> dict:
-    """Copia de seguridad de la colección: una fila por carta y estado, sin nada que sobre."""
-    rows = sorted(entries, key=lambda e: (e["card_number"], e["bandai_id"], e["condition"]))
+    """Copia de seguridad de la colección: una fila por carta y ubicación, sin nada que sobre."""
+    rows = sorted(entries, key=lambda e: (e["card_number"], e["bandai_id"], e.get("location", "")))
+    cards = []
+    for e in rows:
+        row = {"id": e["bandai_id"], "number": e["card_number"], "name": e["name"],
+               "qty": e["quantity"], "location": e.get("location", "")}
+        if e.get("notes"):
+            row["notes"] = e["notes"]
+        cards.append(row)
     return {
         "format": "dbs-collection",
-        "version": 1,
+        "version": 2,
         "exported_at": exported_at,
         "total_cards": len({e["bandai_id"] for e in rows}),
         "total_copies": sum(e["quantity"] for e in rows),
-        "cards": [
-            {"id": e["bandai_id"], "number": e["card_number"], "name": e["name"],
-             "qty": e["quantity"], "condition": e["condition"]}
-            for e in rows
-        ],
+        "cards": cards,
     }

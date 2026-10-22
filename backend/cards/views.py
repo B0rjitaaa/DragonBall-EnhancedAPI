@@ -1,6 +1,7 @@
 import json
 import re
 
+from django.core.cache import cache
 from django.db.models import Case, F, IntegerField, Q, QuerySet, Value, When
 from django.http import HttpResponse
 from django.utils import timezone
@@ -12,7 +13,18 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .collection import CollectionUnavailable, Owned, adjust_owned, backup_document, fetch_export, fetch_owned
+from .collection import (
+    CACHE_KEY,
+    CollectionUnavailable,
+    Owned,
+    adjust_owned,
+    backup_document,
+    checker_request,
+    fetch_export,
+    fetch_owned,
+    move_owned,
+    note_owned,
+)
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
 from .parsing import normalize_search
@@ -130,7 +142,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         body.is_valid(raise_exception=True)
         data = body.validated_data
         try:
-            owned = owned_or_error(data.get("scope"))
+            owned = owned_or_error(data.get("scope"), data.get("location"))
         except CollectionUnavailable as exc:
             return collection_error(exc)
 
@@ -174,7 +186,7 @@ class FacetsView(APIView):
 
     def get(self, request):
         try:
-            owned = owned_or_error(request.query_params.get("scope"))
+            owned = owned_or_error(request.query_params.get("scope"), request.query_params.get("location"))
         except CollectionUnavailable as exc:
             return collection_error(exc)
         if owned is None:
@@ -189,7 +201,7 @@ class FacetsView(APIView):
         if only is not None and (not isinstance(only, list) or any(k not in FIELDS for k in only)):
             raise ValidationError({"only": "Lista de campos no válida"})
         try:
-            owned = owned_or_error(request.data.get("scope"))
+            owned = owned_or_error(request.data.get("scope"), request.data.get("location"))
         except CollectionUnavailable as exc:
             return collection_error(exc)
         qs, payload = build_queryset(q, tree), {"q": q, "query": tree}
@@ -269,15 +281,21 @@ class SyncRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
 
 
 
-def owned_or_error(request_scope: str | None) -> Owned | None:
-    """Colección del escáner si el ámbito es "collection" (o None)."""
+def owned_or_error(request_scope: str | None, location=None) -> Owned | None:
+    """Colección del escáner si el ámbito es "collection" (o None); `location` la limita a una ubicación."""
     if request_scope != "collection":
         return None
-    return fetch_owned()
+    owned = fetch_owned()
+    if location not in (None, ""):
+        try:
+            owned = owned.in_location(int(location))
+        except (TypeError, ValueError):
+            raise ValidationError({"location": "Debe ser un id de ubicación"}) from None
+    return owned
 
 
 def collection_error(exc: CollectionUnavailable) -> Response:
-    return Response({"detail": str(exc)}, status=exc.status)
+    return Response({**exc.data, "detail": str(exc)}, status=exc.status)
 
 
 def order_by_quantity(qs: QuerySet, owned: Owned, desc: bool) -> QuerySet:
@@ -312,22 +330,108 @@ class MyCollectionView(APIView):
         })
 
 
+def _int(value, name: str, required: bool = True) -> int | None:
+    if value in (None, "") and not required:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValidationError({name: "Debe ser un entero"}) from None
+
+
+def _known_card(card_id: int) -> None:
+    if not Card.objects.filter(id=card_id).exists():
+        raise ValidationError({"card_id": "Carta desconocida"})
+
+
 class MyCollectionAdjustView(APIView):
-    """Botones − / + de Mi colección: POST {card_id, delta} (delta entre -10 y 10, distinto de 0)."""
+    """Botones − / + de Mi colección: POST {card_id, delta, location?} (delta entre -10 y 10, distinto de 0).
+
+    Sin `location`, + suma a "Sin ubicar" y − quita de "Sin ubicar" (o de la única
+    ubicación con copias); si están repartidas, 409 con el reparto para elegir.
+    """
 
     def post(self, request):
-        try:
-            card_id, delta = int(request.data.get("card_id")), int(request.data.get("delta"))
-        except (TypeError, ValueError):
-            raise ValidationError({"detail": "card_id y delta deben ser enteros"}) from None
+        card_id, delta = _int(request.data.get("card_id"), "card_id"), _int(request.data.get("delta"), "delta")
+        location = _int(request.data.get("location"), "location", required=False)
         if delta == 0 or abs(delta) > 10:
             raise ValidationError({"delta": "Entre -10 y 10, distinto de 0"})
-        if not Card.objects.filter(id=card_id).exists():
-            raise ValidationError({"card_id": "Carta desconocida"})
+        _known_card(card_id)
         try:
-            return Response({"card_id": card_id, **adjust_owned(card_id, delta)})
+            return Response({"card_id": card_id, **adjust_owned(card_id, delta, location)})
         except CollectionUnavailable as exc:
             return collection_error(exc)
+
+
+class MyCollectionMoveView(APIView):
+    """Mover copias entre ubicaciones: POST {card_id, source, target, quantity}."""
+
+    def post(self, request):
+        card_id = _int(request.data.get("card_id"), "card_id")
+        source, target = _int(request.data.get("source"), "source"), _int(request.data.get("target"), "target")
+        quantity = _int(request.data.get("quantity"), "quantity")
+        if quantity < 1:
+            raise ValidationError({"quantity": "Al menos 1"})
+        _known_card(card_id)
+        try:
+            return Response({"card_id": card_id, **move_owned(card_id, source, target, quantity)})
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+
+
+class MyCollectionNoteView(APIView):
+    """Nota de las copias de una carta en una ubicación: POST {card_id, location, notes}."""
+
+    def post(self, request):
+        card_id, location = _int(request.data.get("card_id"), "card_id"), _int(request.data.get("location"), "location")
+        notes = str(request.data.get("notes") or "")[:500]
+        _known_card(card_id)
+        try:
+            return Response({"card_id": card_id, **note_owned(card_id, location, notes)})
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+
+
+LOCATION_FIELDS = ("name", "kind", "notes", "position")
+
+
+class LocationsView(APIView):
+    """Ubicaciones de Mi colección (viven en el escáner): GET lista con totales, POST crea."""
+
+    def get(self, request):
+        try:
+            return Response(checker_request("GET", "/api/locations/"))
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+
+    def post(self, request):
+        body = {k: request.data[k] for k in LOCATION_FIELDS if k in request.data}
+        try:
+            created = checker_request("POST", "/api/locations/", body)
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        return Response(created, status=status.HTTP_201_CREATED)
+
+
+class LocationDetailView(APIView):
+    """PATCH renombra o cambia el tipo; DELETE la borra (sus copias vuelven a "Sin ubicar")."""
+
+    def patch(self, request, pk: int):
+        body = {k: request.data[k] for k in LOCATION_FIELDS if k in request.data}
+        try:
+            updated = checker_request("PATCH", f"/api/locations/{pk}/", body)
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        cache.delete(CACHE_KEY)  # el nombre sale en el reparto de cada carta
+        return Response(updated)
+
+    def delete(self, request, pk: int):
+        try:
+            checker_request("DELETE", f"/api/locations/{pk}/")
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        cache.delete(CACHE_KEY)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MyCollectionBackupView(APIView):

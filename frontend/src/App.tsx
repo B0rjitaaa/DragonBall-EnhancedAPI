@@ -2,19 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import CardGrid from './components/CardGrid'
 import CardModal from './components/CardModal'
 import FacetPanel from './components/FacetPanel'
+import LocationsManager from './components/LocationsManager'
+import OwnedPanel from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
-import { api, COLLECTION_BACKUP_URL, type Scope } from './lib/api'
+import { api, ApiError, COLLECTION_BACKUP_URL, type Scope } from './lib/api'
 import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
 } from './lib/query'
 import { valueLabel } from './lib/labels'
 import { SkillIndex } from './lib/skills'
-import type { Facet, FacetState, FieldDef, Group, SearchResponse } from './lib/types'
+import type { Facet, FacetState, FieldDef, Group, Location, OwnedSummary, SearchResponse } from './lib/types'
 
 const PAGE_SIZE = 48
-const CONDITIONS: Record<string, string> = {
-  mint: 'Mint', near_mint: 'Near Mint', excellent: 'Excellent', good: 'Good', played: 'Played', poor: 'Poor',
-}
 
 // Escáner de cartas (DragonBall-CameraCardChecker), en el mismo servidor.
 const SCANNER_URL = `http://${window.location.hostname}/`
@@ -67,9 +66,28 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [openId, setOpenId] = useState<number | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [adjusting, setAdjusting] = useState<Set<number>>(() => new Set())
+  // Mi colección: ubicaciones, la filtrada (null = todas) y el gestor.
+  const [location, setLocation] = useState<number | null>(inCollection ? initial.location ?? null : null)
+  const [locations, setLocations] = useState<Location[]>([])
+  const [showLocations, setShowLocations] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [refresh, setRefresh] = useState(0)
+
+  const reloadLocations = useCallback(() => {
+    if (!inCollection) return
+    api
+      .locations()
+      .then(setLocations)
+      .catch(() => undefined) // sin lista de ubicaciones, el resto sigue funcionando
+  }, [inCollection])
+  useEffect(reloadLocations, [reloadLocations])
+  // La ubicación filtrada ya no existe (se borró): se quita el filtro.
+  useEffect(() => {
+    if (location != null && locations.length && !locations.some((l) => l.id === location)) setLocation(null)
+  }, [locations, location])
 
   useEffect(() => {
-    Promise.all([api.fields(), api.facets(scope)])
+    Promise.all([api.fields(), api.facets(scope, location)])
       .then(([f, fc]) => {
         setFields(f)
         setGlobalFacets(fc.facets)
@@ -79,7 +97,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .keywordSkills()
       .then((d) => setSkills(new SkillIndex(d)))
       .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
-  }, [scope])
+  }, [scope, location])
 
   const query = useMemo(
     () => (fields.length ? buildQuery(facets, advanced, advancedOn, fields) : null),
@@ -89,16 +107,21 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // (así en "Color: Red" siguen apareciendo cuántas cartas hay de Blue, Green…)
   const facetRequests = useMemo(() => {
     if (!fields.length) return []
-    const reqs: { q: string; query: unknown; only?: string[]; scope: Scope }[] = [{ q: q.trim(), query, scope }]
+    const reqs: { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null }[] = [
+      { q: q.trim(), query, scope, location },
+    ]
     for (const key of Object.keys(facets)) {
       const { [key]: _omit, ...rest } = facets
       void _omit
-      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key], scope })
+      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key], scope, location })
     }
     return reqs
-  }, [q, query, facets, advanced, advancedOn, fields, scope])
+  }, [q, query, facets, advanced, advancedOn, fields, scope, location])
   const filterKey = useDebounced(JSON.stringify(facetRequests))
-  const searchKey = useDebounced(JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope }), 150)
+  const searchKey = useDebounced(
+    JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope, location }),
+    150,
+  )
 
   // Resultados
   useEffect(() => {
@@ -114,12 +137,12 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .catch((e: Error) => e.name !== 'AbortError' && setError(e.message))
       .finally(() => !ctrl.signal.aborted && setLoading(false))
     return () => ctrl.abort()
-  }, [searchKey, fields.length])
+  }, [searchKey, fields.length, refresh])
 
   // Recuentos de facetas dentro de la búsqueda actual
   useEffect(() => {
     if (!fields.length) return
-    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[]; scope: Scope }[]
+    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null }[]
     if (!reqs.length || (!reqs[0].q && !reqs[0].query)) {
       setContextFacets(null)
       return
@@ -132,8 +155,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [filterKey, fields.length])
 
   useEffect(() => {
-    writeUrlState({ q, facets, advanced, advancedOn, ordering, page })
-  }, [q, facets, advanced, advancedOn, ordering, page])
+    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location })
+  }, [q, facets, advanced, advancedOn, ordering, page, location])
 
   useEffect(() => {
     // En Chrome reciente scrollTo devuelve una Promise: no puede ser el valor de retorno del efecto
@@ -185,6 +208,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     clearAll()
     setAdvancedOn(false)
     setOrdering('number')
+    setLocation(null)
     setOpenId(null)
     setSidebarOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -198,32 +222,49 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   )
   const openOwned = inCollection ? data?.results.find((c) => c.id === openId) : undefined
 
-  // Mi colección: − / + en cada carta. Se actualiza la página al momento y, si
-  // se quita la última copia, la carta sale de la lista sin preguntar.
-  const adjust = useCallback(
-    async (id: number, delta: number) => {
-      const card = data?.results.find((c) => c.id === id)
-      if (!card || adjusting.has(id)) return
+  // Mi colección: refleja en la página el resultado de una operación sobre una
+  // carta. Con filtro de ubicación, sus copias son las de esa ubicación; si
+  // llegan a 0, la carta sale de la lista sin preguntar.
+  const applySummary = useCallback(
+    (id: number, r: OwnedSummary) => {
+      const shown = location == null ? r.quantity : r.locations.find((l) => l.id === location)?.quantity ?? 0
+      setData((prev) => {
+        if (!prev) return prev
+        const before = prev.results.find((c) => c.id === id)?.quantity ?? 0
+        const removed = shown === 0
+        return {
+          ...prev,
+          count: removed ? prev.count - 1 : prev.count,
+          total_copies: (prev.total_copies ?? 0) + (shown - before),
+          results: removed
+            ? prev.results.filter((c) => c.id !== id)
+            : prev.results.map((c) =>
+                c.id === id ? { ...c, quantity: shown, total_quantity: r.quantity, locations: r.locations } : c,
+              ),
+        }
+      })
+      if (shown === 0 && openId === id) setOpenId(null)
+      reloadLocations() // los totales por ubicación del selector
+    },
+    [location, openId, reloadLocations],
+  )
+
+  const runOnCard = useCallback(
+    async (id: number, action: () => Promise<OwnedSummary>) => {
+      if (adjusting.has(id)) return
       setAdjusting((s) => new Set(s).add(id))
       try {
-        const r = await api.adjustCollection(id, delta)
-        setData((prev) => {
-          if (!prev) return prev
-          const before = prev.results.find((c) => c.id === id)?.quantity ?? 0
-          const removed = r.quantity === 0
-          return {
-            ...prev,
-            count: removed ? prev.count - 1 : prev.count,
-            total_copies: (prev.total_copies ?? 0) + (r.quantity - before),
-            results: removed
-              ? prev.results.filter((c) => c.id !== id)
-              : prev.results.map((c) => (c.id === id ? { ...c, quantity: r.quantity, conditions: r.conditions } : c)),
-          }
-        })
-        if (r.quantity === 0 && openId === id) setOpenId(null)
+        applySummary(id, await action())
         setError(null)
+        setNotice(null)
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e))
+        if (e instanceof ApiError && e.status === 409) {
+          // Copias repartidas en varias ubicaciones: se abre la ficha para elegir de cuál.
+          setOpenId(id)
+          setNotice('Esta carta está en varias ubicaciones: quita la copia desde la que quieras.')
+        } else {
+          setError(e instanceof Error ? e.message : String(e))
+        }
       } finally {
         setAdjusting((s) => {
           const next = new Set(s)
@@ -232,7 +273,15 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         })
       }
     },
-    [data, adjusting, openId],
+    [adjusting, applySummary],
+  )
+
+  // − / + de la cuadrícula: con filtro de ubicación actúan sobre esa ubicación;
+  // sin él, + suma a "Sin ubicar" y − quita de "Sin ubicar" (o pregunta).
+  const adjust = useCallback(
+    (id: number, delta: number, where?: number) =>
+      runOnCard(id, () => api.adjustCollection(id, delta, where ?? location)),
+    [runOnCard, location],
   )
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
@@ -396,6 +445,29 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             </span>
             {error && <span className="error">{error}</span>}
             {inCollection && (
+              <span className="location-filter">
+                <select
+                  className="input"
+                  value={location ?? ''}
+                  onChange={(e) => {
+                    setLocation(e.target.value ? Number(e.target.value) : null)
+                    setPage(1)
+                  }}
+                  aria-label="Ubicación"
+                >
+                  <option value="">Todas las ubicaciones</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} ({l.copies})
+                    </option>
+                  ))}
+                </select>
+                <button className="btn ghost" onClick={() => setShowLocations(true)}>
+                  Ubicaciones…
+                </button>
+              </span>
+            )}
+            {inCollection && (
               <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Descarga un JSON con todas tus cartas y copias">
                 Descargar copia
               </a>
@@ -438,23 +510,39 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         </main>
       </div>
 
-      {openId !== null && <CardModal key={openId} id={openId} skills={skills} onClose={() => setOpenId(null)} onFilter={addFilter} />}
+      {openId !== null && (
+        <CardModal
+          key={openId}
+          id={openId}
+          skills={skills}
+          onClose={() => {
+            setOpenId(null)
+            setNotice(null)
+          }}
+          onFilter={addFilter}
+        />
+      )}
       {openOwned && (
-        <div className="owned-pill" role="status">
-          <button className="qty-btn" onClick={() => adjust(openOwned.id, -1)} disabled={adjusting.has(openOwned.id)} aria-label="Quitar una copia">
-            −
-          </button>
-          <span>
-            En tu colección: <strong>×{openOwned.quantity}</strong>
-            {' · '}
-            {Object.entries(openOwned.conditions ?? {})
-              .map(([cond, n]) => `${n} ${CONDITIONS[cond] ?? cond}`)
-              .join(', ')}
-          </span>
-          <button className="qty-btn" onClick={() => adjust(openOwned.id, 1)} disabled={adjusting.has(openOwned.id)} aria-label="Añadir una copia">
-            +
-          </button>
-        </div>
+        <OwnedPanel
+          key={openOwned.id}
+          card={openOwned}
+          locations={locations}
+          busy={adjusting.has(openOwned.id)}
+          notice={notice}
+          onAdjust={(where, delta) => void adjust(openOwned.id, delta, where)}
+          onMove={(source, target, qty) => void runOnCard(openOwned.id, () => api.moveCopies(openOwned.id, source, target, qty))}
+          onNote={(where, notes) => void runOnCard(openOwned.id, () => api.setNote(openOwned.id, where, notes))}
+        />
+      )}
+      {showLocations && (
+        <LocationsManager
+          locations={locations}
+          onChanged={() => {
+            reloadLocations()
+            setRefresh((n) => n + 1) // nombres y copias movidas: se relee la página
+          }}
+          onClose={() => setShowLocations(false)}
+        />
       )}
     </div>
   )
