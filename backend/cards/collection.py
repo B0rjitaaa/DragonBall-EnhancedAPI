@@ -161,8 +161,12 @@ def note_owned(card_id: int, location: int, notes: str) -> dict:
     return _summary(result)
 
 
-def backup_document(entries: list[dict], exported_at: str) -> dict:
-    """Copia de seguridad de la colección: una fila por carta y ubicación, sin nada que sobre."""
+KIND_NAMES = {"deck": "mazo", "binder": "archivador", "storage": "almacén", "other": "otro"}
+
+
+def backup_document(entries: list[dict], exported_at: str, locations: list[dict] | None = None) -> dict:
+    """Copia de seguridad de la colección: sus ubicaciones (también las vacías) y
+    una fila por carta y ubicación, sin nada que sobre."""
     rows = sorted(entries, key=lambda e: (e["card_number"], e["bandai_id"], e.get("location", "")))
     cards = []
     for e in rows:
@@ -171,11 +175,19 @@ def backup_document(entries: list[dict], exported_at: str) -> dict:
         if e.get("notes"):
             row["notes"] = e["notes"]
         cards.append(row)
+    places = []
+    for loc in locations or []:
+        place = {"name": loc["name"], "kind": KIND_NAMES.get(loc.get("kind"), loc.get("kind", "")),
+                 "cards": loc.get("cards", 0), "copies": loc.get("copies", 0)}
+        if loc.get("notes"):
+            place["notes"] = loc["notes"]
+        places.append(place)
     return {
         "format": "dbs-collection",
-        "version": 2,
+        "version": 3,
         "exported_at": exported_at,
         "total_cards": len({e["bandai_id"] for e in rows}),
         "total_copies": sum(e["quantity"] for e in rows),
+        "locations": places,
         "cards": cards,
     }

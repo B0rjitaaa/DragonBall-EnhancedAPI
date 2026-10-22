@@ -98,17 +98,31 @@ class MyCollectionTests(TestCase):
         self.assertEqual(data["missing"], ["BT32-001"])
 
     def test_backup_downloads_every_entry_as_compact_json(self):
+        locations = [
+            {"id": 1, "name": "Sin ubicar", "kind": "other", "notes": "", "is_default": True, "cards": 3, "copies": 4},
+            {"id": 2, "name": "Mazo rojo", "kind": "deck", "notes": "funda roja", "is_default": False, "cards": 1, "copies": 1},
+            {"id": 3, "name": "Caja vacía", "kind": "storage", "notes": "", "is_default": False, "cards": 0, "copies": 0},
+        ]
+        self.urlopen.side_effect = lambda req, *a, **k: _response(
+            ENTRIES if isinstance(req, str) else locations
+        )
         response = self.client.get("/api/my-collection/backup/")
         self.assertEqual(response.status_code, 200)
         self.assertRegex(response["Content-Disposition"], r'attachment; filename="mi-coleccion-\d{4}-\d{2}-\d{2}\.json"')
         doc = json.loads(response.content)
-        self.assertEqual((doc["format"], doc["version"]), ("dbs-collection", 2))
+        self.assertEqual((doc["format"], doc["version"]), ("dbs-collection", 3))
+        self.assertEqual(doc["locations"], [
+            {"name": "Sin ubicar", "kind": "otro", "cards": 3, "copies": 4},
+            {"name": "Mazo rojo", "kind": "mazo", "cards": 1, "copies": 1, "notes": "funda roja"},
+            {"name": "Caja vacía", "kind": "almacén", "cards": 0, "copies": 0},  # también las vacías
+        ])
         self.assertEqual((doc["total_cards"], doc["total_copies"]), (3, 5))  # incluye las que no están en el catálogo
         self.assertEqual(doc["cards"][:2], [
             {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 1, "location": "Mazo rojo", "notes": "titular"},
             {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 2, "location": "Sin ubicar"},
         ])
-        self.assertEqual(len(response.content.decode().splitlines()), len(doc["cards"]) + 2)  # una carta por línea
+        # cabecera + una línea por ubicación y por carta + cierres
+        self.assertEqual(len(response.content.decode().splitlines()), len(doc["locations"]) + len(doc["cards"]) + 5)
 
     def test_backup_with_checker_down(self):
         self.urlopen.side_effect = URLError("connection refused")

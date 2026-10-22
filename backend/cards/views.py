@@ -440,14 +440,17 @@ class MyCollectionBackupView(APIView):
     def get(self, request):
         try:
             entries = fetch_export()
+            locations = checker_request("GET", "/api/locations/")
         except CollectionUnavailable as exc:
             return collection_error(exc)
         now = timezone.localtime()
-        doc = backup_document(entries, now.isoformat(timespec="seconds"))
-        # Una carta por línea: ocupa poco y se puede leer o comparar a simple vista.
-        head = json.dumps({k: v for k, v in doc.items() if k != "cards"}, ensure_ascii=False)[:-1]
-        lines = ",\n".join(json.dumps(c, ensure_ascii=False, separators=(",", ":")) for c in doc["cards"])
-        body = f'{head}, "cards": [\n{lines}\n]}}\n'
+        doc = backup_document(entries, now.isoformat(timespec="seconds"), locations)
+        # Una ubicación y una carta por línea: ocupa poco y se puede leer o comparar a simple vista.
+        def block(items):
+            return ",\n".join(json.dumps(i, ensure_ascii=False, separators=(",", ":")) for i in items)
+
+        head = json.dumps({k: v for k, v in doc.items() if k not in ("locations", "cards")}, ensure_ascii=False)[:-1]
+        body = f'{head},\n"locations": [\n{block(doc["locations"])}\n],\n"cards": [\n{block(doc["cards"])}\n]}}\n'
         response = HttpResponse(body, content_type="application/json; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.json"'
         return response

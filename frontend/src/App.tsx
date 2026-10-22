@@ -475,7 +475,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               </span>
             )}
             {inCollection && (
-              <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Descarga un JSON con todas tus cartas y copias">
+              <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Descarga un JSON con tus ubicaciones y todas tus cartas, con sus copias en cada ubicación">
                 Descargar copia
               </a>
             )}
