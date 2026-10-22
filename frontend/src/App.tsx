@@ -520,19 +520,19 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             setNotice(null)
           }}
           onFilter={addFilter}
-        />
-      )}
-      {openOwned && (
-        <OwnedPanel
-          key={openOwned.id}
-          card={openOwned}
-          locations={locations}
-          busy={adjusting.has(openOwned.id)}
-          notice={notice}
-          onAdjust={(where, delta) => void adjust(openOwned.id, delta, where)}
-          onMove={(source, target, qty) => void runOnCard(openOwned.id, () => api.moveCopies(openOwned.id, source, target, qty))}
-          onNote={(where, notes) => void runOnCard(openOwned.id, () => api.setNote(openOwned.id, where, notes))}
-        />
+        >
+          {openOwned && (
+            <OwnedPanel
+              card={openOwned}
+              locations={locations}
+              busy={adjusting.has(openOwned.id)}
+              notice={notice}
+              onAdjust={(where, delta) => void adjust(openOwned.id, delta, where)}
+              onMove={(source, target, qty) => void runOnCard(openOwned.id, () => api.moveCopies(openOwned.id, source, target, qty))}
+              onNote={(where, notes) => void runOnCard(openOwned.id, () => api.setNote(openOwned.id, where, notes))}
+            />
+          )}
+        </CardModal>
       )}
       {showLocations && (
         <LocationsManager

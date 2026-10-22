@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
 import { CATEGORY_LABEL, type SkillIndex } from '../lib/skills'
 import type { CardDetail, SkillCategory } from '../lib/types'
@@ -10,11 +10,13 @@ interface Props {
   skills: SkillIndex
   onClose: () => void
   onFilter: (field: string, value: string) => void
+  /** Mi colección: copias de la carta por ubicación (se pinta bajo el título). */
+  children?: ReactNode
 }
 
 const HIDDEN_CONFIG = new Set(['Notes'])
 
-export default function CardModal({ id, skills, onClose, onFilter }: Props) {
+export default function CardModal({ id, skills, onClose, onFilter, children }: Props) {
   const [card, setCard] = useState<CardDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<'front' | 'back'>('front')
@@ -83,6 +85,7 @@ export default function CardModal({ id, skills, onClose, onFilter }: Props) {
                   <strong>🃏 Construcción de mazo:</strong> {deckRules.join(' · ')}
                 </div>
               )}
+              {children}
               <CardText text={back ? card.back_text : card.text} skills={skills} onKeyword={(kw) => onFilter('keyword', kw)} />
 
               <table className="attrs">

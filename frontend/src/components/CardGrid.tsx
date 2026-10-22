@@ -73,6 +73,13 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
                   {c.power != null && <>✊{c.power.toLocaleString('es-ES')}</>}
                 </span>
               </div>
+              {c.locations && c.locations.length > 0 && (
+                <div className="tile-loc" title={c.locations.map((l) => `${l.name}: ${l.quantity}`).join('\n')}>
+                  {c.locations.length === 1
+                    ? c.locations[0].name
+                    : c.locations.map((l) => `${l.name} ×${l.quantity}`).join(' · ')}
+                </div>
+              )}
             </div>
           </button>
           {onAdjust && quantities?.[c.id] != null && (

@@ -388,13 +388,10 @@ body.no-scroll { overflow: hidden; }
 .location-filter { display: inline-flex; gap: 0.4rem; align-items: center; margin-left: auto; }
 .location-filter select { max-width: 15rem; }
 
-/* Ficha: reparto de copias por ubicación (sobre el modal, abajo) */
+/* Ficha: reparto de copias por ubicación (dentro del modal, bajo el título) */
 .owned-panel {
-  position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 1000;
-  width: min(560px, calc(100vw - 24px)); max-height: 45vh; overflow-y: auto;
-  padding: 0.6rem 0.8rem; border-radius: 12px;
+  margin: 0 0 1rem; padding: 0.6rem 0.8rem; border-radius: var(--radius);
   background: var(--bg-3); border: 1px solid var(--accent);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
 }
 .owned-panel header { font-size: 0.95rem; margin-bottom: 0.35rem; }
 .owned-panel header strong { color: var(--accent); }
@@ -411,8 +408,6 @@ body.no-scroll { overflow: hidden; }
 .owned-note { width: 100%; margin-top: 0.35rem; font-size: 0.85rem; padding: 0.3rem 0.5rem; }
 .owned-add { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid var(--line); font-size: 0.9rem; }
 .owned-notice { margin: 0 0 0.35rem; color: var(--accent-2); font-size: 0.88rem; }
-/* El panel tapa el final del modal: hueco para poder leerlo entero */
-.modal-backdrop:has(+ .owned-panel) .modal { margin-bottom: 30vh; }
 
 /* Gestor de ubicaciones */
 .locations-modal { width: min(640px, 100%); }
@@ -429,4 +424,10 @@ body.no-scroll { overflow: hidden; }
   .locations-new input { grid-column: 1 / -1; }
   .location-filter { margin-left: 0; width: 100%; }
   .location-filter select { flex: 1; max-width: none; }
+}
+
+/* Mi colección: ubicación en la tarjeta de la cuadrícula */
+.tile-loc {
+  margin-top: 0.3rem; font-size: 0.78rem; color: var(--accent-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
