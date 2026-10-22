@@ -77,7 +77,8 @@ export const api = {
   setNote: (cardId: number, location: number, notes: string) =>
     request<OwnedSummary>('/my-collection/note/', post({ card_id: cardId, location, notes })),
   locations: () => request<Location[]>('/my-collection/locations/'),
-  createLocation: (name: string, kind: LocationKind) => request<Location>('/my-collection/locations/', post({ name, kind })),
+  createLocation: (name: string, kind: LocationKind, position = 0) =>
+    request<Location>('/my-collection/locations/', post({ name, kind, position })),
   updateLocation: (id: number, changes: Partial<Pick<Location, 'name' | 'kind' | 'notes' | 'position'>>) =>
     request<Location>(`/my-collection/locations/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
   deleteLocation: (id: number) => request<void>(`/my-collection/locations/${id}/`, { method: 'DELETE' }),

@@ -338,7 +338,7 @@ body.no-scroll { overflow: hidden; }
 
 /* --- Menú superior (Buscador / Mi colección) --- */
 .site-nav {
-  display: flex; gap: 0.25rem; align-items: center;
+  display: flex; gap: 0.25rem; align-items: center; overflow-x: auto;
   padding: 0.35rem 1.25rem;
   background: var(--bg-2);
   border-bottom: 1px solid var(--line);
@@ -351,6 +351,7 @@ body.no-scroll { overflow: hidden; }
 .site-nav a:hover { color: inherit; background: var(--bg-3); }
 .site-nav a.active { color: inherit; background: var(--bg-3); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
 .site-nav a.external { margin-left: auto; }
+.site-nav a { white-space: nowrap; }
 
 /* --- Mi colección --- */
 .results-head .scan-link { margin-left: auto; text-decoration: none; }
@@ -409,20 +410,79 @@ body.no-scroll { overflow: hidden; }
 .owned-add { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid var(--line); font-size: 0.9rem; }
 .owned-notice { margin: 0 0 0.35rem; color: var(--accent-2); font-size: 0.88rem; }
 
-/* Gestor de ubicaciones */
-.locations-modal { width: min(640px, 100%); }
-.locations-modal h2 { margin: 0 0 0.3rem; }
-.locations-list { list-style: none; padding: 0; margin: 0.8rem 0; display: flex; flex-direction: column; gap: 0.45rem; }
-.locations-list li { display: grid; grid-template-columns: 1fr 8.5rem 9rem auto; gap: 0.5rem; align-items: center; }
-.locations-list .loc-name { min-width: 0; }
-.locations-list span.loc-name { padding: 0 0.6rem; font-weight: 600; }
-.locations-new { display: grid; grid-template-columns: 1fr 8.5rem auto; gap: 0.5rem; }
+/* Pantalla de ubicaciones (/ubicaciones) */
+.locations-page { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+.locations-page-head { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-end; justify-content: space-between; margin-bottom: 1rem; }
+.locations-page-head h1 { margin: 0 0 0.3rem; font-size: 1.5rem; }
+.locations-page-head p { margin: 0; max-width: 46rem; }
+.locations-page-head a { color: var(--accent); }
+.locations-new { display: grid; grid-template-columns: minmax(14rem, 1fr) 8.5rem auto; gap: 0.5rem; flex: 1; max-width: 34rem; }
+.loc-section { margin-top: 1.25rem; }
+.loc-section h2 { font-size: 1rem; margin: 0 0 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.75rem; }
+.loc-card {
+  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.8rem;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+  border-top: 3px solid var(--muted);
+}
+.loc-card.kind-deck { border-top-color: var(--accent); }
+.loc-card.kind-binder { border-top-color: var(--c-blue); }
+.loc-card.kind-storage { border-top-color: var(--c-green); }
+.loc-card-head { display: flex; gap: 0.4rem; align-items: center; }
+.loc-title { flex: 1; min-width: 0; font-size: 1rem; font-weight: 600; }
+strong.loc-title { padding: 0.35rem 0; }
+.loc-order { display: inline-flex; gap: 0.2rem; }
+.loc-stats { margin: 0; color: var(--muted); }
+.loc-stats strong { color: var(--accent); font-size: 1.2rem; }
+.loc-notes { resize: vertical; font: inherit; }
+.loc-actions { display: flex; gap: 0.5rem; margin-top: auto; }
+.loc-actions a { text-decoration: none; color: var(--text); }
+
+/* Mi colección: cuadrícula / lista */
+.view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.view-toggle button { background: transparent; border: 0; color: var(--muted); padding: 0.45rem 0.75rem; cursor: pointer; font: inherit; }
+.view-toggle button.on { background: var(--bg-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.location-filter a.btn { text-decoration: none; color: var(--text); }
+
+/* Mi colección: modo lista */
+.collection-list.loading { opacity: 0.6; }
+.bulk-bar {
+  position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center;
+  padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.bulk-bar.active { border-color: var(--accent); }
+.bulk-check { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.bulk-move { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.list-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.list-row {
+  display: grid; grid-template-columns: auto minmax(14rem, 1.4fr) 3.5rem minmax(10rem, 1.2fr) auto;
+  gap: 0.75rem; align-items: center; padding: 0.4rem 0.6rem;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.list-row.checked { border-color: var(--accent); }
+.list-card { display: flex; align-items: center; gap: 0.6rem; min-width: 0; background: none; border: 0; padding: 0; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.list-card img { width: 38px; height: 53px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.list-card span { display: flex; flex-direction: column; min-width: 0; }
+.list-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-card:hover strong { color: var(--accent); }
+.list-total { font-weight: 800; color: var(--accent); text-align: center; }
+.list-locs { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.loc-chip { padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--bg-3); border: 1px solid var(--line); font-size: 0.8rem; white-space: nowrap; }
+.loc-chip strong { color: var(--accent); margin-left: 0.15rem; }
+.loc-chip.on { border-color: var(--accent); }
+.list-move { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: var(--muted); }
+.list-move input { width: 3.6rem; }
+.list-move select { max-width: 9.5rem; }
+@media (max-width: 1100px) {
+  .list-row { grid-template-columns: auto 1fr auto; }
+  .list-locs { grid-column: 2 / -1; }
+  .list-move { grid-column: 1 / -1; flex-wrap: wrap; }
+}
 @media (max-width: 600px) {
-  .locations-list li { grid-template-columns: 1fr auto; }
-  .locations-list .loc-count { grid-column: 1; }
   .locations-new { grid-template-columns: 1fr auto; }
   .locations-new input { grid-column: 1 / -1; }
-  .location-filter { margin-left: 0; width: 100%; }
+  .location-filter { margin-left: 0; width: 100%; flex-wrap: wrap; }
   .location-filter select { flex: 1; max-width: none; }
 }
 

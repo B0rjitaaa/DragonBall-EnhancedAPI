@@ -122,6 +122,8 @@ export interface UrlState {
   page: number
   /** Mi colección: ubicación filtrada */
   location?: number | null
+  /** Mi colección: cuadrícula o lista */
+  view?: 'grid' | 'list'
 }
 
 export function readUrlState(): Partial<UrlState> {
@@ -135,7 +137,7 @@ export function readUrlState(): Partial<UrlState> {
 
 export function writeUrlState(state: UrlState): void {
   const empty =
-    !state.q && !Object.keys(state.facets).length && !state.advanced.children.length && state.page === 1 && !state.location
+    !state.q && !Object.keys(state.facets).length && !state.advanced.children.length && state.page === 1 && !state.location && state.view !== 'list'
   const hash = empty && state.ordering === 'number' ? '' : `#${encodeURIComponent(JSON.stringify(state))}`
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`)
 }

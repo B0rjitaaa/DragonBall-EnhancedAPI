@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import CardGrid from './components/CardGrid'
 import CardModal from './components/CardModal'
 import FacetPanel from './components/FacetPanel'
-import LocationsManager from './components/LocationsManager'
+import CollectionList from './components/CollectionList'
 import OwnedPanel from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
 import { api, ApiError, COLLECTION_BACKUP_URL, type Scope } from './lib/api'
@@ -69,9 +69,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // Mi colección: ubicaciones, la filtrada (null = todas) y el gestor.
   const [location, setLocation] = useState<number | null>(inCollection ? initial.location ?? null : null)
   const [locations, setLocations] = useState<Location[]>([])
-  const [showLocations, setShowLocations] = useState(false)
+  const [view, setView] = useState<'grid' | 'list'>(inCollection ? initial.view ?? 'grid' : 'grid')
   const [notice, setNotice] = useState<string | null>(null)
-  const [refresh, setRefresh] = useState(0)
 
   const reloadLocations = useCallback(() => {
     if (!inCollection) return
@@ -137,7 +136,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .catch((e: Error) => e.name !== 'AbortError' && setError(e.message))
       .finally(() => !ctrl.signal.aborted && setLoading(false))
     return () => ctrl.abort()
-  }, [searchKey, fields.length, refresh])
+  }, [searchKey, fields.length])
 
   // Recuentos de facetas dentro de la búsqueda actual
   useEffect(() => {
@@ -155,8 +154,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [filterKey, fields.length])
 
   useEffect(() => {
-    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location })
-  }, [q, facets, advanced, advancedOn, ordering, page, location])
+    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location, view })
+  }, [q, facets, advanced, advancedOn, ordering, page, location, view])
 
   useEffect(() => {
     // En Chrome reciente scrollTo devuelve una Promise: no puede ser el valor de retorno del efecto
@@ -462,9 +461,17 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                     </option>
                   ))}
                 </select>
-                <button className="btn ghost" onClick={() => setShowLocations(true)}>
+                <a className="btn ghost" href="/ubicaciones">
                   Ubicaciones…
-                </button>
+                </a>
+                <span className="view-toggle" role="group" aria-label="Vista">
+                  <button className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>
+                    Cuadrícula
+                  </button>
+                  <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-pressed={view === 'list'}>
+                    Lista
+                  </button>
+                </span>
               </span>
             )}
             {inCollection && (
@@ -479,20 +486,32 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             )}
           </div>
 
-          <CardGrid
-            cards={data?.results ?? []}
-            loading={loading}
-            skills={skills}
-            onOpen={setOpenId}
-            quantities={quantities}
-            onAdjust={inCollection ? adjust : undefined}
-            adjusting={adjusting}
-            emptyText={
-              inCollection && activeCount === 0
-                ? 'Tu colección está vacía: escanea cartas con el escáner y aparecerán aquí.'
-                : undefined
-            }
-          />
+          {inCollection && view === 'list' ? (
+            <CollectionList
+              cards={data?.results ?? []}
+              locations={locations}
+              filterLocation={location}
+              loading={loading}
+              busy={adjusting}
+              onOpen={setOpenId}
+              onMove={(id, source, target, qty) => runOnCard(id, () => api.moveCopies(id, source, target, qty))}
+            />
+          ) : (
+            <CardGrid
+              cards={data?.results ?? []}
+              loading={loading}
+              skills={skills}
+              onOpen={setOpenId}
+              quantities={quantities}
+              onAdjust={inCollection ? adjust : undefined}
+              adjusting={adjusting}
+              emptyText={
+                inCollection && activeCount === 0
+                  ? 'Tu colección está vacía: escanea cartas con el escáner y aparecerán aquí.'
+                  : undefined
+              }
+            />
+          )}
 
           {data && data.pages > 1 && (
             <nav className="pagination">
@@ -533,16 +552,6 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             />
           )}
         </CardModal>
-      )}
-      {showLocations && (
-        <LocationsManager
-          locations={locations}
-          onChanged={() => {
-            reloadLocations()
-            setRefresh((n) => n + 1) // nombres y copias movidas: se relee la página
-          }}
-          onClose={() => setShowLocations(false)}
-        />
       )}
     </div>
   )
