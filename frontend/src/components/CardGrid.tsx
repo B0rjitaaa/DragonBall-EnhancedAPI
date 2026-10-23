@@ -1,3 +1,7 @@
+import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import type { ReactNode } from 'react'
 import { colorClass } from '../lib/colors'
 import type { SkillIndex } from '../lib/skills'
 import type { CardSummary } from '../lib/types'
@@ -19,18 +23,42 @@ interface Props {
   /** Mi colección: con false, las copias falsas no se muestran (ni su ubicación ni el aviso). */
   showFakes?: boolean
   emptyText?: string
+  /** Mi colección dentro de una ubicación, en «Mi orden»: arrastrar para reordenar (ids en el nuevo orden). */
+  onReorder?: (ids: number[]) => void
 }
 
-export default function CardGrid({ cards, loading, skills, onOpen, quantities, emptyText, onAdjust, adjusting, showFakes = true }: Props) {
+/** Una tarjeta arrastrable (el arrastre empieza tras mover unos píxeles o mantener pulsado en el móvil). */
+function SortableTile({ id, children }: { id: number; children: ReactNode }) {
+  // Sin los atributos de accesibilidad de dnd-kit (role="button", tabIndex): la tarjeta ya
+  // tiene sus propios botones y el teclado sigue usándolos con normalidad.
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <li
+      ref={setNodeRef}
+      className={`sortable ${isDragging ? 'dragging' : ''}`}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      {...listeners}
+    >
+      {children}
+    </li>
+  )
+}
+
+export default function CardGrid({
+  cards, loading, skills, onOpen, quantities, emptyText, onAdjust, adjusting, showFakes = true, onReorder,
+}: Props) {
+  // Ratón: tras 6 px (un clic sigue abriendo la ficha). Táctil: mantener pulsado 250 ms (el desplazamiento sigue funcionando).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
+  )
   if (!loading && cards.length === 0) {
     return <div className="empty">{emptyText ?? 'No hay cartas que cumplan estos filtros.'}</div>
   }
-  return (
-    <ul className={`grid ${loading ? 'loading' : ''}`}>
-      {cards.map((c) => {
-        const locs = (c.locations ?? []).filter((l) => showFakes || !l.fake)
-        return (
-        <li key={c.id}>
+  const tile = (c: CardSummary) => {
+    const locs = (c.locations ?? []).filter((l) => showFakes || !l.fake)
+    return (
+      <>
           <button className={`tile ${c.legality === 'banned' ? 'is-banned' : ''}`} onClick={() => onOpen(c.id)} title={`${c.card_number} · ${c.name}`}>
             <div className="tile-img">
               <img
@@ -118,9 +146,36 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
               </button>
             </div>
           )}
-        </li>
-        )
-      })}
+      </>
+    )
+  }
+
+  if (onReorder) {
+    const ids = cards.map((c) => c.id)
+    const onDragEnd = ({ active, over }: DragEndEvent) => {
+      if (!over || active.id === over.id) return
+      onReorder(arrayMove(ids, ids.indexOf(Number(active.id)), ids.indexOf(Number(over.id))))
+    }
+    return (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={ids} strategy={rectSortingStrategy}>
+          <ul className={`grid sortable-grid ${loading ? 'loading' : ''}`}>
+            {cards.map((c) => (
+              <SortableTile key={c.id} id={c.id}>
+                {tile(c)}
+              </SortableTile>
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
+    )
+  }
+
+  return (
+    <ul className={`grid ${loading ? 'loading' : ''}`}>
+      {cards.map((c) => (
+        <li key={c.id}>{tile(c)}</li>
+      ))}
     </ul>
   )
 }

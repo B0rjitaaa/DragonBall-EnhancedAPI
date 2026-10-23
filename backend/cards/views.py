@@ -24,6 +24,7 @@ from .collection import (
     fetch_owned,
     move_owned,
     note_owned,
+    reorder_owned,
 )
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
@@ -152,6 +153,8 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(id__in=owned.ids)
         if owned is not None and ordering.lstrip("-") == "quantity":
             qs = order_by_quantity(qs, owned, desc=ordering.startswith("-"))
+        elif owned is not None and ordering == "position" and data.get("location"):
+            qs = order_by_position(qs, owned, int(data["location"]))
         else:
             qs = apply_ordering(qs, ordering)
 
@@ -332,6 +335,20 @@ def collection_error(exc: CollectionUnavailable) -> Response:
     return Response({**exc.data, "detail": str(exc)}, status=exc.status)
 
 
+def order_by_position(qs: QuerySet, owned: Owned, location_id: int) -> QuerySet:
+    """«Mi orden»: el orden que el usuario ha dado a las cartas de esa ubicación."""
+    positions = {}
+    for card_id, item in owned.cards.items():
+        here = [loc.get("position", 0) for loc in item["locations"] if loc["id"] == location_id]
+        if here:
+            positions[card_id] = min(here)
+    qs = apply_ordering(qs, "number")  # desempate por número de carta
+    if not positions:
+        return qs
+    pos = Case(*[When(id=i, then=Value(p)) for i, p in positions.items()], default=Value(0), output_field=IntegerField())
+    return qs.annotate(owned_pos=pos).order_by("owned_pos", *qs.query.order_by)
+
+
 def order_by_quantity(qs: QuerySet, owned: Owned, desc: bool) -> QuerySet:
     """Orden por número de copias (solo en Mi colección)."""
     if not owned.cards:
@@ -432,6 +449,22 @@ class MyCollectionNoteView(APIView):
             return Response({"card_id": card_id, **note_owned(card_id, location, notes, fake)})
         except CollectionUnavailable as exc:
             return collection_error(exc)
+
+
+class MyCollectionReorderView(APIView):
+    """«Mi orden»: POST {location, card_ids: [en el orden deseado]} (arrastrar cartas en una ubicación)."""
+
+    def post(self, request):
+        location = _int(request.data.get("location"), "location")
+        ids = request.data.get("card_ids")
+        if not isinstance(ids, list) or not ids or len(ids) > 500:
+            raise ValidationError({"card_ids": "Lista de ids de carta (1-500)"})
+        card_ids = [_int(i, "card_ids") for i in ids]
+        try:
+            reorder_owned(location, card_ids)
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 LOCATION_FIELDS = ("name", "kind", "notes", "position")

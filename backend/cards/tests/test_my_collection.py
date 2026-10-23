@@ -100,6 +100,20 @@ class MyCollectionTests(TestCase):
         self.assertEqual(sent[0][2], {"bandai_id": 4, "source": 2, "target": 2, "quantity": 1, "source_fake": False,
                                       "target_fake": True, "note_line": "Pág. 74 · fila 3 · col 3"})
 
+    def test_my_order_inside_a_location(self):
+        entries = [dict(e) for e in ENTRIES]
+        entries[1]["position"], entries[2]["position"] = 2, 1  # en el mazo: Champa PR (falsa) antes que Champa
+        self.urlopen.side_effect = lambda *a, **k: _response(entries)
+        data = self.search(scope="collection", location=2, include_fakes=True, ordering="position").data
+        self.assertEqual([r["card_number"] for r in data["results"]], ["BT1-005", "BT1-001"])
+
+    def test_reorder_is_forwarded(self):
+        sent = self._checker({("POST", "/api/collection/reorder/"): None})
+        r = self.client.post("/api/my-collection/reorder/", {"location": 2, "card_ids": [1088, 4]}, format="json")
+        self.assertEqual(r.status_code, 204)
+        self.assertEqual(sent, [("POST", "/api/collection/reorder/", {"location": 2, "bandai_ids": [1088, 4]})])
+        self.assertEqual(self.client.post("/api/my-collection/reorder/", {"location": 2, "card_ids": []}, format="json").status_code, 400)
+
     def test_facets_only_count_owned_cards(self):
         facets = self.client.get("/api/facets/?scope=collection").data
         self.assertEqual(facets["total"], 2)

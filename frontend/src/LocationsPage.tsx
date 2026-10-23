@@ -1,3 +1,9 @@
+import {
+  DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
+  type DraggableAttributes, type DraggableSyntheticListeners,
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useCallback, useEffect, useState } from 'react'
 import { KIND_LABELS } from './components/OwnedPanel'
 import { api } from './lib/api'
@@ -13,11 +19,34 @@ const KIND_SECTIONS: [LocationKind, string][] = [
 
 /** Enlace a Mi colección filtrada por una ubicación (el estado de la búsqueda va en el #). */
 export function collectionUrl(location: number): string {
-  return `/coleccion#${encodeURIComponent(JSON.stringify({ location }))}`
+  return `/coleccion#${encodeURIComponent(JSON.stringify({ location, ordering: 'position' }))}`
+}
+
+/** Asa de arrastre de una tarjeta de ubicación. */
+interface DragHandle {
+  setRef: (el: HTMLElement | null) => void
+  attributes: DraggableAttributes
+  listeners: DraggableSyntheticListeners
+}
+
+/** Una ubicación arrastrable; solo se arrastra desde su asa (los campos se siguen pudiendo editar). */
+function SortableLocation(props: Omit<Parameters<typeof LocationCard>[0], 'handle' | 'dragging'>) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.loc.id,
+  })
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
+      <LocationCard {...props} dragging={isDragging} handle={{ setRef: setActivatorNodeRef, attributes, listeners }} />
+    </div>
+  )
 }
 
 /** Pantalla de ubicaciones de Mi colección: crear, editar, ordenar y borrar. */
 export default function LocationsPage() {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const [locations, setLocations] = useState<Location[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -54,21 +83,27 @@ export default function LocationsPage() {
 
   const unplaced = locations.find((l) => l.is_default)
   const custom = locations.filter((l) => !l.is_default)
-  // Reordenar dentro de su tipo: se reescriben las posiciones de todas.
-  const move = (loc: Location, step: -1 | 1) => {
-    const order = [...custom]
-    const i = order.findIndex((l) => l.id === loc.id)
-    const sameKind = order.filter((l) => l.kind === loc.kind)
-    const k = sameKind.findIndex((l) => l.id === loc.id)
-    const other = sameKind[k + step]
-    if (!other) return
-    const j = order.findIndex((l) => l.id === other.id)
-    ;[order[i], order[j]] = [order[j], order[i]]
+  // Reordenar dentro de su tipo (arrastrando o con ↑ ↓): se reescriben las posiciones de todas.
+  const saveOrder = (kind: LocationKind, ids: number[]) => {
+    const byId = new Map(custom.map((l) => [l.id, l]))
+    const order = KIND_SECTIONS.flatMap(([k]) =>
+      k === kind ? ids.map((id) => byId.get(id)!) : custom.filter((l) => l.kind === k),
+    )
+    // Al momento en pantalla; después se guarda.
+    setLocations([...(unplaced ? [unplaced] : []), ...order.map((l, pos) => ({ ...l, position: pos + 1 }))])
     void run(() =>
       Promise.all(
         order.map((l, pos) => (l.position === pos + 1 ? null : api.updateLocation(l.id, { position: pos + 1 }))),
       ),
     )
+  }
+  const move = (loc: Location, step: -1 | 1) => {
+    const ids = custom.filter((l) => l.kind === loc.kind).map((l) => l.id)
+    const i = ids.indexOf(loc.id)
+    if (ids[i + step] !== undefined) saveOrder(loc.kind, arrayMove(ids, i, i + step))
+  }
+  const onDragEnd = (kind: LocationKind, ids: number[]) => ({ active, over }: DragEndEvent) => {
+    if (over && active.id !== over.id) saveOrder(kind, arrayMove(ids, ids.indexOf(Number(active.id)), ids.indexOf(Number(over.id))))
   }
 
   return (
@@ -131,18 +166,22 @@ export default function LocationsPage() {
             <h2>
               {title} <small className="muted">{items.length}</small>
             </h2>
-            <div className="loc-grid">
-              {items.map((loc, i) => (
-                <LocationCard
-                  key={loc.id}
-                  loc={loc}
-                  busy={busy}
-                  run={run}
-                  onUp={i > 0 ? () => move(loc, -1) : undefined}
-                  onDown={i < items.length - 1 ? () => move(loc, 1) : undefined}
-                />
-              ))}
-            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd(k, items.map((l) => l.id))}>
+              <SortableContext items={items.map((l) => l.id)} strategy={rectSortingStrategy}>
+                <div className="loc-grid">
+                  {items.map((loc, i) => (
+                    <SortableLocation
+                      key={loc.id}
+                      loc={loc}
+                      busy={busy}
+                      run={run}
+                      onUp={i > 0 ? () => move(loc, -1) : undefined}
+                      onDown={i < items.length - 1 ? () => move(loc, 1) : undefined}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           </section>
         )
       })}
@@ -159,17 +198,21 @@ function LocationCard({
   run,
   onUp,
   onDown,
+  handle,
+  dragging = false,
 }: {
   loc: Location
   busy: boolean
   run: (action: () => Promise<unknown>) => Promise<void>
   onUp?: () => void
   onDown?: () => void
+  handle?: DragHandle
+  dragging?: boolean
 }) {
   const save = (changes: Partial<Pick<Location, 'name' | 'kind' | 'notes'>>) => void run(() => api.updateLocation(loc.id, changes))
 
   return (
-    <article className={`loc-card kind-${loc.kind}`}>
+    <article className={`loc-card kind-${loc.kind} ${dragging ? 'dragging' : ''}`}>
       {loc.leader && (
         <a className="loc-leader" href={collectionUrl(loc.id)} title={`${loc.leader.card_number} · ${loc.leader.name}`}>
           <img src={loc.leader.image} alt={`Líder: ${loc.leader.name}`} loading="lazy" referrerPolicy="no-referrer" />
@@ -193,6 +236,18 @@ function LocationCard({
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
         )}
+        {handle && (
+          <button
+            ref={handle.setRef}
+            className="icon-btn drag-handle"
+            title="Arrastra para cambiar el orden"
+            aria-label={`Arrastrar ${loc.name}`}
+            {...handle.attributes}
+            {...handle.listeners}
+          >
+            ⠿
+          </button>
+        )}
         {(onUp || onDown) && (
           <span className="loc-order">
             <button className="icon-btn" disabled={busy || !onUp} onClick={onUp} aria-label="Subir">
@@ -209,7 +264,7 @@ function LocationCard({
         {loc.fakes > 0 && (
           <>
             {' · '}
-            <a className="fake-link" href={`/coleccion#${encodeURIComponent(JSON.stringify({ location: loc.id, showFakes: true }))}`}>
+            <a className="fake-link" href={`/coleccion#${encodeURIComponent(JSON.stringify({ location: loc.id, ordering: 'position', showFakes: true }))}`}>
               {loc.fakes === 1 ? '1 falsa' : `${loc.fakes} falsas`}
             </a>
           </>

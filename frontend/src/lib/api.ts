@@ -106,6 +106,9 @@ export const api = {
     ),
   setNote: (cardId: number, location: number, notes: string, fake = false) =>
     request<OwnedSummary>('/my-collection/note/', post({ card_id: cardId, location, notes, fake })),
+  /** «Mi orden»: esas cartas, en ese orden, dentro de la ubicación. */
+  reorderCollection: (location: number, cardIds: number[]) =>
+    request<void>('/my-collection/reorder/', post({ location, card_ids: cardIds })),
   locations: () => request<Location[]>('/my-collection/locations/'),
   createLocation: (name: string, kind: LocationKind, position = 0) =>
     request<Location>('/my-collection/locations/', post({ name, kind, position })),

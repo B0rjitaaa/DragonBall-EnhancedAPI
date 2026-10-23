@@ -45,7 +45,6 @@ function useDebounced<T>(value: T, ms = 300): T {
  */
 export default function App({ scope = 'all' }: { scope?: Scope }) {
   const inCollection = scope === 'collection'
-  const orderings: [string, string][] = inCollection ? [...ORDERINGS, ['-quantity', 'Más copias']] : ORDERINGS
   const [initial] = useState(readUrlState)
   const [fields, setFields] = useState<FieldDef[]>([])
   const [globalFacets, setGlobalFacets] = useState<Record<string, Facet>>({})
@@ -71,6 +70,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [locations, setLocations] = useState<Location[]>([])
   const [view, setView] = useState<'grid' | 'list'>(inCollection ? initial.view ?? 'grid' : 'grid')
   // Mi colección: por defecto solo cuentan las copias auténticas; con esto, también las falsas.
+  // Dentro de una ubicación, «Mi orden»: el orden en que el usuario ha colocado sus cartas.
+  const orderings: [string, string][] = inCollection
+    ? [...(location != null ? [['position', 'Mi orden'] as [string, string]] : []), ...ORDERINGS, ['-quantity', 'Más copias']]
+    : ORDERINGS
   const [showFakes, setShowFakes] = useState<boolean>(inCollection ? initial.showFakes ?? false : false)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -86,6 +89,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   useEffect(() => {
     if (location != null && locations.length && !locations.some((l) => l.id === location)) setLocation(null)
   }, [locations, location])
+  // «Mi orden» solo existe dentro de una ubicación.
+  useEffect(() => {
+    if (location == null && ordering === 'position') setOrdering('number')
+  }, [location, ordering])
 
   useEffect(() => {
     Promise.all([api.fields(), api.facets(scope, location, showFakes)])
@@ -293,6 +300,21 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       runOnCard(id, () => api.moveCopies(id, source.location, target.location, qty, source.fake, target.fake, noteLine)),
     [runOnCard],
   )
+  // Arrastrar para reordenar: solo dentro de una ubicación, en «Mi orden» y en cuadrícula.
+  const canReorder = inCollection && location != null && ordering === 'position' && view === 'grid'
+  const reorder = useCallback(
+    (ids: number[]) => {
+      if (location == null) return
+      setData((prev) => {
+        if (!prev) return prev
+        const byId = new Map(prev.results.map((c) => [c.id, c]))
+        return { ...prev, results: ids.map((id) => byId.get(id)!).filter(Boolean) }
+      })
+      api.reorderCollection(location, ids).catch((e: Error) => setError(`No se pudo guardar el orden: ${e.message}`))
+    },
+    [location],
+  )
+
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
   if (bootError) {
@@ -460,7 +482,9 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                   className="input"
                   value={location ?? ''}
                   onChange={(e) => {
-                    setLocation(e.target.value ? Number(e.target.value) : null)
+                    const next = e.target.value ? Number(e.target.value) : null
+                    setLocation(next)
+                    if (next != null && ordering === 'number') setOrdering('position')
                     setPage(1)
                   }}
                   aria-label="Ubicación"
@@ -521,6 +545,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               onMove={moveCopies}
             />
           ) : (
+            <>
+            {canReorder && (data?.results.length ?? 0) > 1 && (
+              <p className="reorder-hint">Arrastra las cartas para ordenarlas (en el móvil, mantén pulsada una carta). El orden se guarda.</p>
+            )}
             <CardGrid
               cards={data?.results ?? []}
               loading={loading}
@@ -530,12 +558,14 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               onAdjust={inCollection ? adjust : undefined}
               adjusting={adjusting}
               showFakes={showFakes}
+              onReorder={canReorder ? reorder : undefined}
               emptyText={
                 inCollection && activeCount === 0
                   ? 'Tu colección está vacía: escanea cartas con el escáner y aparecerán aquí.'
                   : undefined
               }
             />
+            </>
           )}
 
           {data && data.pages > 1 && (

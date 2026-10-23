@@ -118,6 +118,7 @@ def fetch_owned() -> Owned:
             "kind": entry.get("location_kind", "other"),
             "quantity": entry["quantity"],
             "fake": fake,
+            "position": entry.get("position", 0),
             "notes": entry.get("notes", ""),
         })
         numbers[entry["bandai_id"]] = entry["card_number"]
@@ -174,6 +175,12 @@ def note_owned(card_id: int, location: int, notes: str, fake: bool = False) -> d
 
 
 KIND_NAMES = {"deck": "mazo", "binder": "archivador", "storage": "almacén", "other": "otro"}
+
+
+def reorder_owned(location: int, card_ids: list[int]) -> None:
+    """«Mi orden»: esas cartas, en ese orden, dentro de la ubicación."""
+    checker_request("POST", "/api/collection/reorder/", {"location": location, "bandai_ids": card_ids})
+    cache.delete(CACHE_KEY)
 
 
 def backup_document(entries: list[dict], exported_at: str, locations: list[dict] | None = None) -> dict:

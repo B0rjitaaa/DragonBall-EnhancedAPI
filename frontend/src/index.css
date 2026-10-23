@@ -529,3 +529,11 @@ strong.loc-title { padding: 0.35rem 0; }
 .loc-leader small { font-weight: 400; opacity: 0.8; }
 .loc-card.kind-deck { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .loc-leader img { transition: none; } }
+
+/* Arrastrar para reordenar (ubicaciones y cartas de una ubicación) */
+.sortable-grid li.sortable { cursor: grab; touch-action: manipulation; }
+.sortable-grid li.sortable img { -webkit-user-drag: none; user-select: none; }
+.sortable-grid li.dragging, .loc-card.dragging { position: relative; z-index: 20; opacity: 0.92; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); cursor: grabbing; }
+.drag-handle { cursor: grab; touch-action: none; font-size: 1.1rem; line-height: 1; color: var(--muted); padding: 0.2rem 0.3rem; }
+.drag-handle:active { cursor: grabbing; }
+.reorder-hint { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); }

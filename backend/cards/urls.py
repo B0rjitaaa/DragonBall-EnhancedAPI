@@ -17,6 +17,7 @@ urlpatterns = [
     path("my-collection/backup/", views.MyCollectionBackupView.as_view(), name="my-collection-backup"),
     path("my-collection/move/", views.MyCollectionMoveView.as_view(), name="my-collection-move"),
     path("my-collection/note/", views.MyCollectionNoteView.as_view(), name="my-collection-note"),
+    path("my-collection/reorder/", views.MyCollectionReorderView.as_view(), name="my-collection-reorder"),
     path("my-collection/locations/", views.LocationsView.as_view(), name="my-collection-locations"),
     path("my-collection/locations/<int:pk>/", views.LocationDetailView.as_view(), name="my-collection-location"),
     *router.urls,
