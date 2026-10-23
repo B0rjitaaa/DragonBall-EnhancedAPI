@@ -511,3 +511,21 @@ strong.loc-title { padding: 0.35rem 0; }
 .owned-note { resize: vertical; font: inherit; line-height: 1.4; }
 .owned-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.35rem; font-size: 0.88rem; }
 .owned-pick .btn { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+
+/* Ubicaciones: el líder despertado de cada mazo */
+.loc-leader {
+  position: relative; display: block; margin: -0.8rem -0.8rem 0.2rem;
+  aspect-ratio: 16 / 11; max-width: calc(100% + 1.6rem); overflow: hidden;
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0; background: var(--bg-3);
+}
+.loc-leader img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; display: block; transition: transform 0.25s ease; }
+.loc-leader:hover img { transform: scale(1.04); }
+.loc-leader span {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 1.2rem 0.6rem 0.4rem;
+  font-size: 0.78rem; font-weight: 600; color: #fff; text-decoration: none;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.loc-leader small { font-weight: 400; opacity: 0.8; }
+.loc-card.kind-deck { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .loc-leader img { transition: none; } }

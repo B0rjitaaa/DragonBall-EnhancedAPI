@@ -232,6 +232,22 @@ class MyCollectionTests(TestCase):
             ("POST", "/api/collection/note/", {"bandai_id": 4, "location": 2, "notes": "pág. 3", "fake": False}),
         ])
 
+    def test_each_deck_shows_its_awakened_leader(self):
+        Card.objects.filter(id=4).update(back_name="Champa, Fighting for Fun", back_image_url="https://x/BT1-001_b.png")
+        Card.objects.create(id=50, card_number="EX21-19", name="Z Champa", card_type="Z-LEADER", colors=["Red"])
+        entries = ENTRIES + [
+            {"bandai_id": 50, "card_number": "EX21-19", "name": "Z Champa", "quantity": 1, **DECK},
+        ]
+        listing = [
+            {"id": 1, "name": "Sin ubicar", "kind": "other", "is_default": True, "copies": 4},
+            {"id": 2, "name": "Mazo rojo", "kind": "deck", "is_default": False, "copies": 2},
+        ]
+        self.urlopen.side_effect = lambda req, *a, **k: _response(entries if isinstance(req, str) else listing)
+        data = self.client.get("/api/my-collection/locations/").data
+        self.assertIsNone(data[0]["leader"])  # no es un mazo
+        self.assertEqual(data[1]["leader"], {"id": 4, "card_number": "BT1-001", "name": "Champa, Fighting for Fun",
+                                             "image": "https://x/BT1-001_b.png", "awakened": True})
+
     def test_locations_are_managed_in_the_checker(self):
         listing = [{"id": 1, "name": "Sin ubicar", "is_default": True, "copies": 4}]
         sent = self._checker({
@@ -240,7 +256,7 @@ class MyCollectionTests(TestCase):
             ("PATCH", "/api/locations/2/"): {"id": 2, "name": "Mazo azul"},
             ("DELETE", "/api/locations/2/"): None,
         })
-        self.assertEqual(self.client.get("/api/my-collection/locations/").data, listing)
+        self.assertEqual(self.client.get("/api/my-collection/locations/").data, [{**listing[0], "leader": None}])
         self.assertEqual(self.client.post("/api/my-collection/locations/", {"name": "Mazo rojo", "kind": "deck", "x": 1}, format="json").status_code, 201)
         self.client.patch("/api/my-collection/locations/2/", {"name": "Mazo azul"}, format="json")
         self.assertEqual(self.client.delete("/api/my-collection/locations/2/").status_code, 204)

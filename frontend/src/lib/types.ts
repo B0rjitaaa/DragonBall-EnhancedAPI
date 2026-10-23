@@ -95,6 +95,16 @@ export interface Location {
   cards: number
   copies: number
   fakes: number
+  /** Solo en mazos: su carta Líder, con la imagen de la cara despertada. */
+  leader?: DeckLeader | null
+}
+
+export interface DeckLeader {
+  id: number
+  card_number: string
+  name: string
+  image: string
+  awakened: boolean
 }
 
 /** Respuesta de las operaciones de Mi colección sobre una carta. */

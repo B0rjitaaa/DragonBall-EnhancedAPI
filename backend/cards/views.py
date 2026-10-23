@@ -437,14 +437,45 @@ class MyCollectionNoteView(APIView):
 LOCATION_FIELDS = ("name", "kind", "notes", "position")
 
 
+def deck_leaders(owned: Owned) -> dict[int, dict]:
+    """Líder de cada mazo: su carta LEADER (las Z-Leader no se despiertan), con la imagen
+    de su cara despertada. Si hubiera varias, la auténtica y con más copias."""
+    leader_ids = set(
+        Card.objects.filter(id__in=owned.ids, card_type="LEADER").values_list("id", flat=True)
+    )
+    best: dict[int, tuple] = {}
+    for card_id in leader_ids:
+        for loc in owned.cards[card_id]["locations"]:
+            if loc.get("kind") != "deck":
+                continue
+            rank = (not loc.get("fake"), loc["quantity"])
+            if loc["id"] not in best or rank > best[loc["id"]][0]:
+                best[loc["id"]] = (rank, card_id)
+    cards = Card.objects.in_bulk([card_id for _, card_id in best.values()])
+    return {
+        location_id: {
+            "id": card.id,
+            "card_number": card.card_number,
+            "name": card.back_name or card.name,
+            "image": card.back_image_url or card.image_url,
+            "awakened": bool(card.back_image_url),
+        }
+        for location_id, (_, card_id) in best.items()
+        if (card := cards.get(card_id))
+    }
+
+
 class LocationsView(APIView):
-    """Ubicaciones de Mi colección (viven en el escáner): GET lista con totales, POST crea."""
+    """Ubicaciones de Mi colección (viven en el escáner): GET lista con totales (y el líder de
+    cada mazo), POST crea."""
 
     def get(self, request):
         try:
-            return Response(checker_request("GET", "/api/locations/"))
+            locations = checker_request("GET", "/api/locations/")
+            leaders = deck_leaders(fetch_owned()) if any(loc.get("kind") == "deck" for loc in locations) else {}
         except CollectionUnavailable as exc:
             return collection_error(exc)
+        return Response([{**loc, "leader": leaders.get(loc["id"])} for loc in locations])
 
     def post(self, request):
         body = {k: request.data[k] for k in LOCATION_FIELDS if k in request.data}

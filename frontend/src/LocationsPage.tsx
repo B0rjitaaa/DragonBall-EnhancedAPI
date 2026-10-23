@@ -170,6 +170,12 @@ function LocationCard({
 
   return (
     <article className={`loc-card kind-${loc.kind}`}>
+      {loc.leader && (
+        <a className="loc-leader" href={collectionUrl(loc.id)} title={`${loc.leader.card_number} · ${loc.leader.name}`}>
+          <img src={loc.leader.image} alt={`Líder: ${loc.leader.name}`} loading="lazy" referrerPolicy="no-referrer" />
+          <span>{loc.leader.name}</span>
+        </a>
+      )}
       <div className="loc-card-head">
         {loc.is_default ? (
           <strong className="loc-title">{loc.name}</strong>
