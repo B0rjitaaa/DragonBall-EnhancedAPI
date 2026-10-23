@@ -3,6 +3,7 @@ import CardGrid from './components/CardGrid'
 import CardModal from './components/CardModal'
 import FacetPanel from './components/FacetPanel'
 import CollectionList from './components/CollectionList'
+import DeckView from './components/DeckView'
 import OwnedPanel, { type Spot } from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
 import { api, ApiError, COLLECTION_BACKUP_URL, type Scope } from './lib/api'
@@ -68,7 +69,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // Mi colección: ubicaciones, la filtrada (null = todas) y el gestor.
   const [location, setLocation] = useState<number | null>(inCollection ? initial.location ?? null : null)
   const [locations, setLocations] = useState<Location[]>([])
-  const [view, setView] = useState<'grid' | 'list'>(inCollection ? initial.view ?? 'grid' : 'grid')
+  const [view, setView] = useState<'grid' | 'list' | 'deck'>(inCollection ? initial.view ?? 'grid' : 'grid')
   // Mi colección: por defecto solo cuentan las copias auténticas; con esto, también las falsas.
   // Dentro de una ubicación, «Mi orden»: el orden en que el usuario ha colocado sus cartas.
   const orderings: [string, string][] = inCollection
@@ -93,6 +94,19 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   useEffect(() => {
     if (location == null && ordering === 'position') setOrdering('number')
   }, [location, ordering])
+  // Dentro de un mazo, la vista «Mazo» (líder, estadísticas y reglas); fuera de un mazo no existe.
+  const currentLocation = locations.find((l) => l.id === location)
+  const isDeck = inCollection && currentLocation?.kind === 'deck'
+  const [lastDeck, setLastDeck] = useState<number | null>(null)
+  useEffect(() => {
+    if (!locations.length) return
+    if (isDeck && location !== lastDeck) {
+      setLastDeck(location)
+      if (view === 'grid') setView('deck')
+    } else if (!isDeck && view === 'deck') {
+      setView('grid')
+    }
+  }, [isDeck, location, lastDeck, view, locations.length])
 
   useEffect(() => {
     Promise.all([api.fields(), api.facets(scope, location, showFakes)])
@@ -127,7 +141,12 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [q, query, facets, advanced, advancedOn, fields, scope, location, showFakes])
   const filterKey = useDebounced(JSON.stringify(facetRequests))
   const searchKey = useDebounced(
-    JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope, location, include_fakes: showFakes }),
+    JSON.stringify({
+      q: q.trim(), query, ordering, scope, location, include_fakes: showFakes,
+      // Un mazo cabe entero en una página.
+      page: view === 'deck' ? 1 : page,
+      page_size: view === 'deck' ? 200 : PAGE_SIZE,
+    }),
     150,
   )
 
@@ -301,7 +320,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     [runOnCard],
   )
   // Arrastrar para reordenar: solo dentro de una ubicación, en «Mi orden» y en cuadrícula.
-  const canReorder = inCollection && location != null && ordering === 'position' && view === 'grid'
+  const canReorder = inCollection && location != null && ordering === 'position' && (view === 'grid' || view === 'deck')
   const reorder = useCallback(
     (ids: number[]) => {
       if (location == null) return
@@ -512,6 +531,11 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                   Ubicaciones…
                 </a>
                 <span className="view-toggle" role="group" aria-label="Vista">
+                  {isDeck && (
+                    <button className={view === 'deck' ? 'on' : ''} onClick={() => setView('deck')} aria-pressed={view === 'deck'}>
+                      Mazo
+                    </button>
+                  )}
                   <button className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>
                     Cuadrícula
                   </button>
@@ -533,7 +557,15 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             )}
           </div>
 
-          {inCollection && view === 'list' ? (
+          {inCollection && view === 'deck' && currentLocation ? (
+            <DeckView
+              deck={currentLocation}
+              cards={data?.results ?? []}
+              loading={loading}
+              onOpen={setOpenId}
+              onReorder={canReorder ? reorder : undefined}
+            />
+          ) : inCollection && view === 'list' ? (
             <CollectionList
               cards={data?.results ?? []}
               locations={locations}
@@ -568,7 +600,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             </>
           )}
 
-          {data && data.pages > 1 && (
+          {data && data.pages > 1 && view !== 'deck' && (
             <nav className="pagination">
               <button className="btn ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 ← Anterior

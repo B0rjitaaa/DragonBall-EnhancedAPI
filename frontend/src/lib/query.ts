@@ -123,7 +123,7 @@ export interface UrlState {
   /** Mi colección: ubicación filtrada */
   location?: number | null
   /** Mi colección: cuadrícula o lista */
-  view?: 'grid' | 'list'
+  view?: 'grid' | 'list' | 'deck'
   /** Mi colección: contar y mostrar también las copias falsas */
   showFakes?: boolean
 }
@@ -139,7 +139,7 @@ export function readUrlState(): Partial<UrlState> {
 
 export function writeUrlState(state: UrlState): void {
   const empty =
-    !state.q && !Object.keys(state.facets).length && !state.advanced.children.length && state.page === 1 && !state.location && state.view !== 'list' && !state.showFakes
+    !state.q && !Object.keys(state.facets).length && !state.advanced.children.length && state.page === 1 && !state.location && (state.view ?? 'grid') === 'grid' && !state.showFakes
   const hash = empty && state.ordering === 'number' ? '' : `#${encodeURIComponent(JSON.stringify(state))}`
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`)
 }

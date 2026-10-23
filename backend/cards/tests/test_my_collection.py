@@ -114,6 +114,11 @@ class MyCollectionTests(TestCase):
         self.assertEqual(sent, [("POST", "/api/collection/reorder/", {"location": 2, "bandai_ids": [1088, 4]})])
         self.assertEqual(self.client.post("/api/my-collection/reorder/", {"location": 2, "card_ids": []}, format="json").status_code, 400)
 
+    def test_facets_of_an_empty_location(self):
+        data = self.client.get("/api/facets/?scope=collection&location=99").data
+        self.assertEqual(data["total"], 0)
+        self.assertEqual(data["facets"]["color"]["values"], [])
+
     def test_facets_only_count_owned_cards(self):
         facets = self.client.get("/api/facets/?scope=collection").data
         self.assertEqual(facets["total"], 2)

@@ -5,6 +5,7 @@ import hashlib
 import json
 
 from django.core.cache import cache
+from django.core.exceptions import EmptyResultSet
 from django.db import connection
 from django.db.models import Count, Max, Min, QuerySet
 
@@ -17,7 +18,10 @@ SCHEMA = hashlib.sha1("|".join(f"{k}:{f.type}:{f.facet}" for k, f in FIELDS.item
 
 
 def _array_counts(qs: QuerySet, column: str) -> list[dict]:
-    ids_sql, params = qs.values("id").query.sql_with_params()
+    try:
+        ids_sql, params = qs.values("id").query.sql_with_params()
+    except EmptyResultSet:
+        return []  # filtro que no puede dar resultados (p. ej. una ubicación vacía de Mi colección)
     table = Card._meta.db_table
     sql = (
         f'SELECT v, COUNT(*) AS n FROM {table} c, unnest(c."{column}") AS v '
