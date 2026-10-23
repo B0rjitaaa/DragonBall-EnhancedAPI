@@ -3,39 +3,51 @@ import type { CardSummary, Location, OwnedLocation } from '../lib/types'
 
 export const KIND_LABELS: Record<string, string> = { deck: 'Mazo', binder: 'Archivador', storage: 'Almacén', other: 'Otro' }
 
+/** Una fila de copias: ubicación + auténticas o falsas. */
+export interface Spot {
+  location: number
+  fake: boolean
+}
+
 interface Props {
   card: CardSummary
   locations: Location[]
   busy: boolean
   notice?: string | null
-  onAdjust: (location: number, delta: number) => void
-  onMove: (source: number, target: number, quantity: number) => void
-  onNote: (location: number, notes: string) => void
+  onAdjust: (spot: Spot, delta: number) => void
+  /** Mover a otra ubicación (target.fake = spot.fake) o marcar como falsas/auténticas (misma ubicación). */
+  onMove: (source: Spot, target: Spot, quantity: number) => void
+  onNote: (spot: Spot, notes: string) => void
 }
 
-/** Ficha de una carta de Mi colección: sus copias en cada ubicación, con − / +, mover y nota. */
+/** Ficha de una carta de Mi colección: sus copias en cada ubicación, con − / +, mover, falsas y nota. */
 export default function OwnedPanel({ card, locations, busy, notice, onAdjust, onMove, onNote }: Props) {
   const owned = card.locations ?? []
   const total = card.total_quantity ?? card.quantity ?? 0
-  const free = locations.filter((l) => !owned.some((o) => o.id === l.id))
+  const fakes = card.fakes ?? owned.filter((l) => l.fake).reduce((n, l) => n + l.quantity, 0)
+  const free = locations.filter((l) => !owned.some((o) => o.id === l.id && !o.fake))
   const [addTo, setAddTo] = useState<number | ''>('')
 
   return (
     <section className="owned-panel" aria-label="Copias en tu colección">
       <header>
         En tu colección: <strong>×{total}</strong>
+        {fakes > 0 && <span className="fake-badge">{fakes === 1 ? '1 falsa' : `${fakes} falsas`}</span>}
       </header>
       {notice && <p className="owned-notice">{notice}</p>}
       <ul>
         {owned.map((loc) => (
           <OwnedRow
-            key={loc.id}
+            key={`${loc.id}:${loc.fake}`}
             loc={loc}
             others={locations.filter((l) => l.id !== loc.id)}
             busy={busy}
-            onAdjust={(delta) => onAdjust(loc.id, delta)}
-            onMove={(target, qty) => onMove(loc.id, target, qty)}
-            onNote={(notes) => onNote(loc.id, notes)}
+            onAdjust={(delta) => onAdjust({ location: loc.id, fake: loc.fake }, delta)}
+            onMove={(target, qty) => onMove({ location: loc.id, fake: loc.fake }, { location: target, fake: loc.fake }, qty)}
+            onToggleFake={(qty) =>
+              onMove({ location: loc.id, fake: loc.fake }, { location: loc.id, fake: !loc.fake }, qty)
+            }
+            onNote={(notes) => onNote({ location: loc.id, fake: loc.fake }, notes)}
           />
         ))}
       </ul>
@@ -54,7 +66,7 @@ export default function OwnedPanel({ card, locations, busy, notice, onAdjust, on
             className="btn"
             disabled={busy || addTo === ''}
             onClick={() => {
-              if (addTo !== '') onAdjust(addTo, 1)
+              if (addTo !== '') onAdjust({ location: addTo, fake: false }, 1)
               setAddTo('')
             }}
           >
@@ -72,6 +84,7 @@ function OwnedRow({
   busy,
   onAdjust,
   onMove,
+  onToggleFake,
   onNote,
 }: {
   loc: OwnedLocation
@@ -79,6 +92,7 @@ function OwnedRow({
   busy: boolean
   onAdjust: (delta: number) => void
   onMove: (target: number, quantity: number) => void
+  onToggleFake: (quantity: number) => void
   onNote: (notes: string) => void
 }) {
   const [moving, setMoving] = useState(false)
@@ -87,26 +101,40 @@ function OwnedRow({
   const [notes, setNotes] = useState(loc.notes)
 
   return (
-    <li>
+    <li className={loc.fake ? 'is-fake' : ''}>
       <div className="owned-row">
         <span className="owned-name">
           {loc.name}
           {loc.kind !== 'other' && <small>{KIND_LABELS[loc.kind]}</small>}
+          {loc.fake && <span className="fake-badge">Falsa</span>}
         </span>
         <span className="owned-qty">
-          <button className="qty-btn" disabled={busy} onClick={() => onAdjust(-1)} aria-label={`Quitar una copia de ${loc.name}`}>
+          <button className="qty-btn" disabled={busy} onClick={() => onAdjust(-1)} aria-label={`Quitar una copia${loc.fake ? ' falsa' : ''} de ${loc.name}`}>
             −
           </button>
           <strong>{loc.quantity}</strong>
-          <button className="qty-btn" disabled={busy} onClick={() => onAdjust(1)} aria-label={`Añadir una copia en ${loc.name}`}>
-            +
-          </button>
+          {/* Las copias nuevas son auténticas: en una fila de falsas, + no tiene sentido. */}
+          {!loc.fake && (
+            <button className="qty-btn" disabled={busy} onClick={() => onAdjust(1)} aria-label={`Añadir una copia en ${loc.name}`}>
+              +
+            </button>
+          )}
         </span>
-        {others.length > 0 && (
-          <button className="link small" onClick={() => setMoving(!moving)} aria-expanded={moving}>
-            Mover…
+        <span className="owned-actions">
+          <button
+            className="link small"
+            disabled={busy}
+            onClick={() => onToggleFake(1)}
+            title={loc.fake ? 'Una de estas copias es auténtica' : 'Una de estas copias es falsa'}
+          >
+            {loc.fake ? 'Es auténtica' : 'Marcar falsa'}
           </button>
-        )}
+          {others.length > 0 && (
+            <button className="link small" onClick={() => setMoving(!moving)} aria-expanded={moving}>
+              Mover…
+            </button>
+          )}
+        </span>
       </div>
       {moving && (
         <div className="owned-move">
@@ -143,7 +171,7 @@ function OwnedRow({
       )}
       <input
         className="input owned-note"
-        placeholder="Nota (p. ej. página 12)"
+        placeholder={loc.fake ? 'Nota (p. ej. AliExpress, junio)' : 'Nota (p. ej. página 12)'}
         value={notes}
         maxLength={500}
         onChange={(e) => setNotes(e.target.value)}

@@ -67,17 +67,20 @@ export interface CardSummary {
   quantity?: number
   /** Con filtro de ubicación: copias en total, en todas las ubicaciones. */
   total_quantity?: number
+  /** Copias falsas (en total). */
+  fakes?: number
   locations?: OwnedLocation[]
 }
 
 export type LocationKind = 'deck' | 'binder' | 'storage' | 'other'
 
-/** Copias de una carta en una ubicación. */
+/** Copias de una carta en una ubicación (las falsas van en su propia fila). */
 export interface OwnedLocation {
   id: number
   name: string
   kind: LocationKind
   quantity: number
+  fake: boolean
   notes: string
 }
 
@@ -91,12 +94,14 @@ export interface Location {
   position: number
   cards: number
   copies: number
+  fakes: number
 }
 
 /** Respuesta de las operaciones de Mi colección sobre una carta. */
 export interface OwnedSummary {
   card_id: number
   quantity: number
+  fakes: number
   locations: OwnedLocation[]
 }
 

@@ -53,15 +53,19 @@ export interface SearchBody {
   scope?: Scope
   /** Con scope 'collection': solo las copias de esa ubicación */
   location?: number | null
+  /** Con scope 'collection': solo las cartas con copias falsas */
+  fake?: boolean
 }
 
 export type Scope = 'all' | 'collection'
 
 export const api = {
   fields: () => request<FieldDef[]>('/fields/'),
-  facets: (scope: Scope = 'all', location: number | null = null) =>
+  facets: (scope: Scope = 'all', location: number | null = null, fake = false) =>
     request<FacetsResponse>(
-      scope === 'collection' ? `/facets/?scope=collection${location ? `&location=${location}` : ''}` : '/facets/',
+      scope === 'collection'
+        ? `/facets/?scope=collection${location ? `&location=${location}` : ''}${fake ? '&fake=true' : ''}`
+        : '/facets/',
     ),
   facetsFor: (body: SearchBody & { only?: string[] }, signal?: AbortSignal) =>
     request<FacetsResponse>('/facets/', { method: 'POST', body: JSON.stringify(body), signal }),
@@ -70,12 +74,20 @@ export const api = {
   card: (id: number) => request<CardDetail>(`/cards/${id}/`),
   keywordSkills: () => request<KeywordSkillsResponse>('/keyword-skills/'),
   /** Mi colección: suma (delta > 0) o resta copias; sin `location`, + va a "Sin ubicar". */
-  adjustCollection: (cardId: number, delta: number, location?: number | null) =>
-    request<OwnedSummary>('/my-collection/adjust/', post({ card_id: cardId, delta, ...(location ? { location } : {}) })),
-  moveCopies: (cardId: number, source: number, target: number, quantity: number) =>
-    request<OwnedSummary>('/my-collection/move/', post({ card_id: cardId, source, target, quantity })),
-  setNote: (cardId: number, location: number, notes: string) =>
-    request<OwnedSummary>('/my-collection/note/', post({ card_id: cardId, location, notes })),
+  /** Mi colección: suma (delta > 0) o resta copias; sin `location`, + va a "Sin ubicar". `fake`: restar solo de falsas/auténticas. */
+  adjustCollection: (cardId: number, delta: number, location?: number | null, fake?: boolean) =>
+    request<OwnedSummary>(
+      '/my-collection/adjust/',
+      post({ card_id: cardId, delta, ...(location ? { location } : {}), ...(fake != null ? { fake } : {}) }),
+    ),
+  /** Mueve copias; misma ubicación y `targetFake` distinto = marcarlas como falsas o auténticas. */
+  moveCopies: (cardId: number, source: number, target: number, quantity: number, sourceFake = false, targetFake?: boolean) =>
+    request<OwnedSummary>(
+      '/my-collection/move/',
+      post({ card_id: cardId, source, target, quantity, source_fake: sourceFake, ...(targetFake != null ? { target_fake: targetFake } : {}) }),
+    ),
+  setNote: (cardId: number, location: number, notes: string, fake = false) =>
+    request<OwnedSummary>('/my-collection/note/', post({ card_id: cardId, location, notes, fake })),
   locations: () => request<Location[]>('/my-collection/locations/'),
   createLocation: (name: string, kind: LocationKind, position = 0) =>
     request<Location>('/my-collection/locations/', post({ name, kind, position })),

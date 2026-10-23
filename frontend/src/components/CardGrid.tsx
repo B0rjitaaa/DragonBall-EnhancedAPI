@@ -45,6 +45,11 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
                   </span>
                 ))}
               {c.has_back && <span className="badge">2 caras</span>}
+              {(c.fakes ?? 0) > 0 && (
+                <span className="fake-badge tile-fake" title="Copias falsas en tu colección">
+                  {c.fakes === 1 ? '1 falsa' : `${c.fakes} falsas`}
+                </span>
+              )}
               {quantities?.[c.id] != null && !onAdjust && (
                 <span className="qty-badge" title={`${quantities[c.id]} copias en tu colección`}>
                   ×{quantities[c.id]}
@@ -74,10 +79,13 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
                 </span>
               </div>
               {c.locations && c.locations.length > 0 && (
-                <div className="tile-loc" title={c.locations.map((l) => `${l.name}: ${l.quantity}`).join('\n')}>
+                <div
+                  className="tile-loc"
+                  title={c.locations.map((l) => `${l.name}${l.fake ? ' (falsas)' : ''}: ${l.quantity}`).join('\n')}
+                >
                   {c.locations.length === 1
-                    ? c.locations[0].name
-                    : c.locations.map((l) => `${l.name} ×${l.quantity}`).join(' · ')}
+                    ? `${c.locations[0].name}${c.locations[0].fake ? ' (falsa)' : ''}`
+                    : c.locations.map((l) => `${l.name}${l.fake ? ' (falsa)' : ''} ×${l.quantity}`).join(' · ')}
                 </div>
               )}
             </div>

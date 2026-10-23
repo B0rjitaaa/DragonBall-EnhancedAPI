@@ -200,6 +200,14 @@ function LocationCard({
       </div>
       <p className="loc-stats">
         <strong>{loc.copies}</strong> copias · {loc.cards} cartas
+        {loc.fakes > 0 && (
+          <>
+            {' · '}
+            <a className="fake-link" href={`/coleccion#${encodeURIComponent(JSON.stringify({ location: loc.id, fakes: true }))}`}>
+              {loc.fakes === 1 ? '1 falsa' : `${loc.fakes} falsas`}
+            </a>
+          </>
+        )}
       </p>
       {loc.is_default ? (
         <p className="muted small">Lo que aún no has guardado en ningún sitio. No se puede borrar.</p>

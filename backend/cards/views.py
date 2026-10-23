@@ -142,7 +142,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         body.is_valid(raise_exception=True)
         data = body.validated_data
         try:
-            owned = owned_or_error(data.get("scope"), data.get("location"))
+            owned = owned_or_error(data.get("scope"), data.get("location"), data.get("fake"))
         except CollectionUnavailable as exc:
             return collection_error(exc)
 
@@ -186,7 +186,9 @@ class FacetsView(APIView):
 
     def get(self, request):
         try:
-            owned = owned_or_error(request.query_params.get("scope"), request.query_params.get("location"))
+            owned = owned_or_error(
+                request.query_params.get("scope"), request.query_params.get("location"), request.query_params.get("fake")
+            )
         except CollectionUnavailable as exc:
             return collection_error(exc)
         if owned is None:
@@ -201,7 +203,7 @@ class FacetsView(APIView):
         if only is not None and (not isinstance(only, list) or any(k not in FIELDS for k in only)):
             raise ValidationError({"only": "Lista de campos no válida"})
         try:
-            owned = owned_or_error(request.data.get("scope"), request.data.get("location"))
+            owned = owned_or_error(request.data.get("scope"), request.data.get("location"), request.data.get("fake"))
         except CollectionUnavailable as exc:
             return collection_error(exc)
         qs, payload = build_queryset(q, tree), {"q": q, "query": tree}
@@ -281,17 +283,38 @@ class SyncRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
 
 
 
-def owned_or_error(request_scope: str | None, location=None) -> Owned | None:
-    """Colección del escáner si el ámbito es "collection" (o None); `location` la limita a una ubicación."""
+def _bool(value, name: str) -> bool | None:
+    """true/false (también "1"/"0" en la query string); None si no viene."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool):
+        return value
+    if str(value).lower() in ("1", "true", "yes"):
+        return True
+    if str(value).lower() in ("0", "false", "no"):
+        return False
+    raise ValidationError({name: "Debe ser true o false"})
+
+
+def owned_or_error(request_scope: str | None, location=None, fake=None) -> Owned | None:
+    """Colección del escáner si el ámbito es "collection" (o None); `location` la limita a una
+    ubicación y `fake=true` a las cartas con copias falsas."""
     if request_scope != "collection":
         return None
     owned = fetch_owned()
+    location_id = None
     if location not in (None, ""):
         try:
-            owned = owned.in_location(int(location))
+            location_id = int(location)
         except (TypeError, ValueError):
             raise ValidationError({"location": "Debe ser un id de ubicación"}) from None
-    return owned
+    only_fakes = bool(_bool(fake, "fake"))
+    if location_id is None and not only_fakes:
+        return owned
+    # Las dos condiciones sobre la misma fila: las falsas que están en esa ubicación.
+    return owned.filtered(
+        lambda loc: (location_id is None or loc["id"] == location_id) and (not only_fakes or loc.get("fake"))
+    )
 
 
 def collection_error(exc: CollectionUnavailable) -> Response:
@@ -354,17 +377,21 @@ class MyCollectionAdjustView(APIView):
     def post(self, request):
         card_id, delta = _int(request.data.get("card_id"), "card_id"), _int(request.data.get("delta"), "delta")
         location = _int(request.data.get("location"), "location", required=False)
+        fake = _bool(request.data.get("fake"), "fake")
         if delta == 0 or abs(delta) > 10:
             raise ValidationError({"delta": "Entre -10 y 10, distinto de 0"})
         _known_card(card_id)
         try:
-            return Response({"card_id": card_id, **adjust_owned(card_id, delta, location)})
+            return Response({"card_id": card_id, **adjust_owned(card_id, delta, location, fake)})
         except CollectionUnavailable as exc:
             return collection_error(exc)
 
 
 class MyCollectionMoveView(APIView):
-    """Mover copias entre ubicaciones: POST {card_id, source, target, quantity}."""
+    """Mover copias entre ubicaciones: POST {card_id, source, target, quantity, source_fake?, target_fake?}.
+
+    Con source == target y target_fake distinto de source_fake, marca copias como falsas o auténticas.
+    """
 
     def post(self, request):
         card_id = _int(request.data.get("card_id"), "card_id")
@@ -374,20 +401,23 @@ class MyCollectionMoveView(APIView):
             raise ValidationError({"quantity": "Al menos 1"})
         _known_card(card_id)
         try:
-            return Response({"card_id": card_id, **move_owned(card_id, source, target, quantity)})
+            source_fake = bool(_bool(request.data.get("source_fake"), "source_fake"))
+            target_fake = _bool(request.data.get("target_fake"), "target_fake")
+            return Response({"card_id": card_id, **move_owned(card_id, source, target, quantity, source_fake, target_fake)})
         except CollectionUnavailable as exc:
             return collection_error(exc)
 
 
 class MyCollectionNoteView(APIView):
-    """Nota de las copias de una carta en una ubicación: POST {card_id, location, notes}."""
+    """Nota de las copias de una carta en una ubicación: POST {card_id, location, notes, fake?}."""
 
     def post(self, request):
         card_id, location = _int(request.data.get("card_id"), "card_id"), _int(request.data.get("location"), "location")
         notes = str(request.data.get("notes") or "")[:500]
         _known_card(card_id)
         try:
-            return Response({"card_id": card_id, **note_owned(card_id, location, notes)})
+            fake = bool(_bool(request.data.get("fake"), "fake"))
+            return Response({"card_id": card_id, **note_owned(card_id, location, notes, fake)})
         except CollectionUnavailable as exc:
             return collection_error(exc)
 

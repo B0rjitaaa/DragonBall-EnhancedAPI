@@ -45,6 +45,8 @@ class SearchRequestSerializer(serializers.Serializer):
                                     help_text="collection: solo las cartas de Mi colección (con sus copias)")
     location = serializers.IntegerField(required=False, allow_null=True,
                                         help_text="Con scope=collection: solo las copias de esa ubicación")
+    fake = serializers.BooleanField(required=False, allow_null=True, default=None,
+                                    help_text="Con scope=collection y true: solo las cartas con copias falsas")
 
 
 class BanListEntrySerializer(serializers.ModelSerializer):

@@ -10,12 +10,13 @@ from rest_framework.test import APIClient
 from cards.collection import CACHE_KEY
 from cards.models import Card
 
-UNPLACED = {"location_id": 1, "location": "Sin ubicar", "location_kind": "other", "notes": ""}
-DECK = {"location_id": 2, "location": "Mazo rojo", "location_kind": "deck", "notes": ""}
+UNPLACED = {"location_id": 1, "location": "Sin ubicar", "location_kind": "other", "fake": False, "notes": ""}
+DECK = {"location_id": 2, "location": "Mazo rojo", "location_kind": "deck", "fake": False, "notes": ""}
 ENTRIES = [
     {"bandai_id": 4, "card_number": "BT1-001", "name": "Champa", "quantity": 2, **UNPLACED},
     {"bandai_id": 4, "card_number": "BT1-001", "name": "Champa", "quantity": 1, **DECK, "notes": "titular"},
     {"bandai_id": 1088, "card_number": "BT1-005", "name": "Champa PR", "quantity": 1, **UNPLACED},
+    {"bandai_id": 1088, "card_number": "BT1-005", "name": "Champa PR", "quantity": 1, **DECK, "fake": True},
     {"bandai_id": 999999, "card_number": "BT32-001", "name": "Nueva", "quantity": 1, **UNPLACED},
 ]
 
@@ -54,7 +55,9 @@ class MyCollectionTests(TestCase):
             [(loc["name"], loc["quantity"], loc["notes"]) for loc in champa["locations"]],
             [("Sin ubicar", 2, ""), ("Mazo rojo", 1, "titular")],
         )
-        self.assertEqual(data["total_copies"], 4)
+        self.assertEqual(data["total_copies"], 5)
+        pr = next(r for r in data["results"] if r["id"] == 1088)
+        self.assertEqual((pr["quantity"], pr["fakes"]), (2, 1))
         self.assertEqual(data["missing"], ["BT32-001"])  # escaneada, pero no está en este catálogo
 
     def test_filters_apply_inside_the_collection(self):
@@ -65,11 +68,28 @@ class MyCollectionTests(TestCase):
 
     def test_location_filter_shows_the_copies_there(self):
         data = self.search(scope="collection", location=2).data
-        self.assertEqual([(r["card_number"], r["quantity"]) for r in data["results"]], [("BT1-001", 1)])
-        self.assertEqual(data["total_copies"], 1)
+        self.assertEqual([(r["card_number"], r["quantity"]) for r in data["results"]], [("BT1-001", 1), ("BT1-005", 1)])
+        self.assertEqual(data["total_copies"], 2)
         self.assertEqual(data["results"][0]["total_quantity"], 3)
         facets = self.client.get("/api/facets/?scope=collection&location=2").data
-        self.assertEqual(facets["total"], 1)
+        self.assertEqual(facets["total"], 2)
+
+    def test_fake_filter_shows_only_cards_with_fake_copies(self):
+        data = self.search(scope="collection", fake=True).data
+        self.assertEqual([(r["card_number"], r["quantity"], r["total_quantity"]) for r in data["results"]], [("BT1-005", 1, 2)])
+        self.assertEqual(data["total_copies"], 1)
+        both = self.search(scope="collection", fake=True, location=1).data
+        self.assertEqual(both["count"], 0)  # la falsa está en el mazo, no sin ubicar
+        self.assertEqual(self.client.get("/api/facets/?scope=collection&fake=true").data["total"], 1)
+        self.assertEqual(self.client.get("/api/facets/?scope=collection&fake=quizá").status_code, 400)
+
+    def test_marking_fake_is_a_move_to_the_same_location(self):
+        summary = {"bandai_id": 4, "quantity": 3, "fakes": 1, "locations": []}
+        sent = self._checker({("POST", "/api/collection/move/"): summary})
+        data = self.client.post("/api/my-collection/move/", {"card_id": 4, "source": 2, "target": 2, "quantity": 1,
+                                                             "target_fake": True}, format="json").data
+        self.assertEqual(data["fakes"], 1)
+        self.assertEqual(sent[0][2], {"bandai_id": 4, "source": 2, "target": 2, "quantity": 1, "source_fake": False, "target_fake": True})
 
     def test_facets_only_count_owned_cards(self):
         facets = self.client.get("/api/facets/?scope=collection").data
@@ -94,7 +114,7 @@ class MyCollectionTests(TestCase):
 
     def test_summary_endpoint(self):
         data = self.client.get("/api/my-collection/").data
-        self.assertEqual((data["total_cards"], data["total_copies"]), (2, 4))
+        self.assertEqual((data["total_cards"], data["total_copies"]), (2, 5))
         self.assertEqual(data["missing"], ["BT32-001"])
 
     def test_backup_downloads_every_entry_as_compact_json(self):
@@ -110,13 +130,15 @@ class MyCollectionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertRegex(response["Content-Disposition"], r'attachment; filename="mi-coleccion-\d{4}-\d{2}-\d{2}\.json"')
         doc = json.loads(response.content)
-        self.assertEqual((doc["format"], doc["version"]), ("dbs-collection", 3))
+        self.assertEqual((doc["format"], doc["version"]), ("dbs-collection", 4))
+        self.assertEqual(doc["total_fakes"], 1)
+        self.assertIn({"id": 1088, "number": "BT1-005", "name": "Champa PR", "qty": 1, "location": "Mazo rojo", "fake": True}, doc["cards"])
         self.assertEqual(doc["locations"], [
             {"name": "Sin ubicar", "kind": "otro", "cards": 3, "copies": 4},
             {"name": "Mazo rojo", "kind": "mazo", "cards": 1, "copies": 1, "notes": "funda roja"},
             {"name": "Caja vacía", "kind": "almacén", "cards": 0, "copies": 0},  # también las vacías
         ])
-        self.assertEqual((doc["total_cards"], doc["total_copies"]), (3, 5))  # incluye las que no están en el catálogo
+        self.assertEqual((doc["total_cards"], doc["total_copies"]), (3, 6))  # incluye las que no están en el catálogo
         self.assertEqual(doc["cards"][:2], [
             {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 1, "location": "Mazo rojo", "notes": "titular"},
             {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 2, "location": "Sin ubicar"},
@@ -197,8 +219,8 @@ class MyCollectionTests(TestCase):
         self.assertEqual(data["locations"], summary["locations"])
         self.client.post("/api/my-collection/note/", {"card_id": 4, "location": 2, "notes": "pág. 3"}, format="json")
         self.assertEqual(sent, [
-            ("POST", "/api/collection/move/", {"bandai_id": 4, "source": 1, "target": 2, "quantity": 2}),
-            ("POST", "/api/collection/note/", {"bandai_id": 4, "location": 2, "notes": "pág. 3"}),
+            ("POST", "/api/collection/move/", {"bandai_id": 4, "source": 1, "target": 2, "quantity": 2, "source_fake": False}),
+            ("POST", "/api/collection/note/", {"bandai_id": 4, "location": 2, "notes": "pág. 3", "fake": False}),
         ])
 
     def test_locations_are_managed_in_the_checker(self):

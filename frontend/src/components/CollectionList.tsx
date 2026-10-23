@@ -1,22 +1,29 @@
 import { useMemo, useState } from 'react'
-import type { CardSummary, Location } from '../lib/types'
+import type { CardSummary, Location, OwnedLocation } from '../lib/types'
+import type { Spot } from './OwnedPanel'
 
 interface Props {
   cards: CardSummary[]
   locations: Location[]
   /** Ubicación filtrada en Mi colección (origen por defecto al mover). */
   filterLocation: number | null
+  /** Filtro "Solo falsas": el origen por defecto son las copias falsas. */
+  onlyFakes?: boolean
   loading: boolean
   busy: Set<number>
   onOpen: (id: number) => void
-  onMove: (id: number, source: number, target: number, quantity: number) => Promise<void>
+  onMove: (id: number, source: Spot, target: Spot, quantity: number) => Promise<void>
 }
 
+/** Copias (auténticas y falsas) de una carta en una ubicación. */
 const copiesIn = (card: CardSummary, location: number) =>
-  card.locations?.find((l) => l.id === location)?.quantity ?? 0
+  (card.locations ?? []).filter((l) => l.id === location).reduce((n, l) => n + l.quantity, 0)
+
+const spotKey = (l: OwnedLocation) => `${l.id}:${l.fake ? 1 : 0}`
+const spotLabel = (l: OwnedLocation) => (l.fake ? `${l.name} (falsas)` : l.name)
 
 /** Mi colección en modo lista: una fila por carta con su reparto y controles para mover copias. */
-export default function CollectionList({ cards, locations, filterLocation, loading, busy, onOpen, onMove }: Props) {
+export default function CollectionList({ cards, locations, filterLocation, onlyFakes = false, loading, busy, onOpen, onMove }: Props) {
   const defaultId = locations.find((l) => l.is_default)?.id ?? null
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
   const [bulkSource, setBulkSource] = useState<number | ''>(filterLocation ?? defaultId ?? '')
@@ -43,8 +50,11 @@ export default function CollectionList({ cards, locations, filterLocation, loadi
     setBulkBusy(true)
     try {
       for (const card of movable) {
-        const have = copiesIn(card, source)
-        await onMove(card.id, source, bulkTarget, bulkAll ? have : 1)
+        // Las falsas siguen siendo falsas en el destino. Con "1 copia", primero una auténtica.
+        const rows = (card.locations ?? []).filter((l) => l.id === source).sort((a, b) => Number(a.fake) - Number(b.fake))
+        for (const row of bulkAll ? rows : rows.slice(0, 1)) {
+          await onMove(card.id, { location: source, fake: row.fake }, { location: bulkTarget, fake: row.fake }, bulkAll ? row.quantity : 1)
+        }
       }
       setSelected(new Set())
     } finally {
@@ -111,10 +121,11 @@ export default function CollectionList({ cards, locations, filterLocation, loadi
         {cards.map((card) => (
           <ListRow
             // Con cada cambio en su reparto, la fila se reinicia (origen y copias a mover).
-            key={`${card.id}:${(card.locations ?? []).map((l) => `${l.id}x${l.quantity}`).join(',')}`}
+            key={`${card.id}:${(card.locations ?? []).map((l) => `${spotKey(l)}x${l.quantity}`).join(',')}`}
             card={card}
             locations={locations}
             preferredSource={filterLocation ?? defaultId}
+            preferFake={onlyFakes}
             checked={selected.has(card.id)}
             busy={busy.has(card.id) || bulkBusy}
             onToggle={() => toggle(card.id)}
@@ -131,6 +142,7 @@ function ListRow({
   card,
   locations,
   preferredSource,
+  preferFake,
   checked,
   busy,
   onToggle,
@@ -140,18 +152,25 @@ function ListRow({
   card: CardSummary
   locations: Location[]
   preferredSource: number | null
+  preferFake: boolean
   checked: boolean
   busy: boolean
   onToggle: () => void
   onOpen: () => void
-  onMove: (source: number, target: number, quantity: number) => void
+  onMove: (source: Spot, target: Spot, quantity: number) => void
 }) {
   const owned = card.locations ?? []
-  const initialSource =
-    owned.find((l) => l.id === preferredSource)?.id ?? [...owned].sort((a, b) => b.quantity - a.quantity)[0]?.id ?? ''
-  const [source, setSource] = useState<number | ''>(initialSource)
+  const candidates = preferFake ? owned.filter((l) => l.fake) : owned
+  const initial =
+    candidates.find((l) => l.id === preferredSource && l.fake === preferFake) ??
+    candidates.find((l) => l.id === preferredSource) ??
+    [...candidates].sort((a, b) => b.quantity - a.quantity)[0] ??
+    owned[0]
+  const [sourceKey, setSourceKey] = useState(initial ? spotKey(initial) : '')
+  const src = owned.find((l) => spotKey(l) === sourceKey)
+  const source: number | '' = src?.id ?? ''
   const [target, setTarget] = useState<number | ''>('')
-  const have = source === '' ? 0 : copiesIn(card, source)
+  const have = src?.quantity ?? 0
   const [qty, setQty] = useState(have)
   const amount = Math.max(1, Math.min(qty || have, have))
 
@@ -172,8 +191,13 @@ function ListRow({
       </span>
       <span className="list-locs">
         {owned.map((l) => (
-          <span key={l.id} className={`loc-chip ${l.id === source ? 'on' : ''}`} title={l.notes || undefined}>
-            {l.name} <strong>{l.quantity}</strong>
+          <span
+            key={spotKey(l)}
+            className={`loc-chip ${spotKey(l) === sourceKey ? 'on' : ''} ${l.fake ? 'fake' : ''}`}
+            title={l.notes || undefined}
+          >
+            {l.name}
+            {l.fake && <em> falsa</em>} <strong>{l.quantity}</strong>
           </span>
         ))}
       </span>
@@ -191,17 +215,16 @@ function ListRow({
         de
         <select
           className="input"
-          value={source}
+          value={sourceKey}
           onChange={(e) => {
-            const id = e.target.value ? Number(e.target.value) : ''
-            setSource(id)
-            setQty(id === '' ? 0 : copiesIn(card, id))
+            setSourceKey(e.target.value)
+            setQty(owned.find((l) => spotKey(l) === e.target.value)?.quantity ?? 0)
           }}
           aria-label="Origen"
         >
           {owned.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
+            <option key={spotKey(l)} value={spotKey(l)}>
+              {spotLabel(l)}
             </option>
           ))}
         </select>
@@ -225,7 +248,7 @@ function ListRow({
           className="btn"
           disabled={busy || source === '' || target === '' || !have}
           onClick={() => {
-            if (source !== '' && target !== '') onMove(source, target, amount)
+            if (src && target !== '') onMove({ location: src.id, fake: src.fake }, { location: target, fake: src.fake }, amount)
             setTarget('')
           }}
         >

@@ -3,7 +3,7 @@ import CardGrid from './components/CardGrid'
 import CardModal from './components/CardModal'
 import FacetPanel from './components/FacetPanel'
 import CollectionList from './components/CollectionList'
-import OwnedPanel from './components/OwnedPanel'
+import OwnedPanel, { type Spot } from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
 import { api, ApiError, COLLECTION_BACKUP_URL, type Scope } from './lib/api'
 import {
@@ -70,6 +70,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [location, setLocation] = useState<number | null>(inCollection ? initial.location ?? null : null)
   const [locations, setLocations] = useState<Location[]>([])
   const [view, setView] = useState<'grid' | 'list'>(inCollection ? initial.view ?? 'grid' : 'grid')
+  // Mi colección: solo las cartas con copias falsas.
+  const [onlyFakes, setOnlyFakes] = useState<boolean>(inCollection ? initial.fakes ?? false : false)
   const [notice, setNotice] = useState<string | null>(null)
 
   const reloadLocations = useCallback(() => {
@@ -86,7 +88,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [locations, location])
 
   useEffect(() => {
-    Promise.all([api.fields(), api.facets(scope, location)])
+    Promise.all([api.fields(), api.facets(scope, location, onlyFakes)])
       .then(([f, fc]) => {
         setFields(f)
         setGlobalFacets(fc.facets)
@@ -96,7 +98,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .keywordSkills()
       .then((d) => setSkills(new SkillIndex(d)))
       .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
-  }, [scope, location])
+  }, [scope, location, onlyFakes])
 
   const query = useMemo(
     () => (fields.length ? buildQuery(facets, advanced, advancedOn, fields) : null),
@@ -106,19 +108,19 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // (así en "Color: Red" siguen apareciendo cuántas cartas hay de Blue, Green…)
   const facetRequests = useMemo(() => {
     if (!fields.length) return []
-    const reqs: { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null }[] = [
-      { q: q.trim(), query, scope, location },
+    const reqs: { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null; fake: boolean }[] = [
+      { q: q.trim(), query, scope, location, fake: onlyFakes },
     ]
     for (const key of Object.keys(facets)) {
       const { [key]: _omit, ...rest } = facets
       void _omit
-      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key], scope, location })
+      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key], scope, location, fake: onlyFakes })
     }
     return reqs
-  }, [q, query, facets, advanced, advancedOn, fields, scope, location])
+  }, [q, query, facets, advanced, advancedOn, fields, scope, location, onlyFakes])
   const filterKey = useDebounced(JSON.stringify(facetRequests))
   const searchKey = useDebounced(
-    JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope, location }),
+    JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope, location, fake: onlyFakes }),
     150,
   )
 
@@ -141,7 +143,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // Recuentos de facetas dentro de la búsqueda actual
   useEffect(() => {
     if (!fields.length) return
-    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null }[]
+    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null; fake: boolean }[]
     if (!reqs.length || (!reqs[0].q && !reqs[0].query)) {
       setContextFacets(null)
       return
@@ -154,8 +156,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [filterKey, fields.length])
 
   useEffect(() => {
-    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location, view })
-  }, [q, facets, advanced, advancedOn, ordering, page, location, view])
+    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location, view, fakes: onlyFakes })
+  }, [q, facets, advanced, advancedOn, ordering, page, location, view, onlyFakes])
 
   useEffect(() => {
     // En Chrome reciente scrollTo devuelve una Promise: no puede ser el valor de retorno del efecto
@@ -208,6 +210,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     setAdvancedOn(false)
     setOrdering('number')
     setLocation(null)
+    setOnlyFakes(false)
     setOpenId(null)
     setSidebarOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -226,7 +229,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // llegan a 0, la carta sale de la lista sin preguntar.
   const applySummary = useCallback(
     (id: number, r: OwnedSummary) => {
-      const shown = location == null ? r.quantity : r.locations.find((l) => l.id === location)?.quantity ?? 0
+      // Copias que cuentan con los filtros puestos (ubicación y/o solo falsas).
+      const shown = r.locations
+        .filter((l) => (location == null || l.id === location) && (!onlyFakes || l.fake))
+        .reduce((n, l) => n + l.quantity, 0)
       setData((prev) => {
         if (!prev) return prev
         const before = prev.results.find((c) => c.id === id)?.quantity ?? 0
@@ -238,14 +244,14 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           results: removed
             ? prev.results.filter((c) => c.id !== id)
             : prev.results.map((c) =>
-                c.id === id ? { ...c, quantity: shown, total_quantity: r.quantity, locations: r.locations } : c,
+                c.id === id ? { ...c, quantity: shown, total_quantity: r.quantity, fakes: r.fakes, locations: r.locations } : c,
               ),
         }
       })
       if (shown === 0 && openId === id) setOpenId(null)
       reloadLocations() // los totales por ubicación del selector
     },
-    [location, openId, reloadLocations],
+    [location, onlyFakes, openId, reloadLocations],
   )
 
   const runOnCard = useCallback(
@@ -278,9 +284,14 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // − / + de la cuadrícula: con filtro de ubicación actúan sobre esa ubicación;
   // sin él, + suma a "Sin ubicar" y − quita de "Sin ubicar" (o pregunta).
   const adjust = useCallback(
-    (id: number, delta: number, where?: number) =>
-      runOnCard(id, () => api.adjustCollection(id, delta, where ?? location)),
-    [runOnCard, location],
+    (id: number, delta: number, where?: number, fake?: boolean) =>
+      runOnCard(id, () => api.adjustCollection(id, delta, where ?? location, fake ?? (onlyFakes ? true : undefined))),
+    [runOnCard, location, onlyFakes],
+  )
+  const moveCopies = useCallback(
+    (id: number, source: Spot, target: Spot, qty: number) =>
+      runOnCard(id, () => api.moveCopies(id, source.location, target.location, qty, source.fake, target.fake)),
+    [runOnCard],
   )
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
@@ -461,6 +472,18 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                     </option>
                   ))}
                 </select>
+                <label className="fake-filter" title="Solo las cartas de las que tienes alguna copia falsa">
+                  <input
+                    id="only-fakes"
+                    type="checkbox"
+                    checked={onlyFakes}
+                    onChange={(e) => {
+                      setOnlyFakes(e.target.checked)
+                      setPage(1)
+                    }}
+                  />
+                  Solo falsas
+                </label>
                 <a className="btn ghost" href="/ubicaciones">
                   Ubicaciones…
                 </a>
@@ -491,10 +514,11 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               cards={data?.results ?? []}
               locations={locations}
               filterLocation={location}
+              onlyFakes={onlyFakes}
               loading={loading}
               busy={adjusting}
               onOpen={setOpenId}
-              onMove={(id, source, target, qty) => runOnCard(id, () => api.moveCopies(id, source, target, qty))}
+              onMove={moveCopies}
             />
           ) : (
             <CardGrid
@@ -546,9 +570,9 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               locations={locations}
               busy={adjusting.has(openOwned.id)}
               notice={notice}
-              onAdjust={(where, delta) => void adjust(openOwned.id, delta, where)}
-              onMove={(source, target, qty) => void runOnCard(openOwned.id, () => api.moveCopies(openOwned.id, source, target, qty))}
-              onNote={(where, notes) => void runOnCard(openOwned.id, () => api.setNote(openOwned.id, where, notes))}
+              onAdjust={(spot, delta) => void adjust(openOwned.id, delta, spot.location, delta < 0 ? spot.fake : undefined)}
+              onMove={(source, target, qty) => void moveCopies(openOwned.id, source, target, qty)}
+              onNote={(spot, notes) => void runOnCard(openOwned.id, () => api.setNote(openOwned.id, spot.location, notes, spot.fake))}
             />
           )}
         </CardModal>

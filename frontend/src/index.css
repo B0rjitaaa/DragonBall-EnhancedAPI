@@ -491,3 +491,19 @@ strong.loc-title { padding: 0.35rem 0; }
   margin-top: 0.3rem; font-size: 0.78rem; color: var(--accent-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* Copias falsas */
+:root { --fake: #e5484d; }
+.fake-badge {
+  display: inline-block; margin-left: 0.4rem; padding: 0.05rem 0.45rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--fake); border: 1px solid var(--fake); background: color-mix(in srgb, var(--fake) 12%, transparent);
+}
+.tile-fake { position: absolute; top: 6px; left: 6px; margin: 0; z-index: 2; background: var(--bg); }
+.owned-panel li.is-fake .owned-name { color: var(--fake); }
+.owned-actions { display: inline-flex; gap: 0.6rem; }
+.loc-chip.fake { border-color: var(--fake); }
+.loc-chip.fake em { color: var(--fake); font-style: normal; font-weight: 600; }
+.fake-filter { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text); white-space: nowrap; cursor: pointer; }
+.fake-filter input { accent-color: var(--fake); }
+.fake-link { color: var(--fake); }

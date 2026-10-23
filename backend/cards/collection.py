@@ -30,7 +30,7 @@ class CollectionUnavailable(Exception):
 
 @dataclass
 class Owned:
-    # id -> {quantity, locations: [{id, name, kind, quantity, notes}]}
+    # id -> {quantity, fakes, locations: [{id, name, kind, quantity, fake, notes}]}
     cards: dict[int, dict] = field(default_factory=dict)
     numbers: dict[int, str] = field(default_factory=dict)  # id -> número de carta (para "missing")
 
@@ -47,13 +47,13 @@ class Owned:
     def quantity(self, card_id: int) -> int:
         return self.cards.get(card_id, {}).get("quantity", 0)
 
-    def in_location(self, location_id: int) -> "Owned":
-        """Solo las cartas con copias en esa ubicación; `quantity` pasa a ser las de allí."""
+    def filtered(self, keep) -> "Owned":
+        """Solo las cartas con alguna fila de copias que cumpla `keep`; `quantity` pasa a ser las de esas filas."""
         cards = {}
         for card_id, item in self.cards.items():
-            here = sum(loc["quantity"] for loc in item["locations"] if loc["id"] == location_id)
+            here = sum(loc["quantity"] for loc in item["locations"] if keep(loc))
             if here:
-                cards[card_id] = {**item, "quantity": here, "total_quantity": item["quantity"]}
+                cards[card_id] = {**item, "quantity": here, "total_quantity": item.get("total_quantity", item["quantity"])}
         return Owned(cards, {i: n for i, n in self.numbers.items() if i in cards})
 
 
@@ -105,16 +105,19 @@ def fetch_owned() -> Owned:
         return cached
     entries = fetch_export()
 
-    cards: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "locations": []})
+    cards: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "fakes": 0, "locations": []})
     numbers: dict[int, str] = {}
     for entry in entries:
         item = cards[entry["bandai_id"]]
         item["quantity"] += entry["quantity"]
+        fake = bool(entry.get("fake"))
+        item["fakes"] += entry["quantity"] if fake else 0
         item["locations"].append({
             "id": entry.get("location_id"),
             "name": entry.get("location", ""),
             "kind": entry.get("location_kind", "other"),
             "quantity": entry["quantity"],
+            "fake": fake,
             "notes": entry.get("notes", ""),
         })
         numbers[entry["bandai_id"]] = entry["card_number"]
@@ -124,10 +127,10 @@ def fetch_owned() -> Owned:
 
 
 def _summary(result: dict) -> dict:
-    return {"quantity": result["quantity"], "locations": result["locations"]}
+    return {"quantity": result["quantity"], "fakes": result.get("fakes", 0), "locations": result["locations"]}
 
 
-def adjust_owned(card_id: int, delta: int, location: int | None = None) -> dict:
+def adjust_owned(card_id: int, delta: int, location: int | None = None, fake: bool | None = None) -> dict:
     """Suma o resta copias de una carta en la colección del escáner.
 
     Devuelve {quantity, locations} tras el cambio y descarta la colección
@@ -138,6 +141,8 @@ def adjust_owned(card_id: int, delta: int, location: int | None = None) -> dict:
     body = {"bandai_id": card_id, "delta": delta}
     if location:
         body["location"] = location
+    if fake is not None:
+        body["fake"] = fake
     try:
         result = checker_request("POST", "/api/collection/adjust/", body)
     except CollectionUnavailable as exc:
@@ -148,15 +153,20 @@ def adjust_owned(card_id: int, delta: int, location: int | None = None) -> dict:
     return _summary(result)
 
 
-def move_owned(card_id: int, source: int, target: int, quantity: int) -> dict:
-    result = checker_request("POST", "/api/collection/move/",
-                             {"bandai_id": card_id, "source": source, "target": target, "quantity": quantity})
+def move_owned(card_id: int, source: int, target: int, quantity: int,
+               source_fake: bool = False, target_fake: bool | None = None) -> dict:
+    """Mueve copias; con source == target y target_fake distinto, las marca como falsas o auténticas."""
+    body = {"bandai_id": card_id, "source": source, "target": target, "quantity": quantity, "source_fake": source_fake}
+    if target_fake is not None:
+        body["target_fake"] = target_fake
+    result = checker_request("POST", "/api/collection/move/", body)
     cache.delete(CACHE_KEY)
     return _summary(result)
 
 
-def note_owned(card_id: int, location: int, notes: str) -> dict:
-    result = checker_request("POST", "/api/collection/note/", {"bandai_id": card_id, "location": location, "notes": notes})
+def note_owned(card_id: int, location: int, notes: str, fake: bool = False) -> dict:
+    result = checker_request("POST", "/api/collection/note/",
+                             {"bandai_id": card_id, "location": location, "notes": notes, "fake": fake})
     cache.delete(CACHE_KEY)
     return _summary(result)
 
@@ -167,11 +177,13 @@ KIND_NAMES = {"deck": "mazo", "binder": "archivador", "storage": "almacén", "ot
 def backup_document(entries: list[dict], exported_at: str, locations: list[dict] | None = None) -> dict:
     """Copia de seguridad de la colección: sus ubicaciones (también las vacías) y
     una fila por carta y ubicación, sin nada que sobre."""
-    rows = sorted(entries, key=lambda e: (e["card_number"], e["bandai_id"], e.get("location", "")))
+    rows = sorted(entries, key=lambda e: (e["card_number"], e["bandai_id"], e.get("location", ""), bool(e.get("fake"))))
     cards = []
     for e in rows:
         row = {"id": e["bandai_id"], "number": e["card_number"], "name": e["name"],
                "qty": e["quantity"], "location": e.get("location", "")}
+        if e.get("fake"):
+            row["fake"] = True
         if e.get("notes"):
             row["notes"] = e["notes"]
         cards.append(row)
@@ -179,15 +191,18 @@ def backup_document(entries: list[dict], exported_at: str, locations: list[dict]
     for loc in locations or []:
         place = {"name": loc["name"], "kind": KIND_NAMES.get(loc.get("kind"), loc.get("kind", "")),
                  "cards": loc.get("cards", 0), "copies": loc.get("copies", 0)}
+        if loc.get("fakes"):
+            place["fakes"] = loc["fakes"]
         if loc.get("notes"):
             place["notes"] = loc["notes"]
         places.append(place)
     return {
         "format": "dbs-collection",
-        "version": 3,
+        "version": 4,
         "exported_at": exported_at,
         "total_cards": len({e["bandai_id"] for e in rows}),
         "total_copies": sum(e["quantity"] for e in rows),
+        "total_fakes": sum(e["quantity"] for e in rows if e.get("fake")),
         "locations": places,
         "cards": cards,
     }
