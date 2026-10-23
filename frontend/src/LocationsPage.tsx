@@ -1,10 +1,10 @@
 import {
-  DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
+  DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
   type DraggableAttributes, type DraggableSyntheticListeners,
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type SyntheticEvent } from 'react'
 import { KIND_LABELS } from './components/OwnedPanel'
 import { api } from './lib/api'
 import type { Location, LocationKind } from './lib/types'
@@ -29,13 +29,37 @@ interface DragHandle {
   listeners: DraggableSyntheticListeners
 }
 
-/** Una ubicación arrastrable; solo se arrastra desde su asa (los campos se siguen pudiendo editar). */
+// Momento en que terminó el último arrastre. El clic que el navegador lanza al soltar no debe
+// abrir el enlace de la imagen del líder; como la tarjeta ya ha cambiado de sitio en la página,
+// se intercepta a nivel de documento (antes que React).
+let lastDragEnd = 0
+function swallowClickAfterDrag(e: MouseEvent) {
+  if (Date.now() - lastDragEnd < 400) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+}
+
+// Desde aquí no se empieza a arrastrar: se escribe, se elige o se pulsa.
+const NO_DRAG = 'input, textarea, select, button:not(.drag-handle), .loc-actions'
+
+/** Una ubicación arrastrable: desde cualquier parte de la tarjeta (salvo sus campos y botones) o desde su asa. */
 function SortableLocation(props: Omit<Parameters<typeof LocationCard>[0], 'handle' | 'dragging'>) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: props.loc.id,
   })
+  // dnd-kit tipa sus manejadores como Function.
+  const fromCard = (handler?: Function) => (e: SyntheticEvent) => {
+    if (!(e.target as HTMLElement).closest(NO_DRAG)) handler?.(e)
+  }
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
+    <div
+      ref={setNodeRef}
+      className="loc-sortable"
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      onMouseDown={fromCard(listeners?.onMouseDown)}
+      onTouchStart={fromCard(listeners?.onTouchStart)}
+    >
       <LocationCard {...props} dragging={isDragging} handle={{ setRef: setActivatorNodeRef, attributes, listeners }} />
     </div>
   )
@@ -43,8 +67,14 @@ function SortableLocation(props: Omit<Parameters<typeof LocationCard>[0], 'handl
 
 /** Pantalla de ubicaciones de Mi colección: crear, editar, ordenar y borrar. */
 export default function LocationsPage() {
+  useEffect(() => {
+    document.addEventListener('click', swallowClickAfterDrag, true)
+    return () => document.removeEventListener('click', swallowClickAfterDrag, true)
+  }, [])
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    // Ratón: tras moverlo unos píxeles (un clic sigue siendo un clic). Táctil: mantener pulsado.
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
   const [locations, setLocations] = useState<Location[] | null>(null)
@@ -103,6 +133,7 @@ export default function LocationsPage() {
     if (ids[i + step] !== undefined) saveOrder(loc.kind, arrayMove(ids, i, i + step))
   }
   const onDragEnd = (kind: LocationKind, ids: number[]) => ({ active, over }: DragEndEvent) => {
+    lastDragEnd = Date.now()
     if (over && active.id !== over.id) saveOrder(kind, arrayMove(ids, ids.indexOf(Number(active.id)), ids.indexOf(Number(over.id))))
   }
 
@@ -166,7 +197,7 @@ export default function LocationsPage() {
             <h2>
               {title} <small className="muted">{items.length}</small>
             </h2>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd(k, items.map((l) => l.id))}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd(k, items.map((l) => l.id))} onDragCancel={() => (lastDragEnd = Date.now())}>
               <SortableContext items={items.map((l) => l.id)} strategy={rectSortingStrategy}>
                 <div className="loc-grid">
                   {items.map((loc, i) => (
@@ -214,8 +245,19 @@ function LocationCard({
   return (
     <article className={`loc-card kind-${loc.kind} ${dragging ? 'dragging' : ''}`}>
       {loc.leader && (
-        <a className="loc-leader" href={collectionUrl(loc.id)} title={`${loc.leader.card_number} · ${loc.leader.name}`}>
-          <img src={loc.leader.image} alt={`Líder: ${loc.leader.name}`} loading="lazy" referrerPolicy="no-referrer" />
+        <a
+          className="loc-leader"
+          href={collectionUrl(loc.id)}
+          title={`${loc.leader.card_number} · ${loc.leader.name}`}
+          draggable={false}
+        >
+          <img
+            src={loc.leader.image}
+            alt={`Líder: ${loc.leader.name}`}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            draggable={false}
+          />
           <span>{loc.leader.name}</span>
         </a>
       )}

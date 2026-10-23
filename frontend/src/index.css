@@ -643,3 +643,8 @@ strong.loc-title { padding: 0.35rem 0; }
   .deck-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem 0.5rem; }
 }
 @media (prefers-reduced-motion: reduce) { .deck-card, .deck-leader-card { transition: none; } }
+
+.loc-sortable { cursor: grab; touch-action: manipulation; }
+.loc-sortable input, .loc-sortable textarea, .loc-sortable select { cursor: auto; }
+.loc-sortable button, .loc-sortable a { cursor: pointer; }
+.loc-sortable .drag-handle { cursor: grab; }
