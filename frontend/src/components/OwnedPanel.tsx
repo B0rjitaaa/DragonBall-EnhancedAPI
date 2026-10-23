@@ -15,8 +15,9 @@ interface Props {
   busy: boolean
   notice?: string | null
   onAdjust: (spot: Spot, delta: number) => void
-  /** Mover a otra ubicación (target.fake = spot.fake) o marcar como falsas/auténticas (misma ubicación). */
-  onMove: (source: Spot, target: Spot, quantity: number) => void
+  /** Mover a otra ubicación (target.fake = spot.fake) o marcar como falsas/auténticas (misma ubicación).
+   * `noteLine`: la línea de la nota (p. ej. su posición en el archivador) que se va con la copia. */
+  onMove: (source: Spot, target: Spot, quantity: number, noteLine?: string) => void
   onNote: (spot: Spot, notes: string) => void
 }
 
@@ -38,14 +39,17 @@ export default function OwnedPanel({ card, locations, busy, notice, onAdjust, on
       <ul>
         {owned.map((loc) => (
           <OwnedRow
-            key={`${loc.id}:${loc.fake}`}
+            // Se reinicia (nota, selector) cuando cambian sus copias o su nota.
+            key={`${loc.id}:${loc.fake}:${loc.quantity}:${loc.notes}`}
             loc={loc}
             others={locations.filter((l) => l.id !== loc.id)}
             busy={busy}
             onAdjust={(delta) => onAdjust({ location: loc.id, fake: loc.fake }, delta)}
-            onMove={(target, qty) => onMove({ location: loc.id, fake: loc.fake }, { location: target, fake: loc.fake }, qty)}
-            onToggleFake={(qty) =>
-              onMove({ location: loc.id, fake: loc.fake }, { location: loc.id, fake: !loc.fake }, qty)
+            onMove={(target, qty, line) =>
+              onMove({ location: loc.id, fake: loc.fake }, { location: target, fake: loc.fake }, qty, line)
+            }
+            onToggleFake={(line) =>
+              onMove({ location: loc.id, fake: loc.fake }, { location: loc.id, fake: !loc.fake }, 1, line)
             }
             onNote={(notes) => onNote({ location: loc.id, fake: loc.fake }, notes)}
           />
@@ -91,14 +95,20 @@ function OwnedRow({
   others: Location[]
   busy: boolean
   onAdjust: (delta: number) => void
-  onMove: (target: number, quantity: number) => void
-  onToggleFake: (quantity: number) => void
+  onMove: (target: number, quantity: number, noteLine?: string) => void
+  onToggleFake: (noteLine?: string) => void
   onNote: (notes: string) => void
 }) {
   const [moving, setMoving] = useState(false)
   const [target, setTarget] = useState<number | ''>('')
   const [qty, setQty] = useState(loc.quantity)
   const [notes, setNotes] = useState(loc.notes)
+  // Cada línea de la nota suele ser la posición de una copia en el archivador.
+  const lines = loc.notes.split('\n').map((l) => l.trim()).filter(Boolean)
+  // Con varias copias y posiciones apuntadas, hay que decir cuál es la que cambia.
+  const mustPick = loc.quantity > 1 && lines.length > 0
+  const [picking, setPicking] = useState(false)
+  const [moveLine, setMoveLine] = useState('')
 
   return (
     <li className={loc.fake ? 'is-fake' : ''}>
@@ -124,7 +134,8 @@ function OwnedRow({
           <button
             className="link small"
             disabled={busy}
-            onClick={() => onToggleFake(1)}
+            onClick={() => (mustPick ? setPicking(!picking) : onToggleFake())}
+            aria-expanded={mustPick ? picking : undefined}
             title={loc.fake ? 'Una de estas copias es auténtica' : 'Una de estas copias es falsa'}
           >
             {loc.fake ? 'Es auténtica' : 'Marcar falsa'}
@@ -136,6 +147,39 @@ function OwnedRow({
           )}
         </span>
       </div>
+      {picking && (
+        <div className="owned-pick">
+          <span>{loc.fake ? '¿Cuál es auténtica?' : '¿Cuál es la falsa?'}</span>
+          {lines.map((line) => (
+            <button
+              key={line}
+              className="btn"
+              disabled={busy}
+              onClick={() => {
+                onToggleFake(line)
+                setPicking(false)
+              }}
+            >
+              {line}
+            </button>
+          ))}
+          {lines.length < loc.quantity && (
+            <button
+              className="btn ghost"
+              disabled={busy}
+              onClick={() => {
+                onToggleFake()
+                setPicking(false)
+              }}
+            >
+              Otra (sin posición)
+            </button>
+          )}
+          <button className="link small" onClick={() => setPicking(false)}>
+            Cancelar
+          </button>
+        </div>
+      )}
       {moving && (
         <div className="owned-move">
           Mover
@@ -148,6 +192,16 @@ function OwnedRow({
             onChange={(e) => setQty(Math.max(1, Math.min(loc.quantity, Number(e.target.value) || 1)))}
             aria-label="Copias a mover"
           />
+          {mustPick && qty === 1 && (
+            <select className="input" value={moveLine} onChange={(e) => setMoveLine(e.target.value)} aria-label="Cuál">
+              <option value="">cualquiera</option>
+              {lines.map((line) => (
+                <option key={line} value={line}>
+                  {line}
+                </option>
+              ))}
+            </select>
+          )}
           a
           <select className="input" value={target} onChange={(e) => setTarget(e.target.value ? Number(e.target.value) : '')}>
             <option value="">elige…</option>
@@ -161,7 +215,7 @@ function OwnedRow({
             className="btn primary"
             disabled={busy || target === ''}
             onClick={() => {
-              if (target !== '') onMove(target, Math.min(qty, loc.quantity))
+              if (target !== '') onMove(target, Math.min(qty, loc.quantity), qty === 1 && moveLine ? moveLine : undefined)
               setMoving(false)
             }}
           >
@@ -169,14 +223,15 @@ function OwnedRow({
           </button>
         </div>
       )}
-      <input
+      <textarea
         className="input owned-note"
         placeholder={loc.fake ? 'Nota (p. ej. AliExpress, junio)' : 'Nota (p. ej. página 12)'}
         value={notes}
+        rows={Math.max(1, notes.split('\n').length)}
         maxLength={500}
         onChange={(e) => setNotes(e.target.value)}
         onBlur={() => notes !== loc.notes && onNote(notes)}
-        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        aria-label="Nota"
       />
     </li>
   )

@@ -403,7 +403,8 @@ class MyCollectionMoveView(APIView):
         try:
             source_fake = bool(_bool(request.data.get("source_fake"), "source_fake"))
             target_fake = _bool(request.data.get("target_fake"), "target_fake")
-            return Response({"card_id": card_id, **move_owned(card_id, source, target, quantity, source_fake, target_fake)})
+            note_line = str(request.data.get("note_line") or "")[:200] or None
+            return Response({"card_id": card_id, **move_owned(card_id, source, target, quantity, source_fake, target_fake, note_line)})
         except CollectionUnavailable as exc:
             return collection_error(exc)
 

@@ -289,8 +289,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     [runOnCard, location, onlyFakes],
   )
   const moveCopies = useCallback(
-    (id: number, source: Spot, target: Spot, qty: number) =>
-      runOnCard(id, () => api.moveCopies(id, source.location, target.location, qty, source.fake, target.fake)),
+    (id: number, source: Spot, target: Spot, qty: number, noteLine?: string) =>
+      runOnCard(id, () => api.moveCopies(id, source.location, target.location, qty, source.fake, target.fake, noteLine)),
     [runOnCard],
   )
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
@@ -571,7 +571,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               busy={adjusting.has(openOwned.id)}
               notice={notice}
               onAdjust={(spot, delta) => void adjust(openOwned.id, delta, spot.location, delta < 0 ? spot.fake : undefined)}
-              onMove={(source, target, qty) => void moveCopies(openOwned.id, source, target, qty)}
+              onMove={(source, target, qty, noteLine) => void moveCopies(openOwned.id, source, target, qty, noteLine)}
               onNote={(spot, notes) => void runOnCard(openOwned.id, () => api.setNote(openOwned.id, spot.location, notes, spot.fake))}
             />
           )}

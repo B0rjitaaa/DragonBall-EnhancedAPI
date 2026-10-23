@@ -507,3 +507,7 @@ strong.loc-title { padding: 0.35rem 0; }
 .fake-filter { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text); white-space: nowrap; cursor: pointer; }
 .fake-filter input { accent-color: var(--fake); }
 .fake-link { color: var(--fake); }
+
+.owned-note { resize: vertical; font: inherit; line-height: 1.4; }
+.owned-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.35rem; font-size: 0.88rem; }
+.owned-pick .btn { padding: 0.25rem 0.6rem; font-size: 0.85rem; }

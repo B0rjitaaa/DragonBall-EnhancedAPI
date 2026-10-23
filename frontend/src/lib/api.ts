@@ -81,10 +81,26 @@ export const api = {
       post({ card_id: cardId, delta, ...(location ? { location } : {}), ...(fake != null ? { fake } : {}) }),
     ),
   /** Mueve copias; misma ubicación y `targetFake` distinto = marcarlas como falsas o auténticas. */
-  moveCopies: (cardId: number, source: number, target: number, quantity: number, sourceFake = false, targetFake?: boolean) =>
+  moveCopies: (
+    cardId: number,
+    source: number,
+    target: number,
+    quantity: number,
+    sourceFake = false,
+    targetFake?: boolean,
+    noteLine?: string,
+  ) =>
     request<OwnedSummary>(
       '/my-collection/move/',
-      post({ card_id: cardId, source, target, quantity, source_fake: sourceFake, ...(targetFake != null ? { target_fake: targetFake } : {}) }),
+      post({
+        card_id: cardId,
+        source,
+        target,
+        quantity,
+        source_fake: sourceFake,
+        ...(targetFake != null ? { target_fake: targetFake } : {}),
+        ...(noteLine ? { note_line: noteLine } : {}),
+      }),
     ),
   setNote: (cardId: number, location: number, notes: string, fake = false) =>
     request<OwnedSummary>('/my-collection/note/', post({ card_id: cardId, location, notes, fake })),

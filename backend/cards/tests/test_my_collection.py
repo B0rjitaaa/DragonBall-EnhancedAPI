@@ -87,9 +87,11 @@ class MyCollectionTests(TestCase):
         summary = {"bandai_id": 4, "quantity": 3, "fakes": 1, "locations": []}
         sent = self._checker({("POST", "/api/collection/move/"): summary})
         data = self.client.post("/api/my-collection/move/", {"card_id": 4, "source": 2, "target": 2, "quantity": 1,
-                                                             "target_fake": True}, format="json").data
+                                                             "target_fake": True, "note_line": "Pág. 74 · fila 3 · col 3"},
+                                format="json").data
         self.assertEqual(data["fakes"], 1)
-        self.assertEqual(sent[0][2], {"bandai_id": 4, "source": 2, "target": 2, "quantity": 1, "source_fake": False, "target_fake": True})
+        self.assertEqual(sent[0][2], {"bandai_id": 4, "source": 2, "target": 2, "quantity": 1, "source_fake": False,
+                                      "target_fake": True, "note_line": "Pág. 74 · fila 3 · col 3"})
 
     def test_facets_only_count_owned_cards(self):
         facets = self.client.get("/api/facets/?scope=collection").data

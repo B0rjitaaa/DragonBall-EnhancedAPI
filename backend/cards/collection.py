@@ -154,11 +154,13 @@ def adjust_owned(card_id: int, delta: int, location: int | None = None, fake: bo
 
 
 def move_owned(card_id: int, source: int, target: int, quantity: int,
-               source_fake: bool = False, target_fake: bool | None = None) -> dict:
+               source_fake: bool = False, target_fake: bool | None = None, note_line: str | None = None) -> dict:
     """Mueve copias; con source == target y target_fake distinto, las marca como falsas o auténticas."""
     body = {"bandai_id": card_id, "source": source, "target": target, "quantity": quantity, "source_fake": source_fake}
     if target_fake is not None:
         body["target_fake"] = target_fake
+    if note_line:
+        body["note_line"] = note_line  # la posición (línea de la nota) que se va con la copia
     result = checker_request("POST", "/api/collection/move/", body)
     cache.delete(CACHE_KEY)
     return _summary(result)
