@@ -203,7 +203,7 @@ function LocationCard({
         {loc.fakes > 0 && (
           <>
             {' · '}
-            <a className="fake-link" href={`/coleccion#${encodeURIComponent(JSON.stringify({ location: loc.id, fakes: true }))}`}>
+            <a className="fake-link" href={`/coleccion#${encodeURIComponent(JSON.stringify({ location: loc.id, showFakes: true }))}`}>
               {loc.fakes === 1 ? '1 falsa' : `${loc.fakes} falsas`}
             </a>
           </>

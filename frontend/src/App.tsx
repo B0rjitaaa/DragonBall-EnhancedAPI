@@ -70,8 +70,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [location, setLocation] = useState<number | null>(inCollection ? initial.location ?? null : null)
   const [locations, setLocations] = useState<Location[]>([])
   const [view, setView] = useState<'grid' | 'list'>(inCollection ? initial.view ?? 'grid' : 'grid')
-  // Mi colección: solo las cartas con copias falsas.
-  const [onlyFakes, setOnlyFakes] = useState<boolean>(inCollection ? initial.fakes ?? false : false)
+  // Mi colección: por defecto solo cuentan las copias auténticas; con esto, también las falsas.
+  const [showFakes, setShowFakes] = useState<boolean>(inCollection ? initial.showFakes ?? false : false)
   const [notice, setNotice] = useState<string | null>(null)
 
   const reloadLocations = useCallback(() => {
@@ -88,7 +88,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [locations, location])
 
   useEffect(() => {
-    Promise.all([api.fields(), api.facets(scope, location, onlyFakes)])
+    Promise.all([api.fields(), api.facets(scope, location, showFakes)])
       .then(([f, fc]) => {
         setFields(f)
         setGlobalFacets(fc.facets)
@@ -98,7 +98,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .keywordSkills()
       .then((d) => setSkills(new SkillIndex(d)))
       .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
-  }, [scope, location, onlyFakes])
+  }, [scope, location, showFakes])
 
   const query = useMemo(
     () => (fields.length ? buildQuery(facets, advanced, advancedOn, fields) : null),
@@ -108,19 +108,19 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // (así en "Color: Red" siguen apareciendo cuántas cartas hay de Blue, Green…)
   const facetRequests = useMemo(() => {
     if (!fields.length) return []
-    const reqs: { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null; fake: boolean }[] = [
-      { q: q.trim(), query, scope, location, fake: onlyFakes },
+    const reqs: { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null; include_fakes: boolean }[] = [
+      { q: q.trim(), query, scope, location, include_fakes: showFakes },
     ]
     for (const key of Object.keys(facets)) {
       const { [key]: _omit, ...rest } = facets
       void _omit
-      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key], scope, location, fake: onlyFakes })
+      reqs.push({ q: q.trim(), query: buildQuery(rest, advanced, advancedOn, fields), only: [key], scope, location, include_fakes: showFakes })
     }
     return reqs
-  }, [q, query, facets, advanced, advancedOn, fields, scope, location, onlyFakes])
+  }, [q, query, facets, advanced, advancedOn, fields, scope, location, showFakes])
   const filterKey = useDebounced(JSON.stringify(facetRequests))
   const searchKey = useDebounced(
-    JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope, location, fake: onlyFakes }),
+    JSON.stringify({ q: q.trim(), query, ordering, page, page_size: PAGE_SIZE, scope, location, include_fakes: showFakes }),
     150,
   )
 
@@ -143,7 +143,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // Recuentos de facetas dentro de la búsqueda actual
   useEffect(() => {
     if (!fields.length) return
-    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null; fake: boolean }[]
+    const reqs = JSON.parse(filterKey) as { q: string; query: unknown; only?: string[]; scope: Scope; location: number | null; include_fakes: boolean }[]
     if (!reqs.length || (!reqs[0].q && !reqs[0].query)) {
       setContextFacets(null)
       return
@@ -156,8 +156,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [filterKey, fields.length])
 
   useEffect(() => {
-    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location, view, fakes: onlyFakes })
-  }, [q, facets, advanced, advancedOn, ordering, page, location, view, onlyFakes])
+    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location, view, showFakes })
+  }, [q, facets, advanced, advancedOn, ordering, page, location, view, showFakes])
 
   useEffect(() => {
     // En Chrome reciente scrollTo devuelve una Promise: no puede ser el valor de retorno del efecto
@@ -210,7 +210,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     setAdvancedOn(false)
     setOrdering('number')
     setLocation(null)
-    setOnlyFakes(false)
+    setShowFakes(false)
     setOpenId(null)
     setSidebarOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -231,7 +231,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     (id: number, r: OwnedSummary) => {
       // Copias que cuentan con los filtros puestos (ubicación y/o solo falsas).
       const shown = r.locations
-        .filter((l) => (location == null || l.id === location) && (!onlyFakes || l.fake))
+        .filter((l) => (location == null || l.id === location) && (showFakes || !l.fake))
         .reduce((n, l) => n + l.quantity, 0)
       setData((prev) => {
         if (!prev) return prev
@@ -251,7 +251,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       if (shown === 0 && openId === id) setOpenId(null)
       reloadLocations() // los totales por ubicación del selector
     },
-    [location, onlyFakes, openId, reloadLocations],
+    [location, showFakes, openId, reloadLocations],
   )
 
   const runOnCard = useCallback(
@@ -285,8 +285,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // sin él, + suma a "Sin ubicar" y − quita de "Sin ubicar" (o pregunta).
   const adjust = useCallback(
     (id: number, delta: number, where?: number, fake?: boolean) =>
-      runOnCard(id, () => api.adjustCollection(id, delta, where ?? location, fake ?? (onlyFakes ? true : undefined))),
-    [runOnCard, location, onlyFakes],
+      runOnCard(id, () => api.adjustCollection(id, delta, where ?? location, fake ?? (showFakes ? undefined : false))),
+    [runOnCard, location, showFakes],
   )
   const moveCopies = useCallback(
     (id: number, source: Spot, target: Spot, qty: number, noteLine?: string) =>
@@ -472,17 +472,17 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                     </option>
                   ))}
                 </select>
-                <label className="fake-filter" title="Solo las cartas de las que tienes alguna copia falsa">
+                <label className="fake-filter" title="Contar y mostrar también las copias falsas">
                   <input
-                    id="only-fakes"
+                    id="show-fakes"
                     type="checkbox"
-                    checked={onlyFakes}
+                    checked={showFakes}
                     onChange={(e) => {
-                      setOnlyFakes(e.target.checked)
+                      setShowFakes(e.target.checked)
                       setPage(1)
                     }}
                   />
-                  Solo falsas
+                  Mostrar falsas
                 </label>
                 <a className="btn ghost" href="/ubicaciones">
                   Ubicaciones…
@@ -514,7 +514,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               cards={data?.results ?? []}
               locations={locations}
               filterLocation={location}
-              onlyFakes={onlyFakes}
+              showFakes={showFakes}
               loading={loading}
               busy={adjusting}
               onOpen={setOpenId}
@@ -529,6 +529,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               quantities={quantities}
               onAdjust={inCollection ? adjust : undefined}
               adjusting={adjusting}
+              showFakes={showFakes}
               emptyText={
                 inCollection && activeCount === 0
                   ? 'Tu colección está vacía: escanea cartas con el escáner y aparecerán aquí.'

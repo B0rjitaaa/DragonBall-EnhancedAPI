@@ -7,8 +7,8 @@ interface Props {
   locations: Location[]
   /** Ubicación filtrada en Mi colección (origen por defecto al mover). */
   filterLocation: number | null
-  /** Filtro "Solo falsas": el origen por defecto son las copias falsas. */
-  onlyFakes?: boolean
+  /** Con false, las copias falsas no se muestran ni se mueven en bloque. */
+  showFakes?: boolean
   loading: boolean
   busy: Set<number>
   onOpen: (id: number) => void
@@ -16,14 +16,14 @@ interface Props {
 }
 
 /** Copias (auténticas y falsas) de una carta en una ubicación. */
-const copiesIn = (card: CardSummary, location: number) =>
-  (card.locations ?? []).filter((l) => l.id === location).reduce((n, l) => n + l.quantity, 0)
+const copiesIn = (card: CardSummary, location: number, withFakes = true) =>
+  (card.locations ?? []).filter((l) => l.id === location && (withFakes || !l.fake)).reduce((n, l) => n + l.quantity, 0)
 
 const spotKey = (l: OwnedLocation) => `${l.id}:${l.fake ? 1 : 0}`
 const spotLabel = (l: OwnedLocation) => (l.fake ? `${l.name} (falsas)` : l.name)
 
 /** Mi colección en modo lista: una fila por carta con su reparto y controles para mover copias. */
-export default function CollectionList({ cards, locations, filterLocation, onlyFakes = false, loading, busy, onOpen, onMove }: Props) {
+export default function CollectionList({ cards, locations, filterLocation, showFakes = true, loading, busy, onOpen, onMove }: Props) {
   const defaultId = locations.find((l) => l.is_default)?.id ?? null
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
   const [bulkSource, setBulkSource] = useState<number | ''>(filterLocation ?? defaultId ?? '')
@@ -35,7 +35,7 @@ export default function CollectionList({ cards, locations, filterLocation, onlyF
   const chosen = [...selected].filter((id) => visible.has(id))
   const allChecked = cards.length > 0 && cards.every((c) => selected.has(c.id))
   const source = bulkSource === '' ? null : bulkSource
-  const movable = source == null ? [] : cards.filter((c) => selected.has(c.id) && copiesIn(c, source) > 0)
+  const movable = source == null ? [] : cards.filter((c) => selected.has(c.id) && copiesIn(c, source, showFakes) > 0)
 
   const toggle = (id: number) =>
     setSelected((s) => {
@@ -51,7 +51,7 @@ export default function CollectionList({ cards, locations, filterLocation, onlyF
     try {
       for (const card of movable) {
         // Las falsas siguen siendo falsas en el destino. Con "1 copia", primero una auténtica.
-        const rows = (card.locations ?? []).filter((l) => l.id === source).sort((a, b) => Number(a.fake) - Number(b.fake))
+        const rows = (card.locations ?? []).filter((l) => l.id === source && (showFakes || !l.fake)).sort((a, b) => Number(a.fake) - Number(b.fake))
         for (const row of bulkAll ? rows : rows.slice(0, 1)) {
           await onMove(card.id, { location: source, fake: row.fake }, { location: bulkTarget, fake: row.fake }, bulkAll ? row.quantity : 1)
         }
@@ -125,7 +125,7 @@ export default function CollectionList({ cards, locations, filterLocation, onlyF
             card={card}
             locations={locations}
             preferredSource={filterLocation ?? defaultId}
-            preferFake={onlyFakes}
+            showFakes={showFakes}
             checked={selected.has(card.id)}
             busy={busy.has(card.id) || bulkBusy}
             onToggle={() => toggle(card.id)}
@@ -142,7 +142,7 @@ function ListRow({
   card,
   locations,
   preferredSource,
-  preferFake,
+  showFakes,
   checked,
   busy,
   onToggle,
@@ -152,20 +152,18 @@ function ListRow({
   card: CardSummary
   locations: Location[]
   preferredSource: number | null
-  preferFake: boolean
+  showFakes: boolean
   checked: boolean
   busy: boolean
   onToggle: () => void
   onOpen: () => void
   onMove: (source: Spot, target: Spot, quantity: number) => void
 }) {
-  const owned = card.locations ?? []
-  const candidates = preferFake ? owned.filter((l) => l.fake) : owned
+  const owned = (card.locations ?? []).filter((l) => showFakes || !l.fake)
   const initial =
-    candidates.find((l) => l.id === preferredSource && l.fake === preferFake) ??
-    candidates.find((l) => l.id === preferredSource) ??
-    [...candidates].sort((a, b) => b.quantity - a.quantity)[0] ??
-    owned[0]
+    owned.find((l) => l.id === preferredSource && !l.fake) ??
+    owned.find((l) => l.id === preferredSource) ??
+    [...owned].sort((a, b) => b.quantity - a.quantity)[0]
   const [sourceKey, setSourceKey] = useState(initial ? spotKey(initial) : '')
   const src = owned.find((l) => spotKey(l) === sourceKey)
   const source: number | '' = src?.id ?? ''
@@ -187,7 +185,7 @@ function ListRow({
         </span>
       </button>
       <span className="list-total" title="Copias en total">
-        ×{card.total_quantity ?? card.quantity}
+        ×{owned.reduce((n, l) => n + l.quantity, 0)}
       </span>
       <span className="list-locs">
         {owned.map((l) => (

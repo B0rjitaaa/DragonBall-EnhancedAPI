@@ -55,9 +55,11 @@ class MyCollectionTests(TestCase):
             [(loc["name"], loc["quantity"], loc["notes"]) for loc in champa["locations"]],
             [("Sin ubicar", 2, ""), ("Mazo rojo", 1, "titular")],
         )
-        self.assertEqual(data["total_copies"], 5)
+        self.assertEqual(data["total_copies"], 4)  # por defecto, sin la falsa
         pr = next(r for r in data["results"] if r["id"] == 1088)
-        self.assertEqual((pr["quantity"], pr["fakes"]), (2, 1))
+        self.assertEqual((pr["quantity"], pr["total_quantity"], pr["fakes"]), (1, 2, 1))
+        with_fakes = self.search(scope="collection", include_fakes=True).data
+        self.assertEqual(with_fakes["total_copies"], 5)
         self.assertEqual(data["missing"], ["BT32-001"])  # escaneada, pero no está en este catálogo
 
     def test_filters_apply_inside_the_collection(self):
@@ -68,10 +70,15 @@ class MyCollectionTests(TestCase):
 
     def test_location_filter_shows_the_copies_there(self):
         data = self.search(scope="collection", location=2).data
+        # En el mazo hay una Champa auténtica y una Champa PR falsa: por defecto, solo la auténtica.
+        self.assertEqual([(r["card_number"], r["quantity"]) for r in data["results"]], [("BT1-001", 1)])
+        self.assertEqual(data["total_copies"], 1)
+        data = self.search(scope="collection", location=2, include_fakes=True).data
         self.assertEqual([(r["card_number"], r["quantity"]) for r in data["results"]], [("BT1-001", 1), ("BT1-005", 1)])
-        self.assertEqual(data["total_copies"], 2)
         self.assertEqual(data["results"][0]["total_quantity"], 3)
         facets = self.client.get("/api/facets/?scope=collection&location=2").data
+        self.assertEqual(facets["total"], 1)
+        facets = self.client.get("/api/facets/?scope=collection&location=2&include_fakes=true").data
         self.assertEqual(facets["total"], 2)
 
     def test_fake_filter_shows_only_cards_with_fake_copies(self):

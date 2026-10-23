@@ -55,16 +55,18 @@ export interface SearchBody {
   location?: number | null
   /** Con scope 'collection': solo las cartas con copias falsas */
   fake?: boolean
+  /** Con scope 'collection': contar también las copias falsas (por defecto, solo las auténticas) */
+  include_fakes?: boolean
 }
 
 export type Scope = 'all' | 'collection'
 
 export const api = {
   fields: () => request<FieldDef[]>('/fields/'),
-  facets: (scope: Scope = 'all', location: number | null = null, fake = false) =>
+  facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>
     request<FacetsResponse>(
       scope === 'collection'
-        ? `/facets/?scope=collection${location ? `&location=${location}` : ''}${fake ? '&fake=true' : ''}`
+        ? `/facets/?scope=collection${location ? `&location=${location}` : ''}${includeFakes ? '&include_fakes=true' : ''}`
         : '/facets/',
     ),
   facetsFor: (body: SearchBody & { only?: string[] }, signal?: AbortSignal) =>

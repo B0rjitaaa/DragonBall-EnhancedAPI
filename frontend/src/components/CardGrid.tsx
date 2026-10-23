@@ -16,16 +16,20 @@ interface Props {
   onAdjust?: (id: number, delta: number) => void
   /** Cartas con un cambio de copias en curso (botones desactivados). */
   adjusting?: Set<number>
+  /** Mi colección: con false, las copias falsas no se muestran (ni su ubicación ni el aviso). */
+  showFakes?: boolean
   emptyText?: string
 }
 
-export default function CardGrid({ cards, loading, skills, onOpen, quantities, emptyText, onAdjust, adjusting }: Props) {
+export default function CardGrid({ cards, loading, skills, onOpen, quantities, emptyText, onAdjust, adjusting, showFakes = true }: Props) {
   if (!loading && cards.length === 0) {
     return <div className="empty">{emptyText ?? 'No hay cartas que cumplan estos filtros.'}</div>
   }
   return (
     <ul className={`grid ${loading ? 'loading' : ''}`}>
-      {cards.map((c) => (
+      {cards.map((c) => {
+        const locs = (c.locations ?? []).filter((l) => showFakes || !l.fake)
+        return (
         <li key={c.id}>
           <button className={`tile ${c.legality === 'banned' ? 'is-banned' : ''}`} onClick={() => onOpen(c.id)} title={`${c.card_number} · ${c.name}`}>
             <div className="tile-img">
@@ -45,7 +49,7 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
                   </span>
                 ))}
               {c.has_back && <span className="badge">2 caras</span>}
-              {(c.fakes ?? 0) > 0 && (
+              {showFakes && (c.fakes ?? 0) > 0 && (
                 <span className="fake-badge tile-fake" title="Copias falsas en tu colección">
                   {c.fakes === 1 ? '1 falsa' : `${c.fakes} falsas`}
                 </span>
@@ -78,14 +82,14 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
                   {c.power != null && <>✊{c.power.toLocaleString('es-ES')}</>}
                 </span>
               </div>
-              {c.locations && c.locations.length > 0 && (
+              {locs.length > 0 && (
                 <div
                   className="tile-loc"
-                  title={c.locations.map((l) => `${l.name}${l.fake ? ' (falsas)' : ''}: ${l.quantity}`).join('\n')}
+                  title={locs.map((l) => `${l.name}${l.fake ? ' (falsas)' : ''}: ${l.quantity}`).join('\n')}
                 >
-                  {c.locations.length === 1
-                    ? `${c.locations[0].name}${c.locations[0].fake ? ' (falsa)' : ''}`
-                    : c.locations.map((l) => `${l.name}${l.fake ? ' (falsa)' : ''} ×${l.quantity}`).join(' · ')}
+                  {locs.length === 1
+                    ? `${locs[0].name}${locs[0].fake ? ' (falsa)' : ''}`
+                    : locs.map((l) => `${l.name}${l.fake ? ' (falsa)' : ''} ×${l.quantity}`).join(' · ')}
                 </div>
               )}
             </div>
@@ -115,7 +119,8 @@ export default function CardGrid({ cards, loading, skills, onOpen, quantities, e
             </div>
           )}
         </li>
-      ))}
+        )
+      })}
     </ul>
   )
 }

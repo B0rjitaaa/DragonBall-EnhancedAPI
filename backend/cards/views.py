@@ -142,7 +142,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         body.is_valid(raise_exception=True)
         data = body.validated_data
         try:
-            owned = owned_or_error(data.get("scope"), data.get("location"), data.get("fake"))
+            owned = owned_or_error(data.get("scope"), data.get("location"), data.get("fake"), data.get("include_fakes"))
         except CollectionUnavailable as exc:
             return collection_error(exc)
 
@@ -187,7 +187,10 @@ class FacetsView(APIView):
     def get(self, request):
         try:
             owned = owned_or_error(
-                request.query_params.get("scope"), request.query_params.get("location"), request.query_params.get("fake")
+                request.query_params.get("scope"),
+                request.query_params.get("location"),
+                request.query_params.get("fake"),
+                request.query_params.get("include_fakes"),
             )
         except CollectionUnavailable as exc:
             return collection_error(exc)
@@ -203,7 +206,10 @@ class FacetsView(APIView):
         if only is not None and (not isinstance(only, list) or any(k not in FIELDS for k in only)):
             raise ValidationError({"only": "Lista de campos no válida"})
         try:
-            owned = owned_or_error(request.data.get("scope"), request.data.get("location"), request.data.get("fake"))
+            owned = owned_or_error(
+                request.data.get("scope"), request.data.get("location"), request.data.get("fake"),
+                request.data.get("include_fakes"),
+            )
         except CollectionUnavailable as exc:
             return collection_error(exc)
         qs, payload = build_queryset(q, tree), {"q": q, "query": tree}
@@ -296,9 +302,13 @@ def _bool(value, name: str) -> bool | None:
     raise ValidationError({name: "Debe ser true o false"})
 
 
-def owned_or_error(request_scope: str | None, location=None, fake=None) -> Owned | None:
-    """Colección del escáner si el ámbito es "collection" (o None); `location` la limita a una
-    ubicación y `fake=true` a las cartas con copias falsas."""
+def owned_or_error(request_scope: str | None, location=None, fake=None, include_fakes=None) -> Owned | None:
+    """Colección del escáner si el ámbito es "collection" (o None).
+
+    Por defecto solo cuentan las copias auténticas; `include_fakes=true` suma
+    también las falsas y `fake=true` deja solo las falsas. `location` limita a
+    una ubicación.
+    """
     if request_scope != "collection":
         return None
     owned = fetch_owned()
@@ -309,11 +319,12 @@ def owned_or_error(request_scope: str | None, location=None, fake=None) -> Owned
         except (TypeError, ValueError):
             raise ValidationError({"location": "Debe ser un id de ubicación"}) from None
     only_fakes = bool(_bool(fake, "fake"))
-    if location_id is None and not only_fakes:
-        return owned
-    # Las dos condiciones sobre la misma fila: las falsas que están en esa ubicación.
+    with_fakes = only_fakes or bool(_bool(include_fakes, "include_fakes"))
+    # Todas las condiciones sobre la misma fila (p. ej. las falsas que están en esa ubicación).
     return owned.filtered(
-        lambda loc: (location_id is None or loc["id"] == location_id) and (not only_fakes or loc.get("fake"))
+        lambda loc: (location_id is None or loc["id"] == location_id)
+        and (with_fakes or not loc.get("fake"))
+        and (not only_fakes or loc.get("fake"))
     )
 
 
