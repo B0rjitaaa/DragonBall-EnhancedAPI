@@ -67,8 +67,12 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
     const issues: Issue[] = []
     const flagged = new Map<number, string>()
     if (!leader) issues.push({ level: 'error', text: 'Falta la carta Líder' })
-    if (stats.total < MAIN_MIN || stats.total > MAIN_MAX) {
-      issues.push({ level: 'error', text: `Mazo principal: ${stats.total} cartas (deben ser ${MAIN_MIN}–${MAIN_MAX})` })
+    if (stats.total < MAIN_MIN) {
+      const n = MAIN_MIN - stats.total
+      issues.push({ level: 'error', text: `Faltan ${n} ${n === 1 ? 'carta' : 'cartas'} para llegar a ${MAIN_MIN}` })
+    } else if (stats.total > MAIN_MAX) {
+      const n = stats.total - MAIN_MAX
+      issues.push({ level: 'error', text: `Sobran ${n} ${n === 1 ? 'carta' : 'cartas'} (máximo ${MAIN_MAX})` })
     }
     // Copias por número de carta (las distintas impresiones de una carta cuentan juntas).
     const byNumber = new Map<string, { n: number; ids: number[]; name: string }>()
@@ -165,19 +169,20 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
               <strong>{stats.avg.toFixed(1)}</strong> coste medio
             </span>
           </div>
-          <div className={`deck-check ${issues.some((i) => i.level === 'error') ? 'bad' : 'ok'}`}>
-            {issues.length === 0 ? (
-              <span>✓ Cumple las reglas de construcción</span>
-            ) : (
+          {issues.length === 0 ? (
+            <span className="deck-check ok">✓ Cumple las reglas de construcción</span>
+          ) : issues.length === 1 ? (
+            <span className={`deck-check ${issues[0].level}`}>⚠ {issues[0].text}</span>
+          ) : (
+            <details className={`deck-check ${issues.some((i) => i.level === 'error') ? 'error' : 'warn'}`}>
+              <summary>⚠ {issues.length} avisos de construcción</summary>
               <ul>
                 {issues.map((i) => (
-                  <li key={i.text} className={i.level}>
-                    {i.text}
-                  </li>
+                  <li key={i.text}>{i.text}</li>
                 ))}
               </ul>
-            )}
-          </div>
+            </details>
+          )}
         </div>
 
         <div className="deck-stats">
