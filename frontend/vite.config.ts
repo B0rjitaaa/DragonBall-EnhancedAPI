@@ -9,7 +9,11 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    proxy: { '/api': { target: apiTarget, changeOrigin: true } },
+    proxy: {
+      '/api': { target: apiTarget, changeOrigin: true },
+      // Fotos de los escaneos (en desarrollo las sirve Django).
+      '/media': { target: apiTarget, changeOrigin: true },
+    },
     watch: { usePolling: process.env.CHOKIDAR_USEPOLLING === 'true' },
   },
 })

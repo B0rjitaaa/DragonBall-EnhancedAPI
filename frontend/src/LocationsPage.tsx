@@ -144,7 +144,7 @@ export default function LocationsPage() {
           <p className="muted">
             Dónde guardas las copias: mazos, archivadores, cajas… Lo escaneado entra en «Sin ubicar» salvo que elijas otra
             ubicación al empezar el modo ráfaga. Para mover cartas, usa el modo{' '}
-            <a href="/coleccion?vista=list">Lista de Mi colección</a>.
+            <a href="/collection?view=list">Lista de Mi colección</a>.
           </p>
         </div>
         <form
@@ -305,7 +305,7 @@ function LocationCard({
         {loc.fakes > 0 && (
           <>
             {' · '}
-            <a className="fake-link" href={`${collectionUrl(loc)}?falsas=1`}>
+            <a className="fake-link" href={`${collectionUrl(loc)}?fakes=1`}>
               {loc.fakes === 1 ? '1 falsa' : `${loc.fakes} falsas`}
             </a>
           </>

@@ -1,9 +1,7 @@
-// Menú superior común a todas las páginas: Buscador y Mi colección, más el
-// acceso al escáner (DragonBall-CameraCardChecker, mismo servidor, puerto 80).
+// Menú superior común a todas las páginas.
+import type { Page } from '../lib/routes'
 
-export type Page = 'search' | 'collection' | 'locations'
-
-const SCANNER_URL = `http://${window.location.hostname}/`
+export type { Page }
 
 export default function SiteNav({ active }: { active: Page }) {
   return (
@@ -11,14 +9,14 @@ export default function SiteNav({ active }: { active: Page }) {
       <a href="/" className={active === 'search' ? 'active' : ''}>
         Buscador
       </a>
-      <a href="/coleccion" className={active === 'collection' ? 'active' : ''}>
+      <a href="/collection" className={active === 'collection' ? 'active' : ''}>
         Mi colección
       </a>
-      <a href="/ubicaciones" className={active === 'locations' ? 'active' : ''}>
+      <a href="/locations" className={active === 'locations' ? 'active' : ''}>
         Ubicaciones
       </a>
-      <a href={SCANNER_URL} className="external" title="Escáner de cartas (DragonBall-CameraCardChecker)">
-        Escáner ↗
+      <a href="/scan" className={`nav-scan ${active === 'scan' ? 'active' : ''}`}>
+        Escáner
       </a>
     </nav>
   )

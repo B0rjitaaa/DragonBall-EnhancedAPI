@@ -17,7 +17,6 @@ import type { Facet, FacetState, FieldDef, Group, Location, OwnedSummary, Search
 const PAGE_SIZE = 48
 
 // Escáner de cartas (DragonBall-CameraCardChecker), en el mismo servidor.
-const SCANNER_URL = `http://${window.location.hostname}/`
 
 const ORDERINGS: [string, string][] = [
   ['number', 'Número de carta'],
@@ -40,7 +39,7 @@ function useDebounced<T>(value: T, ms = 300): T {
 }
 
 /**
- * El buscador. Con scope="collection" (página /coleccion, "Mi colección") se
+ * El buscador. Con scope="collection" (página /collection, "Mi colección") se
  * comporta igual (filtros, modo avanzado, orden, páginas) pero solo sobre las
  * cartas escaneadas con el escáner, y muestra las copias de cada una.
  */
@@ -68,7 +67,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [adjusting, setAdjusting] = useState<Set<number>>(() => new Set())
   // Mi colección: ubicaciones, la filtrada (null = todas) y el gestor.
   const [location, setLocation] = useState<number | null>(inCollection ? initial.location ?? null : null)
-  // Ubicación pedida en la ruta (/coleccion/mazo/<uid>): hasta conocer su id no se busca nada.
+  // Ubicación pedida en la ruta (/collection/deck/<uid>): hasta conocer su id no se busca nada.
   const [pendingUid, setPendingUid] = useState<string | null>(inCollection ? initial.locationUid ?? null : null)
   const [locations, setLocations] = useState<Location[]>([])
   const [view, setView] = useState<'grid' | 'list' | 'deck'>(inCollection ? initial.view ?? 'grid' : 'grid')
@@ -542,7 +541,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                   />
                   Mostrar falsas
                 </label>
-                <a className="btn ghost" href="/ubicaciones">
+                <a className="btn ghost" href="/locations">
                   Ubicaciones…
                 </a>
                 <span className="view-toggle" role="group" aria-label="Vista">
@@ -566,8 +565,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               </a>
             )}
             {inCollection && (
-              <a className="btn primary scan-link" href={SCANNER_URL}>
-                Escanear cartas ↗
+              <a className="btn primary scan-link" href="/scan">
+                Escanear cartas
               </a>
             )}
           </div>

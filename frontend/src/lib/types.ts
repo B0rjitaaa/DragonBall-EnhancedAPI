@@ -87,7 +87,7 @@ export interface OwnedLocation {
 /** Ubicación de Mi colección (mazo, archivador, almacén…) con sus totales. */
 export interface Location {
   id: number
-  /** Identificador para enlaces (/coleccion/mazo/<uid>). */
+  /** Identificador para enlaces (/collection/deck/<uid>). */
   uid: string
   name: string
   kind: LocationKind

@@ -76,6 +76,30 @@ services:
     depends_on:
       backend: { condition: service_healthy }
 
+  # Dueño de la webcam del archivador: solo un proceso puede abrir /dev/video0, así
+  # que backend (vista previa) y scanner_worker (captura) le piden frames por HTTP.
+  # Solo donde hay webcam: COMPOSE_PROFILES=camera en el .env.
+  camera:
+    profiles: ["camera"]
+    build: ./camera
+    image: dragonball-enhancedapi-camera
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CAMERA_DEVICE_IN_CONTAINER: ${CAMERA_DEVICE:-/dev/video0}
+    # Conexión en caliente: en vez de `devices:` (exige que la webcam exista al
+    # crear el contenedor y no ve una reconexión), se monta /dev del host y se
+    # permiten todos los dispositivos V4L2 (major 81). Si la webcam se
+    # desconecta, el servicio reintenta cada 3 s y se recupera solo.
+    volumes:
+      - /dev:/dev
+    device_cgroup_rules:
+      - "c 81:* rmw"
+    group_add:
+      - video
+    expose:
+      - "8080"
+
   celery_beat:
     <<: *backend
     command: celery -A config beat -l info

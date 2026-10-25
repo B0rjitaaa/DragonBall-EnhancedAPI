@@ -1,0 +1,829 @@
+/* Escáner (/scan): estilos de DragonBall-CameraCardChecker, encerrados en .scan-app
+   para que no afecten al resto de la web. Usa la paleta oscura de EnhancedAPI. */
+.scan-app {
+  --surface: var(--bg-2);
+  --border: var(--line);
+  --accent-text: #1a1205;
+  --ok: #4cc38a;
+  --warn: var(--accent-2);
+  --error: var(--danger);
+  color-scheme: dark;
+}
+
+.scan-app * {
+  box-sizing: border-box;
+}
+
+/* El atributo hidden tiene que ganar a los display de abajo (p. ej. img { display: block }). */
+.scan-app [hidden] {
+  display: none !important;
+}
+
+/* Pestañas Escanear / Historial (bajo el menú de la web). */
+.scan-app .scan-tabs {
+  display: flex;
+  gap: 4px;
+  max-width: 1200px;
+  margin: 12px auto 0;
+  padding: 0 16px;
+}
+
+.scan-app .scan-tabs a {
+  padding: 6px 14px;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.scan-app .scan-tabs a:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.scan-app .scan-tabs a.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.scan-app {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.scan-app img {
+  max-width: 100%;
+  display: block;
+}
+
+.scan-app .topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.scan-app .topbar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.scan-app .topbar nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.scan-app .topbar nav a {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.scan-app .topbar nav a.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.scan-app main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.scan-app button,
+.scan-app .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.scan-app button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.scan-app button.secondary,
+.scan-app .button.secondary,
+.scan-app .pager button,
+.scan-app .qty button {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.scan-app input,
+.scan-app select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.scan-app .muted {
+  color: var(--muted);
+}
+
+.scan-app .error {
+  color: var(--error);
+}
+
+.scan-app .scanner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 800px) {
+  .scan-app .scanner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.scan-app .preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #000;
+  border-radius: 8px;
+}
+
+.scan-app .preview.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  color: #d6d3d1;
+  padding: 16px;
+  text-align: center;
+}
+
+.scan-app .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.scan-app .button.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.scan-app .source-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.scan-app .source-switch button {
+  flex: 1 1 0;
+  justify-content: center;
+  background: transparent;
+  color: var(--text);
+  border-color: transparent;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
+.scan-app .source-switch button.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Imagen en directo (vídeo o webcam) con la guía de la carta encima. */
+.scan-app .camera-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.scan-app .camera-frame .preview {
+  width: 100%;
+}
+
+/* El vídeo del dispositivo usa su propia proporción (el iPhone en vertical da
+   un vídeo alto); limitado para que los botones queden a la vista. */
+.scan-app .camera-frame video.preview {
+  aspect-ratio: auto;
+  max-height: 70vh;
+  background: #000;
+}
+
+.scan-app .card-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  height: 78%;
+  aspect-ratio: 63 / 88;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgb(255 255 255 / 0.75);
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.18);
+  pointer-events: none;
+}
+
+.scan-app .camera-frame:has(.placeholder) .card-guide {
+  display: none;
+}
+
+/* Móvil: botones a todo el ancho y fáciles de pulsar. */
+@media (max-width: 600px) {
+  .scan-app .actions > button,
+.scan-app .actions > .button {
+    flex: 1 1 100%;
+    justify-content: center;
+    padding: 12px 14px;
+    font-size: 1.05rem;
+  }
+
+  .scan-app .topbar h1 {
+    font-size: 1rem;
+  }
+}
+
+/* --- Modo ráfaga --- */
+.scan-app .burst-status {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.65);
+  color: #fff;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.scan-app .burst-status.learning {
+  background: rgb(29 78 216 / 0.85);
+}
+
+.scan-app .burst-status.moving {
+  background: rgb(180 83 9 / 0.85);
+}
+
+.scan-app .burst-status.settling,
+.scan-app .burst-status.sending {
+  background: rgb(21 128 61 / 0.85);
+}
+
+.scan-app button.stop {
+  background: var(--error);
+  color: #fff;
+}
+
+.scan-app .burst-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.scan-app .burst-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.scan-app .burst-stats strong {
+  font-size: 1.6rem;
+}
+
+.scan-app .burst-stats span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.scan-app .burst-stats .warn strong {
+  color: var(--warn);
+}
+
+.scan-app .burst-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scan-app .burst-list li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "thumb card badge"
+    "thumb actions actions";
+  gap: 4px 10px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.scan-app .burst-list li.dismissed {
+  opacity: 0.55;
+}
+
+.scan-app .burst-list .thumb {
+  grid-area: thumb;
+  width: 40px;
+  min-height: 56px;
+}
+
+.scan-app .burst-card {
+  grid-area: card;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.scan-app .burst-card > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-app .burst-list .scan-badge {
+  grid-area: badge;
+}
+
+.scan-app .burst-actions {
+  grid-area: actions;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scan-app .burst-actions button {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.scan-app .copies-input {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.scan-app .burst-actions .copies-input button {
+  padding: 4px 10px;
+  min-width: 34px;
+}
+
+.scan-app .copies-input button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.scan-app .copies-input button[aria-label="Una copia más"] {
+  border-radius: 0 6px 6px 0;
+}
+
+.scan-app .copies-input input {
+  width: 3.2em;
+  padding: 4px 2px;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  text-align: center;
+  font-size: 0.95rem;
+  -moz-appearance: textfield;
+}
+
+.scan-app .copies-input input::-webkit-outer-spin-button,
+.scan-app .copies-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.scan-app .scan-badge.muted {
+  color: var(--muted);
+}
+
+.scan-app .scan-badge.error {
+  color: var(--error);
+}
+
+.scan-app .scan-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.scan-app .scan-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+
+.scan-app .scan-badge.ok {
+  color: var(--ok);
+}
+
+.scan-app .scan-badge.warn {
+  color: var(--warn);
+}
+
+.scan-app .card-detail {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+@media (max-width: 500px) {
+  .scan-app .card-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.scan-app .card-detail img {
+  border-radius: 6px;
+}
+
+.scan-app .card-detail h2 {
+  margin: 0 0 8px;
+}
+
+.scan-app .card-detail dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.scan-app .card-detail dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.scan-app .card-detail dd {
+  margin: 0;
+}
+
+.scan-app .scan-card-text {
+  white-space: pre-line;
+  font-size: 0.9rem;
+}
+
+.scan-app .card-back {
+  margin: 12px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.scan-app .card-back h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.scan-app .card-back img {
+  width: 140px;
+  border-radius: 6px;
+}
+
+.scan-app .scan-body {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 500px) {
+  .scan-app .scan-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scan-app .scan-body .crop {
+    max-width: 160px;
+  }
+}
+
+.scan-app .crop {
+  margin: 0;
+}
+
+.scan-app .crop img {
+  border-radius: 6px;
+}
+
+.scan-app .crop figcaption,
+.scan-app .small {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.scan-app .scan-main h3 {
+  margin: 0 0 8px;
+}
+
+.scan-app .picker input {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.scan-app .picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.scan-app button.link {
+  background: none;
+  border: none;
+  padding: 6px 0;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.scan-app .compare {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.scan-app .compare figure {
+  margin: 0;
+  width: 110px;
+}
+
+.scan-app .compare figcaption {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.scan-app .filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.scan-app .filters input {
+  flex: 1 1 220px;
+}
+
+.scan-app .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.scan-app .scan-tile {
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+  padding: 8px;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.scan-app .pager {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.scan-app .table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.scan-app .table th,
+.scan-app .table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.scan-app .table tbody tr {
+  cursor: pointer;
+}
+
+.scan-app .warn-row td:nth-child(4) {
+  color: var(--warn);
+}
+
+.scan-app .thumb {
+  width: 40px;
+  border-radius: 3px;
+}
+
+.scan-app .qty {
+  white-space: nowrap;
+}
+
+.scan-app .qty button {
+  padding: 2px 8px;
+  margin: 0 6px;
+}
+
+.scan-app .scan-modal {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.scan-app .scan-modal > div {
+  max-width: 760px;
+  width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+@media (max-width: 700px) {
+  .scan-app .table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+.scan-app .burst-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.scan-app .burst-location select {
+  padding: 6px 8px;
+}
+
+/* Modo archivador */
+.scan-app .binder-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.scan-app .binder-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.scan-app .binder-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scan-app .binder-page button {
+  padding: 4px 12px;
+}
+
+.scan-app .binder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 360px;
+}
+
+.scan-app .binder-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 54px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.scan-app .binder-slot small {
+  color: var(--muted);
+}
+
+.scan-app .binder-slot span {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.scan-app .binder-slot.current {
+  border: 2px solid var(--accent);
+}
+
+.scan-app .binder-slot.ok span {
+  color: var(--ok);
+}
+
+.scan-app .binder-slot.warn span {
+  color: var(--warn);
+}
+
+.scan-app .binder-slot.error span {
+  color: var(--error);
+}
+
+.scan-app .binder-slot.muted span,
+.scan-app .binder-slot.busy span {
+  color: var(--muted);
+}
+
+.scan-app .binder-hint {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Botón PS (playset = 4 copias), separado del − [n] + */
+.scan-app .burst-actions .copies-input button.playset {
+  margin-left: 6px;
+  border-radius: 6px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.scan-app .burst-actions .copies-input button.playset.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+.scan-app .scan-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-app .scan-time.slow {
+  color: var(--warn);
+}
+
+.scan-app .update-banner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.scan-app .update-banner button {
+  padding: 4px 12px;
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}

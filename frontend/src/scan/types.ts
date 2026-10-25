@@ -1,0 +1,131 @@
+export interface Card {
+  id: number;
+  bandai_id: number;
+  card_number: string;
+  name: string;
+  set_code: string;
+  set_name: string;
+  rarity: string;
+  card_type: string;
+  color: string;
+  cost: string;
+  power: string;
+  text: string;
+  image_url: string;
+  back_name: string;
+  back_text: string;
+  image_back_url: string;
+}
+
+export interface Candidate {
+  card_id: number;
+  card_number: string;
+  name: string;
+  image_url: string;
+  distance: number;
+  orb_matches: number | null;
+  score: number;
+}
+
+export type ScanStatus = "pending" | "processing" | "done" | "failed";
+
+export interface Scan {
+  id: number;
+  source: "upload" | "camera";
+  status: ScanStatus;
+  image: string | null;
+  cropped_image: string | null;
+  card_detected: boolean;
+  matched_card: Card | null;
+  confidence: number | null;
+  needs_review: boolean;
+  confirmed: boolean;
+  session: number | null;
+  added_to_collection: boolean;
+  dismissed: boolean;
+  after_empty: boolean;
+  repeat_suspect: boolean;
+  method: string;
+  candidates: Candidate[];
+  error: string;
+  duration_ms: number | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface Location {
+  id: number;
+  name: string;
+  kind: "deck" | "binder" | "storage" | "other";
+  notes: string;
+  is_default: boolean;
+  position: number;
+  cards: number;
+  copies: number;
+}
+
+export interface Page<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+/** Carta de una búsqueda en el catálogo (lo que usa el selector de carta). */
+export interface CardOption {
+  id: number;
+  card_number: string;
+  name: string;
+  image_url: string;
+}
+
+export interface SessionScan {
+  id: number;
+  status: ScanStatus;
+  cropped_image: string | null;
+  card_detected: boolean;
+  card_id: number | null;
+  card_number: string | null;
+  card_name: string | null;
+  confidence: number | null;
+  needs_review: boolean;
+  confirmed: boolean;
+  added_to_collection: boolean;
+  copies: number;
+  dismissed: boolean;
+  repeat_suspect: boolean;
+  binder_page: number | null;
+  binder_slot: number | null;
+  error: string;
+  duration_ms: number | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export type SessionMode = "burst" | "binder";
+
+/** Zona de un fotograma en fracciones 0-1. */
+export interface FrameRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Posición en un archivador: página y casilla (1-9, por filas de 3). */
+export interface BinderSpot {
+  page: number;
+  slot: number;
+}
+
+export interface ScanSession {
+  id: number;
+  started_at: string;
+  ended_at: string | null;
+  mode: SessionMode;
+  location: number | null;
+  location_name: string;
+  auto_add_min_confidence: number;
+  stats: { total: number; added: number; copies: number; review: number; pending: number; failed: number; undone: number };
+  scans: SessionScan[];
+}

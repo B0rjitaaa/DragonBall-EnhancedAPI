@@ -131,11 +131,11 @@ export interface UrlState {
 /** Lo que se lee de la URL: el estado, y la ubicación por su uid (se resuelve a su id al cargar las ubicaciones). */
 export type InitialUrlState = Partial<UrlState> & { locationUid?: string }
 
-const LOCATION_PATH = /^\/coleccion\/(mazo|ubicacion)\/([0-9a-f-]{36})\/?$/i
+const LOCATION_PATH = /^\/collection\/(deck|location)\/([0-9a-f-]{36})\/?$/i
 
-/** Ruta de Mi colección dentro de una ubicación: /coleccion/mazo/<uid> o /coleccion/ubicacion/<uid>. */
+/** Ruta de Mi colección dentro de una ubicación: /collection/deck/<uid> o /collection/location/<uid>. */
 export function locationPath(loc: { uid: string; kind: string }): string {
-  return `/coleccion/${loc.kind === 'deck' ? 'mazo' : 'ubicacion'}/${loc.uid}`
+  return `/collection/${loc.kind === 'deck' ? 'deck' : 'location'}/${loc.uid}`
 }
 
 const parseJson = <T,>(raw: string | null): T | undefined => {
@@ -149,7 +149,7 @@ const parseJson = <T,>(raw: string | null): T | undefined => {
 
 /**
  * Estado de la búsqueda desde la URL: la ubicación va en la ruta y lo demás en
- * parámetros legibles (?q=goku&orden=-energy&pagina=2…), solo lo que no es por defecto.
+ * parámetros legibles (?q=goku&sort=-energy&page=2…), solo lo que no es por defecto.
  * Los enlaces antiguos (todo en JSON tras el #) se siguen entendiendo.
  */
 export function readUrlState(): InitialUrlState {
@@ -160,19 +160,19 @@ export function readUrlState(): InitialUrlState {
   const match = window.location.pathname.match(LOCATION_PATH)
   if (match) state.locationUid = match[2].toLowerCase()
   if (params.get('q')) state.q = params.get('q')!
-  if (params.get('orden')) state.ordering = params.get('orden')!
+  if (params.get('sort')) state.ordering = params.get('sort')!
   else if (match) state.ordering = 'position'
-  const page = Number(params.get('pagina'))
+  const page = Number(params.get('page'))
   if (page > 1) state.page = page
-  const view = params.get('vista')
+  const view = params.get('view')
   if (view === 'grid' || view === 'list' || view === 'deck') state.view = view
-  if (params.get('falsas') === '1') state.showFakes = true
-  const facets = parseJson<FacetState>(params.get('filtros'))
+  if (params.get('fakes') === '1') state.showFakes = true
+  const facets = parseJson<FacetState>(params.get('filters'))
   if (facets) state.facets = facets
-  const advanced = parseJson<Group>(params.get('avanzado'))
+  const advanced = parseJson<Group>(params.get('advanced'))
   if (advanced) {
     state.advanced = advanced
-    state.advancedOn = params.get('avanzado_on') !== '0'
+    state.advancedOn = params.get('advanced_on') !== '0'
   }
   return state
 }
@@ -183,17 +183,17 @@ export function writeUrlState(state: UrlState, loc?: { uid: string; kind: string
   const defaultOrdering = loc ? 'position' : 'number'
   const defaultView = loc?.kind === 'deck' ? 'deck' : 'grid'
   if (state.q) params.set('q', state.q)
-  if (state.ordering !== defaultOrdering) params.set('orden', state.ordering)
-  if (state.page > 1 && state.view !== 'deck') params.set('pagina', String(state.page))
-  if ((state.view ?? 'grid') !== defaultView) params.set('vista', state.view ?? 'grid')
-  if (state.showFakes) params.set('falsas', '1')
-  if (Object.keys(state.facets).length) params.set('filtros', JSON.stringify(state.facets))
+  if (state.ordering !== defaultOrdering) params.set('sort', state.ordering)
+  if (state.page > 1 && state.view !== 'deck') params.set('page', String(state.page))
+  if ((state.view ?? 'grid') !== defaultView) params.set('view', state.view ?? 'grid')
+  if (state.showFakes) params.set('fakes', '1')
+  if (Object.keys(state.facets).length) params.set('filters', JSON.stringify(state.facets))
   if (state.advanced.children.length) {
-    params.set('avanzado', JSON.stringify(state.advanced))
-    if (!state.advancedOn) params.set('avanzado_on', '0')
+    params.set('advanced', JSON.stringify(state.advanced))
+    if (!state.advancedOn) params.set('advanced_on', '0')
   }
-  const inCollection = window.location.pathname.startsWith('/coleccion')
-  const path = !inCollection ? window.location.pathname : loc ? locationPath(loc) : '/coleccion'
+  const inCollection = window.location.pathname.startsWith('/collection')
+  const path = !inCollection ? window.location.pathname : loc ? locationPath(loc) : '/collection'
   const search = params.toString()
   window.history.replaceState(null, '', `${path}${search ? `?${search}` : ''}`)
 }

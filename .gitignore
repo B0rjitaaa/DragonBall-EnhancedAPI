@@ -8,3 +8,8 @@ frontend/node_modules/
 frontend/dist/
 data/*.json
 .DS_Store
+# Certificados de la CA local (scripts/local-https.sh): la clave privada no sale del servidor.
+certs/
+# Caché de imágenes oficiales y fotos del escáner.
+data/card_images/
+backend/media/
