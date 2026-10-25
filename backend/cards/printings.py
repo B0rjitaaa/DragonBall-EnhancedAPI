@@ -3,7 +3,7 @@
 Se crean clonando el registro de Bandai de la misma carta: mismo número,
 texto y atributos, con su propia imagen y edición. Llevan un id fuera del
 rango de Bandai, así que la sincronización nunca las pisa ni las borra, y
-se exportan al escáner como cualquier otra carta.
+el escáner las reconoce como cualquier otra carta.
 """
 from __future__ import annotations
 

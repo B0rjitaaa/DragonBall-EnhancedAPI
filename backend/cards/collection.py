@@ -1,7 +1,7 @@
-"""Mi colección: la colección escaneada en DragonBall-CameraCardChecker.
+"""Mi colección vista desde el catálogo: copias por carta y su reparto por ubicación.
 
-Se lee de su endpoint /api/collection/export/ (CARD_CHECKER_URL) y se agrega
-por id de Bandai, la clave común de los dos proyectos (aquí, Card.id).
+Las copias viven en la app `collection` (ubicaciones y filas de copias); aquí se
+agregan por carta para el buscador, las facetas y las acciones de Mi colección.
 """
 from __future__ import annotations
 
@@ -9,19 +9,22 @@ import hashlib
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
-from django.conf import settings
-from django.core.cache import cache
+from django.db import transaction
 
+from collection import services
+from collection.models import CollectionEntry, Location
+
+from .models import Card
+
+# Ya no hay caché (la colección está en esta misma base de datos): se mantiene el
+# nombre para quien la invalidaba.
 CACHE_KEY = "my-collection:owned"
-# Una interacción del buscador lanza varias peticiones (búsqueda + facetas):
-# se reutiliza la colección unos segundos en vez de pedirla en cada una.
-CACHE_TTL = 10
 
 
 class CollectionUnavailable(Exception):
+    """Error de una acción de Mi colección, con el estado HTTP a devolver (y datos extra)."""
+
     def __init__(self, message: str, status: int, data: dict | None = None):
         super().__init__(message)
         self.status = status
@@ -30,9 +33,9 @@ class CollectionUnavailable(Exception):
 
 @dataclass
 class Owned:
-    # id -> {quantity, fakes, locations: [{id, name, kind, quantity, fake, notes}]}
+    # id -> {quantity, fakes, locations: [{id, name, kind, quantity, fake, position, notes}]}
     cards: dict[int, dict] = field(default_factory=dict)
-    numbers: dict[int, str] = field(default_factory=dict)  # id -> número de carta (para "missing")
+    numbers: dict[int, str] = field(default_factory=dict)  # id -> número de carta
 
     @property
     def ids(self) -> list[int]:
@@ -40,7 +43,7 @@ class Owned:
 
     @property
     def fingerprint(self) -> str:
-        """Cambia en cuanto cambia la colección: sirve de clave de caché."""
+        """Cambia en cuanto cambia la colección: sirve de clave de caché (facetas)."""
         raw = json.dumps(sorted((i, c["quantity"]) for i, c in self.cards.items()))
         return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
@@ -57,121 +60,104 @@ class Owned:
         return Owned(cards, {i: n for i, n in self.numbers.items() if i in cards})
 
 
-def _base() -> str:
-    base = settings.CARD_CHECKER_URL.rstrip("/")
-    if not base:
-        raise CollectionUnavailable("CARD_CHECKER_URL no está configurado", 503)
-    return base
-
-
-def checker_request(method: str, path: str, body: dict | None = None):
-    """Llama a la API del escáner. Errores → CollectionUnavailable con el estado a devolver."""
-    base = _base()
-    data = json.dumps(body).encode() if body is not None else None
-    req = Request(f"{base}{path}", data=data, method=method, headers={"Content-Type": "application/json"})
-    try:
-        with urlopen(req, timeout=5) as resp:  # noqa: S310 - URL de configuración
-            raw = resp.read()
-            return json.loads(raw) if raw else None
-    except HTTPError as exc:
-        try:
-            payload = json.loads(exc.read() or b"{}")
-        except ValueError:
-            payload = {}
-        if exc.code in (400, 404, 409):
-            # Errores del usuario (validación, conflicto…): se devuelven tal cual.
-            detail = payload.get("detail") if isinstance(payload, dict) else None
-            if exc.code == 404 and not detail:
-                detail = "No encontrado en el escáner"
-            raise CollectionUnavailable(detail or json.dumps(payload, ensure_ascii=False), exc.code, payload) from exc
-        raise CollectionUnavailable(f"El escáner respondió HTTP {exc.code}", 502) from exc
-    except (URLError, TimeoutError, ValueError) as exc:
-        raise CollectionUnavailable(f"No se pudo hablar con el escáner ({base}): {exc}", 502) from exc
-
-
 def fetch_export() -> list[dict]:
-    """Entradas de la colección tal cual las da el escáner (una por carta y ubicación)."""
-    base = _base()
-    try:
-        with urlopen(f"{base}/api/collection/export/", timeout=5) as resp:  # noqa: S310 - URL de configuración
-            return json.load(resp)
-    except (URLError, TimeoutError, ValueError) as exc:
-        raise CollectionUnavailable(f"No se pudo leer la colección del escáner ({base}): {exc}", 502) from exc
+    """Una fila por carta, ubicación y autenticidad (también la usa la copia de seguridad)."""
+    rows = CollectionEntry.objects.select_related("card", "location").order_by(
+        "card__card_number", "card_id", "-location__is_default", "location__position", "location__name", "fake"
+    )
+    return [
+        {
+            "bandai_id": e.card_id,
+            "card_number": e.card.card_number,
+            "name": e.card.name,
+            "quantity": e.quantity,
+            "location_id": e.location_id,
+            "location": e.location.name,
+            "location_kind": e.location.kind,
+            "fake": e.fake,
+            "position": e.position,
+            "notes": e.notes,
+        }
+        for e in rows
+    ]
 
 
 def fetch_owned() -> Owned:
-    cached = cache.get(CACHE_KEY)
-    if cached is not None:
-        return cached
-    entries = fetch_export()
-
     cards: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "fakes": 0, "locations": []})
     numbers: dict[int, str] = {}
-    for entry in entries:
+    for entry in fetch_export():
         item = cards[entry["bandai_id"]]
         item["quantity"] += entry["quantity"]
-        fake = bool(entry.get("fake"))
-        item["fakes"] += entry["quantity"] if fake else 0
+        item["fakes"] += entry["quantity"] if entry["fake"] else 0
         item["locations"].append({
-            "id": entry.get("location_id"),
-            "name": entry.get("location", ""),
-            "kind": entry.get("location_kind", "other"),
+            "id": entry["location_id"],
+            "name": entry["location"],
+            "kind": entry["location_kind"],
             "quantity": entry["quantity"],
-            "fake": fake,
-            "position": entry.get("position", 0),
-            "notes": entry.get("notes", ""),
+            "fake": entry["fake"],
+            "position": entry["position"],
+            "notes": entry["notes"],
         })
         numbers[entry["bandai_id"]] = entry["card_number"]
-    owned = Owned(dict(cards), numbers)
-    cache.set(CACHE_KEY, owned, CACHE_TTL)
-    return owned
+    return Owned(dict(cards), numbers)
 
 
-def _summary(result: dict) -> dict:
-    return {"quantity": result["quantity"], "fakes": result.get("fakes", 0), "locations": result["locations"]}
+def _summary(card: Card) -> dict:
+    result = services.card_summary(card)
+    return {"quantity": result["quantity"], "fakes": result["fakes"], "locations": result["locations"]}
+
+
+def _card(card_id: int) -> Card:
+    card = Card.objects.filter(id=card_id).first()
+    if card is None:
+        raise CollectionUnavailable("Carta desconocida", 404)
+    return card
+
+
+def _location(location_id: int | None) -> Location | None:
+    if location_id is None:
+        return None
+    location = Location.objects.filter(id=location_id).first()
+    if location is None:
+        raise CollectionUnavailable("Ubicación desconocida", 400, {"location": "Ubicación desconocida"})
+    return location
 
 
 def adjust_owned(card_id: int, delta: int, location: int | None = None, fake: bool | None = None) -> dict:
-    """Suma o resta copias de una carta en la colección del escáner.
+    """Suma o resta copias de una carta. Devuelve {quantity, fakes, locations} tras el cambio.
 
-    Devuelve {quantity, locations} tras el cambio y descarta la colección
-    cacheada para que búsqueda y facetas reflejen el cambio al momento. Si hay
-    que quitar una copia repartida en varias ubicaciones sin decir cuál, el
-    escáner responde 409 con el reparto (CollectionUnavailable.data).
+    Al sumar, las copias entran en `location` ("Sin ubicar" por defecto). Al restar sin
+    `location`, se quitan de "Sin ubicar" y, si no llega, de la única otra ubicación con
+    copias; si hay varias, 409 con el reparto (CollectionUnavailable.data) para elegir.
     """
-    body = {"bandai_id": card_id, "delta": delta}
-    if location:
-        body["location"] = location
-    if fake is not None:
-        body["fake"] = fake
-    try:
-        result = checker_request("POST", "/api/collection/adjust/", body)
-    except CollectionUnavailable as exc:
-        if exc.status == 404 and not exc.data.get("detail"):
-            exc.args = ("la carta no está en el catálogo del escáner",)
-        raise
-    cache.delete(CACHE_KEY)
-    return _summary(result)
+    card, where = _card(card_id), _location(location)
+    if delta > 0:
+        services.add_copies(card, where or Location.default(), delta)
+    else:
+        try:
+            services.remove_copies(card, -delta, where, fake)
+        except services.AmbiguousLocation as exc:
+            raise CollectionUnavailable(str(exc), 409, _summary(card)) from exc
+    return _summary(card)
 
 
 def move_owned(card_id: int, source: int, target: int, quantity: int,
                source_fake: bool = False, target_fake: bool | None = None, note_line: str | None = None) -> dict:
     """Mueve copias; con source == target y target_fake distinto, las marca como falsas o auténticas."""
-    body = {"bandai_id": card_id, "source": source, "target": target, "quantity": quantity, "source_fake": source_fake}
-    if target_fake is not None:
-        body["target_fake"] = target_fake
-    if note_line:
-        body["note_line"] = note_line  # la posición (línea de la nota) que se va con la copia
-    result = checker_request("POST", "/api/collection/move/", body)
-    cache.delete(CACHE_KEY)
-    return _summary(result)
+    card = _card(card_id)
+    try:
+        services.move_copies(card, _location(source), _location(target), quantity, source_fake, target_fake, note_line)
+    except ValueError as exc:
+        raise CollectionUnavailable(str(exc), 400) from exc
+    return _summary(card)
 
 
 def note_owned(card_id: int, location: int, notes: str, fake: bool = False) -> dict:
-    result = checker_request("POST", "/api/collection/note/",
-                             {"bandai_id": card_id, "location": location, "notes": notes, "fake": fake})
-    cache.delete(CACHE_KEY)
-    return _summary(result)
+    card = _card(card_id)
+    updated = CollectionEntry.objects.filter(card=card, location=_location(location), fake=fake).update(notes=notes)
+    if not updated:
+        raise CollectionUnavailable("No hay copias de esa carta en esa ubicación", 404)
+    return _summary(card)
 
 
 KIND_NAMES = {"deck": "mazo", "binder": "archivador", "storage": "almacén", "other": "otro"}
@@ -179,8 +165,8 @@ KIND_NAMES = {"deck": "mazo", "binder": "archivador", "storage": "almacén", "ot
 
 def reorder_owned(location: int, card_ids: list[int]) -> None:
     """«Mi orden»: esas cartas, en ese orden, dentro de la ubicación."""
-    checker_request("POST", "/api/collection/reorder/", {"location": location, "bandai_ids": card_ids})
-    cache.delete(CACHE_KEY)
+    with transaction.atomic():
+        services.reorder_location(_location(location), card_ids)
 
 
 def backup_document(entries: list[dict], exported_at: str, locations: list[dict] | None = None) -> dict:

@@ -13,13 +13,15 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from collection.models import Location
+from collection.serializers import LocationSerializer
+from collection.services import delete_location
+
 from .collection import (
-    CACHE_KEY,
     CollectionUnavailable,
     Owned,
     adjust_owned,
     backup_document,
-    checker_request,
     fetch_export,
     fetch_owned,
     move_owned,
@@ -306,7 +308,7 @@ def _bool(value, name: str) -> bool | None:
 
 
 def owned_or_error(request_scope: str | None, location=None, fake=None, include_fakes=None) -> Owned | None:
-    """Colección del escáner si el ámbito es "collection" (o None).
+    """Mi colección si el ámbito es "collection" (o None).
 
     Por defecto solo cuentan las copias auténticas; `include_fakes=true` suma
     también las falsas y `fake=true` deja solo las falsas. `location` limita a
@@ -499,44 +501,40 @@ def deck_leaders(owned: Owned) -> dict[int, dict]:
 
 
 class LocationsView(APIView):
-    """Ubicaciones de Mi colección (viven en el escáner): GET lista con totales (y el líder de
-    cada mazo), POST crea."""
+    """Ubicaciones de Mi colección: GET lista con totales (y el líder de cada mazo), POST crea."""
 
     def get(self, request):
-        try:
-            locations = checker_request("GET", "/api/locations/")
-            leaders = deck_leaders(fetch_owned()) if any(loc.get("kind") == "deck" for loc in locations) else {}
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
+        locations = LocationSerializer.listing()
+        leaders = deck_leaders(fetch_owned()) if any(loc["kind"] == "deck" for loc in locations) else {}
         return Response([{**loc, "leader": leaders.get(loc["id"])} for loc in locations])
 
     def post(self, request):
-        body = {k: request.data[k] for k in LOCATION_FIELDS if k in request.data}
-        try:
-            created = checker_request("POST", "/api/locations/", body)
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
-        return Response(created, status=status.HTTP_201_CREATED)
+        body = LocationSerializer(data={k: request.data[k] for k in LOCATION_FIELDS if k in request.data})
+        body.is_valid(raise_exception=True)
+        return Response(LocationSerializer(body.save()).data, status=status.HTTP_201_CREATED)
 
 
 class LocationDetailView(APIView):
     """PATCH renombra o cambia el tipo; DELETE la borra (sus copias vuelven a "Sin ubicar")."""
 
     def patch(self, request, pk: int):
-        body = {k: request.data[k] for k in LOCATION_FIELDS if k in request.data}
-        try:
-            updated = checker_request("PATCH", f"/api/locations/{pk}/", body)
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
-        cache.delete(CACHE_KEY)  # el nombre sale en el reparto de cada carta
-        return Response(updated)
+        location = Location.objects.filter(pk=pk).first()
+        if location is None:
+            return Response({"detail": "Ubicación desconocida"}, status=status.HTTP_404_NOT_FOUND)
+        body = LocationSerializer(location, data={k: request.data[k] for k in LOCATION_FIELDS if k in request.data},
+                                  partial=True)
+        body.is_valid(raise_exception=True)
+        body.save()
+        return Response(next(loc for loc in LocationSerializer.listing() if loc["id"] == pk))
 
     def delete(self, request, pk: int):
+        location = Location.objects.filter(pk=pk).first()
+        if location is None:
+            return Response({"detail": "Ubicación desconocida"}, status=status.HTTP_404_NOT_FOUND)
         try:
-            checker_request("DELETE", f"/api/locations/{pk}/")
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
-        cache.delete(CACHE_KEY)
+            delete_location(location)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -544,11 +542,7 @@ class MyCollectionBackupView(APIView):
     """Descarga la colección como JSON (botón "Descargar copia" de Mi colección)."""
 
     def get(self, request):
-        try:
-            entries = fetch_export()
-            locations = checker_request("GET", "/api/locations/")
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
+        entries, locations = fetch_export(), LocationSerializer.listing()
         now = timezone.localtime()
         doc = backup_document(entries, now.isoformat(timespec="seconds"), locations)
         # Una ubicación y una carta por línea: ocupa poco y se puede leer o comparar a simple vista.
@@ -560,63 +554,3 @@ class MyCollectionBackupView(APIView):
         response = HttpResponse(body, content_type="application/json; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.json"'
         return response
-
-
-def _card_ids(payload) -> set[int]:
-    """Ids de carta (de Bandai) que aparecen en una respuesta de mazos del escáner."""
-    ids: set[int] = set()
-    if isinstance(payload, dict):
-        for key in ("bandai_id", "opponent_leader_bandai_id", "leader_bandai_id"):
-            if isinstance(payload.get(key), int):
-                ids.add(payload[key])
-        for value in payload.values():
-            ids |= _card_ids(value)
-    elif isinstance(payload, list):
-        for item in payload:
-            ids |= _card_ids(item)
-    return ids
-
-
-class DeckProxyView(APIView):
-    """Versiones de lista y partidas de un mazo (viven en el escáner).
-
-    Reenvía al escáner /api/<ruta> y, en las lecturas, añade `catalog`: los datos de
-    catálogo (imagen, nombre, tipo…) de todas las cartas que aparecen en la respuesta.
-      GET  decks/<id>/                      lista actual, versiones, balance y por líder rival
-      POST decks/<id>/versions/             guardar versión {name?, notes?}
-      POST decks/<id>/matches/              anotar partida
-      POST decks/<id>/side/                 {bandai_id, quantity} copias al side deck
-      POST decks/<id>/plan/                 {cards} qué copias habría que mover para tener esa lista
-      GET|PATCH|DELETE deck-versions/<id>/  una versión (cartas, cambios, partidas)
-      GET|POST deck-versions/<id>/restore/  hacer principal una versión (plan / mover las copias)
-      PATCH|DELETE matches/<id>/            una partida
-    """
-
-    def _forward(self, request, path: str):
-        if request.method in ("POST", "PATCH"):
-            body = request.data if isinstance(request.data, dict) else {}
-        else:
-            body = None
-        try:
-            result = checker_request(request.method, f"/api/{path}", body)
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
-        cache.delete(CACHE_KEY)  # el side deck o las copias pueden cambiar la vista del mazo
-        if result is None:
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        if request.method == "GET" or path.endswith("plan/"):
-            cards = Card.objects.filter(id__in=_card_ids(result))
-            result = {**result, "catalog": {c["id"]: c for c in CardListSerializer(cards, many=True).data}}
-        return Response(result, status=status.HTTP_201_CREATED if request.method == "POST" and path.endswith(("versions/", "matches/")) else 200)
-
-    def get(self, request, path):
-        return self._forward(request, path)
-
-    def post(self, request, path):
-        return self._forward(request, path)
-
-    def patch(self, request, path):
-        return self._forward(request, path)
-
-    def delete(self, request, path):
-        return self._forward(request, path)

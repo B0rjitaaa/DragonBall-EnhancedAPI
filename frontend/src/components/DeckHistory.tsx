@@ -196,7 +196,7 @@ export function VersionBar({
 const sourceLabel = (s: RestoreSource) =>
   `${s.name} (${s.authentic + s.fakes}${s.fakes ? `, ${s.fakes} falsa${s.fakes > 1 ? 's' : ''}` : ''})${s.kind === 'deck' ? ' · otro mazo' : ''}`
 
-/** De dónde se cogerían `need` copias en automático (el orden que usa el escáner). */
+/** De dónde se cogerían `need` copias en automático (el mismo orden que usa el servidor). */
 function autoTake(sources: RestoreSource[], need: number): { source: RestoreSource; n: number }[] {
   const out = []
   for (const s of sources) {
