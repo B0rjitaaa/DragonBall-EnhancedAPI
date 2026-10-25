@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
 
 from . import views
@@ -20,5 +20,10 @@ urlpatterns = [
     path("my-collection/reorder/", views.MyCollectionReorderView.as_view(), name="my-collection-reorder"),
     path("my-collection/locations/", views.LocationsView.as_view(), name="my-collection-locations"),
     path("my-collection/locations/<int:pk>/", views.LocationDetailView.as_view(), name="my-collection-location"),
+    re_path(
+        r"^my-collection/(?P<path>(decks/\d+/(versions/|matches/|side/)?|deck-versions/\d+/|matches/\d+/))$",
+        views.DeckProxyView.as_view(),
+        name="my-collection-decks",
+    ),
     *router.urls,
 ]

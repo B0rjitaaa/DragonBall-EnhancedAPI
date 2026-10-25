@@ -281,3 +281,36 @@ class MyCollectionTests(TestCase):
         self.assertEqual(self.client.delete("/api/my-collection/locations/2/").status_code, 204)
         self.assertEqual([m for m, *_ in sent], ["GET", "POST", "PATCH", "DELETE"])
         self.assertEqual(sent[1][2], {"name": "Mazo rojo", "kind": "deck"})  # solo los campos permitidos
+
+
+@override_settings(CARD_CHECKER_URL="http://checker")
+class DeckProxyTests(TestCase):
+    def setUp(self):
+        Card.objects.create(id=4, card_number="BT1-001", name="Champa", card_type="LEADER", colors=["Red"])
+        Card.objects.create(id=99, card_number="BT2-001", name="Goku", card_type="LEADER", colors=["Blue"])
+        self.client = APIClient()
+        self.sent = []
+
+        def fake(req, *a, **k):
+            path = req.full_url.removeprefix("http://checker")
+            self.sent.append((req.get_method(), path, json.loads(req.data) if req.data else None))
+            if path == "/api/decks/5/":
+                return _response({"deck": {"id": 5}, "current": [{"bandai_id": 4, "section": "main", "quantity": 1}],
+                                  "by_leader": [{"leader_bandai_id": 99, "played": 1}]})
+            return _response({"id": 1})
+
+        patcher = mock.patch("cards.collection.urlopen", side_effect=fake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_read_adds_catalog_cards(self):
+        data = self.client.get("/api/my-collection/decks/5/").data
+        self.assertEqual(sorted(data["catalog"]), [4, 99])
+        self.assertEqual(data["catalog"][4]["name"], "Champa")
+
+    def test_writes_are_forwarded(self):
+        r = self.client.post("/api/my-collection/decks/5/matches/", {"played_on": "2026-10-20", "result": "win"}, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.client.patch("/api/my-collection/matches/7/", {"result": "loss"}, format="json")
+        self.assertEqual([(m, p) for m, p, _ in self.sent], [("POST", "/api/decks/5/matches/"), ("PATCH", "/api/matches/7/")])
+        self.assertEqual(self.client.get("/api/my-collection/decks/abc/").status_code, 404)

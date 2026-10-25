@@ -1,9 +1,11 @@
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { api } from '../lib/api'
 import { colorClass } from '../lib/colors'
-import type { CardSummary, Location } from '../lib/types'
+import type { CardSummary, DeckDetail, DeckVersionDetail, Location } from '../lib/types'
+import { MatchesPanel, VersionBar, versionLabel } from './DeckHistory'
 
 /** Reglas de construcción de Dragon Ball Super Masters que se comprueban. */
 const MAIN_MIN = 50
@@ -37,13 +39,84 @@ interface Props {
   onReorder?: (ids: number[]) => void
 }
 
-/** Vista de un mazo: líder, estadísticas, comprobación de reglas y cartas por secciones. */
+interface CardAction {
+  label: string
+  title: string
+  run: (card: CardSummary) => void
+}
+
+/** Vista de un mazo: líder, estadísticas, comprobación de reglas, cartas por secciones, versiones y partidas. */
 export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Props) {
-  const leaders = cards.filter((c) => sectionOf(c) === 'leader')
+  const [detail, setDetail] = useState<DeckDetail | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
+  const [loadedVersion, setLoadedVersion] = useState<DeckVersionDetail | null>(null)
+  const version = selected != null && loadedVersion?.id === selected ? loadedVersion : null
+  const [sideBusy, setSideBusy] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+
+  const reload = useCallback(() => {
+    api
+      .deck(deck.id)
+      .then((d) => {
+        setDetail(d)
+        setHistoryError('')
+      })
+      .catch((e) => setHistoryError((e as Error).message))
+  }, [deck.id])
+  // Las copias del mazo pueden cambiar desde fuera (escáner, mover copias): se recarga con las cartas.
+  useEffect(reload, [reload, cards])
+  useEffect(() => {
+    if (selected == null) return
+    let alive = true
+    api.deckVersion(selected).then((v) => alive && setLoadedVersion(v)).catch(() => alive && setSelected(null))
+    return () => {
+      alive = false
+    }
+  }, [selected, detail])
+
+  // Cartas a mostrar: la lista principal (las copias del mazo menos las del side) o la de la versión elegida.
+  const { pool, side } = useMemo(() => {
+    if (selected != null) {
+      if (!version) return { pool: [] as CardSummary[], side: [] as CardSummary[] }
+      const of = (section: string) =>
+        version.cards
+          .filter((c) => (section === 'side' ? c.section === 'side' : c.section !== 'side') && version.catalog[c.bandai_id])
+          .map((c) => ({ ...version.catalog[c.bandai_id], quantity: c.quantity }))
+      return { pool: of('main'), side: of('side') }
+    }
+    const sideQty = new Map((detail?.current ?? []).filter((c) => c.section === 'side').map((c) => [c.bandai_id, c.quantity]))
+    return {
+      pool: cards
+        .map((c) => ({ ...c, quantity: Math.max(0, copies(c) - (sideQty.get(c.id) ?? 0)) }))
+        .filter((c) => c.quantity > 0),
+      side: cards.filter((c) => sideQty.has(c.id)).map((c) => ({ ...c, quantity: Math.min(copies(c), sideQty.get(c.id)!) })),
+    }
+  }, [selected, version, detail, cards])
+
+  const leaders = pool.filter((c) => sectionOf(c) === 'leader')
   const leader = leaders[0]
-  const main = cards.filter((c) => sectionOf(c) === 'main')
-  const zDeck = cards.filter((c) => sectionOf(c) === 'z')
+  const main = pool.filter((c) => sectionOf(c) === 'main')
+  const zDeck = pool.filter((c) => sectionOf(c) === 'z')
   const [showFront, setShowFront] = useState(false)
+  const viewingCurrent = selected == null
+  const sideOf = (id: number) => side.find((c) => c.id === id)?.quantity ?? 0
+
+  const moveSide = async (card: CardSummary, delta: number) => {
+    setSideBusy(true)
+    try {
+      await api.setSide(deck.id, card.id, sideOf(card.id) + delta)
+      reload()
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setSideBusy(false)
+    }
+  }
+  const toSide: CardAction | undefined =
+    viewingCurrent && !sideBusy ? { label: '→ Side', title: 'Pasar una copia al side deck', run: (c) => moveSide(c, 1) } : undefined
+  const fromSide: CardAction | undefined =
+    viewingCurrent && !sideBusy ? { label: '↩ Mazo', title: 'Devolver una copia al mazo', run: (c) => moveSide(c, -1) } : undefined
+  const canReorderNow = viewingCurrent && onReorder
 
   const stats = useMemo(() => {
     const total = main.reduce((n, c) => n + copies(c), 0)
@@ -125,14 +198,18 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
       ...(section === 'main' ? ids : main.map((c) => c.id)),
       ...(section === 'z' ? ids : zDeck.map((c) => c.id)),
     ]
-    onReorder(order)
+    onReorder([...order, ...side.map((c) => c.id).filter((id) => !order.includes(id))])
   }
 
   const leaderImage = leader && (showFront || !leader.back_image_url ? leader.image_url : leader.back_image_url)
   const zTotal = zDeck.reduce((n, c) => n + copies(c), 0)
+  const sideTotal = side.reduce((n, c) => n + copies(c), 0)
+
+  const record = version?.record ?? detail?.record
+  const catalog = { ...(detail?.catalog ?? {}), ...(version?.catalog ?? {}) }
 
   return (
-    <div className={`deck-view ${loading ? 'loading' : ''}`}>
+    <div className={`deck-view ${loading || (selected != null && !version) ? 'loading' : ''}`}>
       <section className="deck-hero">
         <div className="deck-leader">
           {leader ? (
@@ -155,7 +232,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
         </div>
 
         <div className="deck-summary">
-          <p className="deck-eyebrow">Mazo</p>
+          <p className="deck-eyebrow">Mazo{version ? ` · ${versionLabel(version)}` : ''}</p>
           <h2 className="deck-title">{deck.name}</h2>
           {leader && <p className="deck-leader-name">{showFront || !leader.back_name ? leader.name : leader.back_name}</p>}
           <div className="deck-counts">
@@ -168,6 +245,20 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
             <span className="deck-count">
               <strong>{stats.avg.toFixed(1)}</strong> coste medio
             </span>
+            {sideTotal > 0 && (
+              <span className="deck-count">
+                <strong>{sideTotal}</strong> side
+              </span>
+            )}
+            {record && record.played > 0 && (
+              <span className="deck-count" title={`${record.wins} victorias, ${record.losses} derrotas, ${record.draws} empates`}>
+                <strong>
+                  {record.wins}-{record.losses}
+                  {record.draws ? `-${record.draws}` : ''}
+                </strong>{' '}
+                {record.win_rate != null && `${Math.round(record.win_rate * 100)}%`} en {record.played} partidas
+              </span>
+            )}
           </div>
           {issues.length === 0 ? (
             <span className="deck-check ok">✓ Cumple las reglas de construcción</span>
@@ -226,13 +317,20 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
         </div>
       </section>
 
+      {detail ? (
+        <VersionBar detail={detail} selected={selected} version={version} onSelect={setSelected} onChanged={reload} />
+      ) : historyError ? (
+        <p className="muted small">No se pudieron cargar las versiones del mazo: {historyError}</p>
+      ) : null}
+
       <DeckSection
         title="Mazo principal"
         count={stats.total}
         cards={main}
         flagged={flagged}
         onOpen={onOpen}
-        onReorder={onReorder ? (ids) => reorderSection('main', ids) : undefined}
+        action={toSide}
+        onReorder={canReorderNow ? (ids) => reorderSection('main', ids) : undefined}
       />
       {zDeck.length > 0 && (
         <DeckSection
@@ -241,10 +339,34 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
           cards={zDeck}
           flagged={flagged}
           onOpen={onOpen}
-          onReorder={onReorder ? (ids) => reorderSection('z', ids) : undefined}
+          action={toSide}
+          onReorder={canReorderNow ? (ids) => reorderSection('z', ids) : undefined}
         />
       )}
-      {onReorder && <p className="reorder-hint">Arrastra las cartas para ordenarlas dentro de su sección (en el móvil, mantén pulsada una carta).</p>}
+      {(side.length > 0 || viewingCurrent) && (
+        <DeckSection
+          title="Side deck"
+          count={sideTotal}
+          cards={side}
+          flagged={new Map()}
+          onOpen={onOpen}
+          action={fromSide}
+          empty={viewingCurrent ? 'Sin cartas en el side. Usa «→ Side» en una carta del mazo para apartar copias.' : undefined}
+        />
+      )}
+      {canReorderNow && <p className="reorder-hint">Arrastra las cartas para ordenarlas dentro de su sección (en el móvil, mantén pulsada una carta).</p>}
+
+      {detail && (
+        <MatchesPanel
+          deckId={deck.id}
+          matches={version ? version.matches.map((m) => ({ ...m, version_number: version.number })) : detail.matches}
+          record={version?.record ?? detail.record}
+          byLeader={version?.by_leader ?? detail.by_leader}
+          catalog={catalog}
+          version={version}
+          onChanged={reload}
+        />
+      )}
     </div>
   )
 }
@@ -256,6 +378,8 @@ function DeckSection({
   flagged,
   onOpen,
   onReorder,
+  action,
+  empty = 'Sin cartas.',
 }: {
   title: string
   count: number
@@ -263,6 +387,8 @@ function DeckSection({
   flagged: Map<number, string>
   onOpen: (id: number) => void
   onReorder?: (ids: number[]) => void
+  action?: CardAction
+  empty?: string
 }) {
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -273,10 +399,10 @@ function DeckSection({
     <ul className="deck-grid">
       {cards.map((c) =>
         onReorder ? (
-          <SortableDeckCard key={c.id} card={c} flag={flagged.get(c.id)} onOpen={onOpen} />
+          <SortableDeckCard key={c.id} card={c} flag={flagged.get(c.id)} onOpen={onOpen} action={action} />
         ) : (
           <li key={c.id}>
-            <DeckCard card={c} flag={flagged.get(c.id)} onOpen={onOpen} />
+            <DeckCard card={c} flag={flagged.get(c.id)} onOpen={onOpen} action={action} />
           </li>
         ),
       )}
@@ -288,7 +414,7 @@ function DeckSection({
         {title} <span>{count} cartas</span>
       </h3>
       {cards.length === 0 ? (
-        <p className="muted small">Sin cartas.</p>
+        <p className="muted small">{empty}</p>
       ) : onReorder ? (
         <DndContext
           sensors={sensors}
@@ -308,7 +434,17 @@ function DeckSection({
   )
 }
 
-function SortableDeckCard({ card, flag, onOpen }: { card: CardSummary; flag?: string; onOpen: (id: number) => void }) {
+function SortableDeckCard({
+  card,
+  flag,
+  onOpen,
+  action,
+}: {
+  card: CardSummary
+  flag?: string
+  onOpen: (id: number) => void
+  action?: CardAction
+}) {
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id })
   return (
     <li
@@ -317,14 +453,25 @@ function SortableDeckCard({ card, flag, onOpen }: { card: CardSummary; flag?: st
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...listeners}
     >
-      <DeckCard card={card} flag={flag} onOpen={onOpen} />
+      <DeckCard card={card} flag={flag} onOpen={onOpen} action={action} />
     </li>
   )
 }
 
-function DeckCard({ card, flag, onOpen }: { card: CardSummary; flag?: string; onOpen: (id: number) => void }) {
+function DeckCard({
+  card,
+  flag,
+  onOpen,
+  action,
+}: {
+  card: CardSummary
+  flag?: string
+  onOpen: (id: number) => void
+  action?: CardAction
+}) {
   const n = copies(card)
   return (
+    <div className="deck-card-wrap">
     <button className={`deck-card ${flag ? 'flagged' : ''}`} onClick={() => onOpen(card.id)} title={`${card.card_number} · ${card.name}`}>
       <img src={card.image_url} alt={card.name} loading="lazy" referrerPolicy="no-referrer" draggable={false} />
       <span className="deck-qty" aria-label={`${n} copias`}>
@@ -336,5 +483,16 @@ function DeckCard({ card, flag, onOpen }: { card: CardSummary; flag?: string; on
         {card.name}
       </span>
     </button>
+    {action && (
+      <button
+        className="deck-card-action"
+        title={action.title}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => action.run(card)}
+      >
+        {action.label}
+      </button>
+    )}
+    </div>
   )
 }

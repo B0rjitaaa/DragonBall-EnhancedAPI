@@ -559,6 +559,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
 
           {inCollection && view === 'deck' && currentLocation ? (
             <DeckView
+              key={currentLocation.id}
               deck={currentLocation}
               cards={data?.results ?? []}
               loading={loading}

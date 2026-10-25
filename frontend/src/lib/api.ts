@@ -1,5 +1,6 @@
 import type {
-  CardDetail, FacetsResponse, FieldDef, KeywordSkillsResponse, Location, LocationKind, OwnedSummary, SearchResponse,
+  CardDetail, DeckDetail, DeckVersion, DeckVersionDetail, FacetsResponse, FieldDef,
+  KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, SearchResponse,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
@@ -115,4 +116,20 @@ export const api = {
   updateLocation: (id: number, changes: Partial<Pick<Location, 'name' | 'kind' | 'notes' | 'position'>>) =>
     request<Location>(`/my-collection/locations/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
   deleteLocation: (id: number) => request<void>(`/my-collection/locations/${id}/`, { method: 'DELETE' }),
+  /** Mazos: lista actual, versiones guardadas y partidas. */
+  deck: (id: number) => request<DeckDetail>(`/my-collection/decks/${id}/`),
+  saveDeckVersion: (deck: number, name = '', notes = '') =>
+    request<DeckVersion>(`/my-collection/decks/${deck}/versions/`, post({ name, notes })),
+  deckVersion: (id: number) => request<DeckVersionDetail>(`/my-collection/deck-versions/${id}/`),
+  updateDeckVersion: (id: number, changes: Partial<Pick<DeckVersion, 'name' | 'notes'>>) =>
+    request<DeckVersion>(`/my-collection/deck-versions/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  deleteDeckVersion: (id: number) => request<void>(`/my-collection/deck-versions/${id}/`, { method: 'DELETE' }),
+  /** Sin `version`: con la lista actual (si cambió desde la última versión, se guarda una nueva). */
+  addMatch: (deck: number, match: MatchInput) => request<Match>(`/my-collection/decks/${deck}/matches/`, post(match)),
+  updateMatch: (id: number, changes: Partial<MatchInput>) =>
+    request<Match>(`/my-collection/matches/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  deleteMatch: (id: number) => request<void>(`/my-collection/matches/${id}/`, { method: 'DELETE' }),
+  /** Copias de esa carta del mazo que van al side deck. */
+  setSide: (deck: number, cardId: number, quantity: number) =>
+    request<{ bandai_id: number; side: number }>(`/my-collection/decks/${deck}/side/`, post({ bandai_id: cardId, quantity })),
 }

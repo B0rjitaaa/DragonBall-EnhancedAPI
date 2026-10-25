@@ -179,3 +179,85 @@ export interface KeywordSkillsResponse {
   deck_rules: Record<string, string>
 }
 
+
+/** Mazos: listas (versiones) y partidas. Las cartas van por su id de Bandai (= CardSummary.id). */
+export type DeckSection = 'main' | 'z' | 'side'
+export type MatchResult = 'win' | 'loss' | 'draw'
+
+export interface DeckListCard {
+  bandai_id: number
+  section: DeckSection
+  quantity: number
+}
+
+export interface DeckChange {
+  bandai_id: number
+  section: DeckSection
+  delta: number
+}
+
+export interface MatchRecord {
+  played: number
+  wins: number
+  losses: number
+  draws: number
+  win_rate: number | null
+}
+
+export interface LeaderRecord extends MatchRecord {
+  leader_bandai_id: number | null
+  leader_name: string
+}
+
+export interface DeckVersion {
+  id: number
+  number: number
+  name: string
+  notes: string
+  /** Guardada sola al anotar una partida con el mazo cambiado. */
+  automatic: boolean
+  created_at: string
+}
+
+export interface Match {
+  id: number
+  version: number
+  played_on: string
+  opponent_leader_bandai_id: number | null
+  opponent_leader_name: string
+  opponent_name: string
+  result: MatchResult
+  went_first: boolean | null
+  score: string
+  event: string
+  notes: string
+  created_at: string
+  /** En la vista del mazo: número de la versión con la que se jugó. */
+  version_number?: number
+}
+
+export type MatchInput = Omit<Match, 'id' | 'version' | 'created_at' | 'version_number'> & { version?: number }
+
+export interface DeckDetail {
+  deck: { id: number; name: string }
+  current: DeckListCard[]
+  /** Lista actual frente a la última versión guardada. */
+  changes: DeckChange[]
+  versions: (DeckVersion & { record: MatchRecord; copies: number })[]
+  matches: Match[]
+  record: MatchRecord
+  by_leader: LeaderRecord[]
+  /** Datos de catálogo de todas las cartas que aparecen. */
+  catalog: Record<number, CardSummary>
+}
+
+export interface DeckVersionDetail extends DeckVersion {
+  deck: number
+  cards: DeckListCard[]
+  previous: number | null
+  changes: DeckChange[]
+  matches: Match[]
+  record: MatchRecord
+  by_leader: LeaderRecord[]
+  catalog: Record<number, CardSummary>
+}

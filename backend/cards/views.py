@@ -560,3 +560,61 @@ class MyCollectionBackupView(APIView):
         response = HttpResponse(body, content_type="application/json; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.json"'
         return response
+
+
+def _card_ids(payload) -> set[int]:
+    """Ids de carta (de Bandai) que aparecen en una respuesta de mazos del escáner."""
+    ids: set[int] = set()
+    if isinstance(payload, dict):
+        for key in ("bandai_id", "opponent_leader_bandai_id", "leader_bandai_id"):
+            if isinstance(payload.get(key), int):
+                ids.add(payload[key])
+        for value in payload.values():
+            ids |= _card_ids(value)
+    elif isinstance(payload, list):
+        for item in payload:
+            ids |= _card_ids(item)
+    return ids
+
+
+class DeckProxyView(APIView):
+    """Versiones de lista y partidas de un mazo (viven en el escáner).
+
+    Reenvía al escáner /api/<ruta> y, en las lecturas, añade `catalog`: los datos de
+    catálogo (imagen, nombre, tipo…) de todas las cartas que aparecen en la respuesta.
+      GET  decks/<id>/                      lista actual, versiones, balance y por líder rival
+      POST decks/<id>/versions/             guardar versión {name?, notes?}
+      POST decks/<id>/matches/              anotar partida
+      POST decks/<id>/side/                 {bandai_id, quantity} copias al side deck
+      GET|PATCH|DELETE deck-versions/<id>/  una versión (cartas, cambios, partidas)
+      PATCH|DELETE matches/<id>/            una partida
+    """
+
+    def _forward(self, request, path: str):
+        if request.method in ("POST", "PATCH"):
+            body = request.data if isinstance(request.data, dict) else {}
+        else:
+            body = None
+        try:
+            result = checker_request(request.method, f"/api/{path}", body)
+        except CollectionUnavailable as exc:
+            return collection_error(exc)
+        cache.delete(CACHE_KEY)  # el side deck o las copias pueden cambiar la vista del mazo
+        if result is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        if request.method == "GET":
+            cards = Card.objects.filter(id__in=_card_ids(result))
+            result = {**result, "catalog": {c["id"]: c for c in CardListSerializer(cards, many=True).data}}
+        return Response(result, status=status.HTTP_201_CREATED if request.method == "POST" and path.endswith(("versions/", "matches/")) else 200)
+
+    def get(self, request, path):
+        return self._forward(request, path)
+
+    def post(self, request, path):
+        return self._forward(request, path)
+
+    def patch(self, request, path):
+        return self._forward(request, path)
+
+    def delete(self, request, path):
+        return self._forward(request, path)
