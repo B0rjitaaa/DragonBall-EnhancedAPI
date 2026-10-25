@@ -700,15 +700,45 @@ details.deck-check ul { margin: 0.4rem 0 0.1rem; padding-left: 1.1rem; display: 
 .deck-changes li small { color: var(--muted); }
 
 .deck-card-wrap { position: relative; }
-.deck-card-action {
-  position: absolute; left: 50%; top: calc(50% - 1.6rem); transform: translate(-50%, 4px);
-  padding: 0.25rem 0.6rem; border-radius: 999px; border: 1px solid var(--line);
-  font-size: 0.75rem; font-weight: 700; white-space: nowrap; color: var(--text); background: rgba(15, 17, 23, 0.88);
+.deck-card-controls {
+  position: absolute; left: 50%; bottom: 3.1rem; transform: translate(-50%, 4px);
+  display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 999px;
+  background: rgba(15, 17, 23, 0.9); border: 1px solid var(--line); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
   opacity: 0; transition: opacity 0.15s, transform 0.15s;
 }
-.deck-card-wrap:hover .deck-card-action, .deck-card-action:focus-visible { opacity: 1; transform: translate(-50%, 0); }
-.deck-card-action:hover { border-color: var(--accent); color: var(--accent-2); }
-@media (hover: none) { .deck-card-action { opacity: 1; transform: translate(-50%, 0); top: auto; bottom: 3.2rem; font-size: 0.7rem; } }
+.deck-card-wrap:hover .deck-card-controls, .deck-card-controls:focus-within { opacity: 1; transform: translate(-50%, 0); }
+.deck-card-controls button {
+  min-width: 1.9rem; height: 1.9rem; padding: 0 0.45rem; border: none; border-radius: 999px;
+  background: transparent; color: var(--text); font-weight: 800; font-size: 1rem; line-height: 1;
+}
+.deck-card-controls button:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--accent-2); }
+.deck-card-controls .deck-card-move { font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+@media (hover: none) { .deck-card-controls { opacity: 1; transform: translate(-50%, 0); } }
+.deck-delta {
+  position: absolute; top: -7px; left: -7px; padding: 0.05rem 0.4rem; border-radius: 999px; border: 2px solid var(--bg);
+  font-size: 0.75rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #06210f; background: #4cc38a;
+}
+.deck-card-wrap.removed .deck-delta { background: #ff8a80; color: #2a0705; }
+.deck-card-wrap.added .deck-card img { outline: 2px solid #4cc38a; outline-offset: 2px; }
+.deck-add {
+  width: 100%; aspect-ratio: 63 / 88; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem;
+  border: 2px dashed var(--line); border-radius: 9px; background: color-mix(in srgb, var(--bg-3) 40%, transparent);
+  color: var(--muted); font-size: 0.85rem; font-weight: 600; transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.deck-add span { font-size: 2.4rem; line-height: 1; font-weight: 300; }
+.deck-add:hover { border-color: var(--accent); color: var(--accent-2); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.deck-leader-links { display: inline-flex; gap: 0.8rem; }
+.deck-version-tabs button.principal strong { color: var(--accent-2); }
+.deck-tag.principal { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.save-list-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; }
+.save-list-fields label { display: flex; flex-direction: column; gap: 0.3rem; }
+.card-picker { display: flex; flex-direction: column; gap: 0.7rem; }
+.card-picker p { margin: 0; }
+.card-picker-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.8rem 0.6rem; }
+.card-picker-grid button { position: relative; display: flex; flex-direction: column; width: 100%; padding: 0; border: none; background: none; text-align: left; }
+.card-picker-grid img { width: 100%; aspect-ratio: 63 / 88; object-fit: contain; border-radius: 8px; background: var(--bg-3); transition: transform 0.12s; }
+.card-picker-grid button:hover img { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45); }
+.card-picker-grid button:active img { transform: scale(0.97); }
 
 .deck-record { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; padding-left: 1.25rem; border-left: 1px solid var(--line); }
 .deck-record-more { align-self: flex-start; }

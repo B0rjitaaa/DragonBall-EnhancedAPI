@@ -1,5 +1,5 @@
 import type {
-  CardDetail, DeckDetail, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  CardDetail, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, SearchResponse,
 } from './types'
 
@@ -118,8 +118,11 @@ export const api = {
   deleteLocation: (id: number) => request<void>(`/my-collection/locations/${id}/`, { method: 'DELETE' }),
   /** Mazos: lista actual, versiones guardadas y partidas. */
   deck: (id: number) => request<DeckDetail>(`/my-collection/decks/${id}/`),
-  saveDeckVersion: (deck: number, name = '', notes = '') =>
-    request<DeckVersion>(`/my-collection/decks/${deck}/versions/`, post({ name, notes })),
+  /** Guarda una lista: `cards` (la editada) o, sin ella, lo que hay en la caja. */
+  saveDeckVersion: (deck: number, name = '', notes = '', cards?: DeckListCard[]) =>
+    request<DeckVersion>(`/my-collection/decks/${deck}/versions/`, post({ name, notes, ...(cards ? { cards } : {}) })),
+  /** Qué copias habría que mover para que la caja del mazo tenga esa lista. */
+  deckPlan: (deck: number, cards: DeckListCard[]) => request<RestorePlan>(`/my-collection/decks/${deck}/plan/`, post({ cards })),
   deckVersion: (id: number) => request<DeckVersionDetail>(`/my-collection/deck-versions/${id}/`),
   updateDeckVersion: (id: number, changes: Partial<Pick<DeckVersion, 'name' | 'notes'>>) =>
     request<DeckVersion>(`/my-collection/deck-versions/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),

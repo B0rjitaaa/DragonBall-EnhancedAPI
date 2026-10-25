@@ -216,8 +216,10 @@ export interface DeckVersion {
   number: number
   name: string
   notes: string
-  /** Guardada sola al anotar una partida con el mazo cambiado. */
+  /** Guardada sola al anotar la primera partida (con lo que había en la caja). */
   automatic: boolean
+  /** La lista principal: la de la caja, con la que se anotan las partidas. */
+  principal: boolean
   created_at: string
 }
 
@@ -242,8 +244,13 @@ export type MatchInput = Omit<Match, 'id' | 'version' | 'created_at' | 'version_
 
 export interface DeckDetail {
   deck: { id: number; name: string }
+  /** Lo que hay en la caja del mazo. */
   current: DeckListCard[]
-  /** Lista actual frente a la última versión guardada. */
+  /** Id de la lista principal. */
+  principal: number | null
+  /** Número de la lista con la que se compara la caja (la principal o, si no hay, la última). */
+  compared_to: number | null
+  /** Lo que hay en la caja frente a esa lista. */
   changes: DeckChange[]
   versions: (DeckVersion & { record: MatchRecord; copies: number })[]
   matches: Match[]
@@ -275,7 +282,7 @@ export interface RestoreSource {
 }
 
 export interface RestorePlan {
-  version: number
+  version?: number
   default_target: { id: number; name: string; kind: LocationKind; is_default: boolean }
   outgoing: { bandai_id: number; quantity: number; fakes: number }[]
   incoming: { bandai_id: number; quantity: number; missing: number; sources: RestoreSource[] }[]

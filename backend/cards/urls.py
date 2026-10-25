@@ -21,7 +21,7 @@ urlpatterns = [
     path("my-collection/locations/", views.LocationsView.as_view(), name="my-collection-locations"),
     path("my-collection/locations/<int:pk>/", views.LocationDetailView.as_view(), name="my-collection-location"),
     re_path(
-        r"^my-collection/(?P<path>(decks/\d+/(versions/|matches/|side/)?|deck-versions/\d+/(restore/)?|matches/\d+/))$",
+        r"^my-collection/(?P<path>(decks/\d+/(versions/|matches/|side/|plan/)?|deck-versions/\d+/(restore/)?|matches/\d+/))$",
         views.DeckProxyView.as_view(),
         name="my-collection-decks",
     ),

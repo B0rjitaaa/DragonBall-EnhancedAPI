@@ -586,6 +586,7 @@ class DeckProxyView(APIView):
       POST decks/<id>/versions/             guardar versión {name?, notes?}
       POST decks/<id>/matches/              anotar partida
       POST decks/<id>/side/                 {bandai_id, quantity} copias al side deck
+      POST decks/<id>/plan/                 {cards} qué copias habría que mover para tener esa lista
       GET|PATCH|DELETE deck-versions/<id>/  una versión (cartas, cambios, partidas)
       GET|POST deck-versions/<id>/restore/  hacer principal una versión (plan / mover las copias)
       PATCH|DELETE matches/<id>/            una partida
@@ -603,7 +604,7 @@ class DeckProxyView(APIView):
         cache.delete(CACHE_KEY)  # el side deck o las copias pueden cambiar la vista del mazo
         if result is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
-        if request.method == "GET":
+        if request.method == "GET" or path.endswith("plan/"):
             cards = Card.objects.filter(id__in=_card_ids(result))
             result = {**result, "catalog": {c["id"]: c for c in CardListSerializer(cards, many=True).data}}
         return Response(result, status=status.HTTP_201_CREATED if request.method == "POST" and path.endswith(("versions/", "matches/")) else 200)
