@@ -4,6 +4,8 @@ import type {
   CardSummary, DeckChange, DeckDetail, DeckVersionDetail, LeaderRecord, Match, MatchInput, MatchRecord, MatchResult,
 } from '../lib/types'
 
+/** Líderes rivales que se ven en la cabecera (los demás, en «Ver más»). */
+const RECENT = 5
 const RESULT_LABELS: Record<MatchResult, string> = { win: 'Victoria', loss: 'Derrota', draw: 'Empate' }
 const SECTION_LABELS = { main: 'Mazo', z: 'Z Deck', side: 'Side' } as const
 
@@ -227,6 +229,15 @@ export function MatchesPanel({
   const opponents = useMemo(() => [...new Set(matches.map((m) => m.opponent_name).filter(Boolean))], [matches])
   const events = useMemo(() => [...new Set(matches.map((m) => m.event).filter(Boolean))], [matches])
   const leaderCard = (id: number | null) => (id != null ? allCards[id] : undefined)
+  const [showAll, setShowAll] = useState(false)
+  // Los líderes rivales, una vez cada uno, del enfrentamiento más reciente al más antiguo.
+  const recentLeaders = useMemo(() => {
+    const key = (id: number | null, name: string) => `${id}-${name}`
+    const order = [...new Set(matches.map((m) => key(m.opponent_leader_bandai_id, m.opponent_leader_name)))]
+    return [...byLeader].sort(
+      (a, b) => order.indexOf(key(a.leader_bandai_id, a.leader_name)) - order.indexOf(key(b.leader_bandai_id, b.leader_name)),
+    )
+  }, [matches, byLeader])
 
   const submit = async (input: MatchInput, leader: CardSummary | null) => {
     if (leader) setKnown((k) => ({ ...k, [leader.id]: leader }))
@@ -283,7 +294,7 @@ export function MatchesPanel({
               </tr>
             </thead>
             <tbody>
-              {byLeader.map((r) => {
+              {recentLeaders.slice(0, RECENT).map((r) => {
                 const card = leaderCard(r.leader_bandai_id)
                 return (
                   <tr key={`${r.leader_bandai_id}-${r.leader_name}`}>
@@ -306,7 +317,15 @@ export function MatchesPanel({
             </tbody>
           </table>
 
-          <ul className="match-list" aria-label="Últimas partidas">
+          <button className="link small deck-record-more" onClick={() => setShowAll(true)}>
+            Ver todas las partidas ({record.played}) →
+          </button>
+        </>
+      )}
+
+      {showAll && (
+        <Modal title={`Partidas${version ? ` con ${versionLabel(version)}` : ''} · ${record.wins}-${record.losses}-${record.draws}`} onClose={() => setShowAll(false)}>
+          <ul className="match-list" aria-label="Todas las partidas">
             {matches.map((m) => {
               const card = leaderCard(m.opponent_leader_bandai_id)
               const details = [
@@ -316,7 +335,7 @@ export function MatchesPanel({
                 m.event,
               ].filter(Boolean)
               return (
-                <li key={m.id} className={`match ${m.result}`} title={m.notes || undefined}>
+                <li key={m.id} className={`match ${m.result}`}>
                   <span className={`match-result ${m.result}`} aria-label={RESULT_LABELS[m.result]}>
                     {RESULT_LABELS[m.result][0]}
                   </span>
@@ -331,7 +350,15 @@ export function MatchesPanel({
                     {m.notes && <small className="match-notes">{m.notes}</small>}
                   </span>
                   <span className="match-actions">
-                    <button className="icon-btn" onClick={() => setEditing(m)} title="Editar" aria-label="Editar partida">
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        setShowAll(false)
+                        setEditing(m)
+                      }}
+                      title="Editar"
+                      aria-label="Editar partida"
+                    >
                       ✎
                     </button>
                     <button className="icon-btn" onClick={() => remove(m)} title="Borrar" aria-label="Borrar partida">
@@ -342,7 +369,7 @@ export function MatchesPanel({
               )
             })}
           </ul>
-        </>
+        </Modal>
       )}
 
       {editing && (
