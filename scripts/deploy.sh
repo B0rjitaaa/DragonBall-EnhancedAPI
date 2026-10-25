@@ -28,6 +28,12 @@ if changed '^backend/(requirements\.txt|Dockerfile|entrypoint\.sh)$'; then
   docker compose build backend
 fi
 
+# Webcam del archivador (solo con COMPOSE_PROFILES=camera).
+if changed '^camera/' && docker compose config --services 2>/dev/null | grep -qx camera; then
+  echo "→ Cambia el servicio de la webcam: reconstruyendo…"
+  docker compose build camera
+fi
+
 # Modo producción (COMPOSE_FILE con docker-compose.prod.yml, p. ej. la Pi): el
 # frontend es un build estático dentro de la imagen, así que cualquier cambio
 # en frontend/ obliga a reconstruirla.
@@ -47,8 +53,8 @@ docker compose up -d
 echo "→ Aplicando migraciones…"
 docker compose exec -T backend python manage.py migrate --noinput
 
-echo "→ Reiniciando backend y Celery para cargar el código nuevo…"
-docker compose restart backend celery_worker celery_beat
+echo "→ Reiniciando backend, Celery y el escáner para cargar el código nuevo…"
+docker compose restart backend celery_worker celery_beat scanner_worker
 
 echo "→ Limpiando imágenes antiguas…"
 docker image prune -f >/dev/null

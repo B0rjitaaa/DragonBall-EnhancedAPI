@@ -22,7 +22,7 @@ def env_list(name: str, default: str = "") -> list[str]:
 SECRET_KEY = env("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 DEBUG = env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
-# Orígenes desde los que se usa el admin (p. ej. https://192.168.178.104:8443).
+# Orígenes desde los que se usa el admin (p. ej. https://192.168.178.104).
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "")
 # Detrás de Nginx: si la petición llegó por HTTPS, las URLs que se generan (fotos del
 # escáner) también son https:// (si no, el navegador las bloquea por contenido mixto).

@@ -6,7 +6,7 @@
 # Genera en certs/:
 #   ca.key / ca.crt          CA local (se crea una vez y se reutiliza)
 #   server.key / server.crt  certificado de este servidor para esas IPs/nombres
-# y reinicia el frontend para activar HTTPS (puerto HTTPS_PORT del .env, 8443 por defecto).
+# y reinicia el frontend para activar HTTPS (puerto HTTPS_PORT del .env, 443 por defecto).
 #
 # Si ya tenías la CA del antiguo escáner (DragonBall-CameraCardChecker), copia antes su
 # certs/ca.key y certs/ca.crt aquí: se reutiliza y los dispositivos siguen confiando en ella.
@@ -77,8 +77,8 @@ fi
 
 HTTP_PORT=$(grep -E '^HTTP_PORT=' .env 2>/dev/null | cut -d= -f2 || true)
 HTTPS_PORT=$(grep -E '^HTTPS_PORT=' .env 2>/dev/null | cut -d= -f2 || true)
-HTTP_PORT=${HTTP_PORT:-5173}
-HTTPS_PORT=${HTTPS_PORT:-8443}
+HTTP_PORT=${HTTP_PORT:-80}
+HTTPS_PORT=${HTTPS_PORT:-443}
 suffix() { [ "$1" = "$2" ] && echo "" || echo ":$1"; }
 
 cat <<MSG

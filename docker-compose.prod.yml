@@ -4,8 +4,9 @@
 # Frente al modo desarrollo ahorra ~250 MB de RAM:
 # - frontend: build estático servido por Nginx (en vez del servidor de Vite).
 # - backend: gunicorn con 1 proceso y 4 hilos (en vez de runserver + autoreload).
-# La web sigue en :5173 (HTTP_PORT) y, con certificados en ./certs, también por
-# HTTPS en HTTPS_PORT (scripts/local-https.sh): la cámara del móvil lo necesita.
+# La web se sirve en HTTP_PORT (80) y también en :5173 (enlaces antiguos) y, con
+# certificados en ./certs, por HTTPS en HTTPS_PORT (443; scripts/local-https.sh):
+# la cámara del móvil lo necesita.
 
 services:
   backend:
@@ -22,11 +23,12 @@ services:
       target: prod
       args:
         # A qué puerto HTTPS manda el escáner si se abre por HTTP (la cámara lo necesita).
-        VITE_HTTPS_PORT: ${HTTPS_PORT:-8443}
+        VITE_HTTPS_PORT: ${HTTPS_PORT:-443}
     environment: !reset {}
     volumes: !override
       - media:/srv/media:ro
       - ./certs:/etc/nginx/certs:ro
     ports: !override
-      - "${HTTP_PORT:-5173}:80"
-      - "${HTTPS_PORT:-8443}:443"
+      - "${HTTP_PORT:-80}:80"
+      - "5173:80"
+      - "${HTTPS_PORT:-443}:443"
