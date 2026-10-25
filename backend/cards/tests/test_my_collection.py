@@ -312,5 +312,9 @@ class DeckProxyTests(TestCase):
         r = self.client.post("/api/my-collection/decks/5/matches/", {"played_on": "2026-10-20", "result": "win"}, format="json")
         self.assertEqual(r.status_code, 201)
         self.client.patch("/api/my-collection/matches/7/", {"result": "loss"}, format="json")
-        self.assertEqual([(m, p) for m, p, _ in self.sent], [("POST", "/api/decks/5/matches/"), ("PATCH", "/api/matches/7/")])
+        self.client.post("/api/my-collection/deck-versions/3/restore/", {"default_target": 1}, format="json")
+        self.assertEqual(
+            [(m, p) for m, p, _ in self.sent],
+            [("POST", "/api/decks/5/matches/"), ("PATCH", "/api/matches/7/"), ("POST", "/api/deck-versions/3/restore/")],
+        )
         self.assertEqual(self.client.get("/api/my-collection/decks/abc/").status_code, 404)

@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { colorClass } from '../lib/colors'
-import type { CardSummary, DeckDetail, DeckVersionDetail, Location } from '../lib/types'
+import type { CardSummary, DeckDetail, DeckVersionDetail, Location, RestoreResult } from '../lib/types'
 import { MatchesPanel, VersionBar, versionLabel } from './DeckHistory'
 
 /** Reglas de construcción de Dragon Ball Super Masters que se comprueban. */
@@ -44,6 +44,8 @@ interface Props {
   onOpen: (id: number) => void
   /** Con «Mi orden»: ids de todas las cartas del mazo en el nuevo orden. */
   onReorder?: (ids: number[]) => void
+  /** Se han movido copias desde la vista del mazo (hacer principal una versión). */
+  onCollectionChanged?: () => void
 }
 
 interface CardAction {
@@ -53,13 +55,14 @@ interface CardAction {
 }
 
 /** Vista de un mazo: líder, estadísticas, comprobación de reglas, cartas por secciones, versiones y partidas. */
-export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Props) {
+export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCollectionChanged }: Props) {
   const [detail, setDetail] = useState<DeckDetail | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [loadedVersion, setLoadedVersion] = useState<DeckVersionDetail | null>(null)
   const version = selected != null && loadedVersion?.id === selected ? loadedVersion : null
   const [sideBusy, setSideBusy] = useState(false)
   const [historyError, setHistoryError] = useState('')
+  const [restored, setRestored] = useState<RestoreResult | null>(null)
 
   const reload = useCallback(() => {
     api
@@ -366,10 +369,35 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
       </section>
 
       {detail ? (
-        <VersionBar detail={detail} selected={selected} version={version} onSelect={setSelected} onChanged={reload} />
+        <VersionBar
+          detail={detail}
+          selected={selected}
+          version={version}
+          onSelect={setSelected}
+          onChanged={reload}
+          onRestored={(result) => {
+            setSelected(null)
+            setRestored(result)
+            reload()
+            onCollectionChanged?.()
+          }}
+        />
       ) : historyError ? (
         <p className="muted small">No se pudieron cargar las versiones del mazo: {historyError}</p>
       ) : null}
+      {restored && (
+        <p className={`deck-check ${restored.missing.length ? 'warn' : 'ok'} restore-done`}>
+          {restored.missing.length ? '⚠' : '✓'} Lista principal actualizada: {restored.moved_out} copias fuera del mazo y{' '}
+          {restored.moved_in} dentro.
+          {restored.missing.length > 0 &&
+            ` Faltan ${restored.missing
+              .map((m) => `${m.quantity}× ${catalog[m.bandai_id]?.card_number ?? m.bandai_id}`)
+              .join(', ')}.`}{' '}
+          <button className="link small" onClick={() => setRestored(null)}>
+            Cerrar
+          </button>
+        </p>
+      )}
 
       <DeckSection
         title="Mazo principal"

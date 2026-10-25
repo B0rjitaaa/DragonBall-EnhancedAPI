@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import type {
-  CardSummary, DeckChange, DeckDetail, DeckVersionDetail, LeaderRecord, Match, MatchInput, MatchRecord, MatchResult,
+  CardSummary, DeckChange, DeckDetail, DeckVersionDetail, LeaderRecord, Location, Match, MatchInput, MatchRecord,
+  MatchResult, RestorePlan, RestoreResult, RestoreSource,
 } from '../lib/types'
 
 /** Líderes rivales que se ven en la cabecera (los demás, en «Ver más»). */
@@ -22,6 +23,7 @@ export function VersionBar({
   version,
   onSelect,
   onChanged,
+  onRestored,
 }: {
   detail: DeckDetail
   /** Versión seleccionada (null: la principal). */
@@ -29,7 +31,10 @@ export function VersionBar({
   version: DeckVersionDetail | null
   onSelect: (id: number | null) => void
   onChanged: () => void
+  /** Se ha hecho principal una versión: las copias se han movido. */
+  onRestored: (result: RestoreResult) => void
 }) {
+  const [restoring, setRestoring] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<{ name: string; notes: string } | null>(null)
   const [error, setError] = useState('')
@@ -146,6 +151,13 @@ export function VersionBar({
               {version.automatic && <span className="deck-tag">automática</span>}
             </span>
             <span className="deck-version-actions">
+              <button
+                className="btn primary small"
+                onClick={() => setRestoring(true)}
+                title="Mueve las copias para que el mazo tenga físicamente esta lista"
+              >
+                Hacer principal
+              </button>
               <button className="link small" onClick={rename}>
                 Renombrar
               </button>
@@ -170,7 +182,246 @@ export function VersionBar({
       ) : (
         <p className="muted small">Cargando versión…</p>
       )}
+      {restoring && version && (
+        <RestoreModal
+          deckId={detail.deck.id}
+          version={version}
+          unsaved={detail.changes.length > 0}
+          onClose={() => setRestoring(false)}
+          onDone={(result) => {
+            setRestoring(false)
+            onRestored(result)
+          }}
+        />
+      )}
     </section>
+  )
+}
+
+const sourceLabel = (s: RestoreSource) =>
+  `${s.name} (${s.authentic + s.fakes}${s.fakes ? `, ${s.fakes} falsa${s.fakes > 1 ? 's' : ''}` : ''})${s.kind === 'deck' ? ' · otro mazo' : ''}`
+
+/** De dónde se cogerían `need` copias en automático (el orden que usa el escáner). */
+function autoTake(sources: RestoreSource[], need: number): { source: RestoreSource; n: number }[] {
+  const out = []
+  for (const s of sources) {
+    const n = Math.min(need, s.authentic + s.fakes)
+    if (n) out.push({ source: s, n })
+    need -= n
+    if (!need) break
+  }
+  return out
+}
+
+/**
+ * Hacer principal una versión. La lista principal es lo que hay físicamente en el mazo, así que
+ * se enseña qué copias salen (y adónde van) y cuáles entran (y de dónde), y se mueven al confirmar.
+ */
+function RestoreModal({
+  deckId,
+  version,
+  unsaved,
+  onClose,
+  onDone,
+}: {
+  deckId: number
+  version: DeckVersionDetail
+  /** La lista actual tiene cambios sin guardar como versión. */
+  unsaved: boolean
+  onClose: () => void
+  onDone: (result: RestoreResult) => void
+}) {
+  const [plan, setPlan] = useState<RestorePlan | null>(null)
+  const [locations, setLocations] = useState<Location[]>([])
+  const [target, setTarget] = useState<number | null>(null)
+  const [targets, setTargets] = useState<Record<number, number>>({})
+  const [sources, setSources] = useState<Record<number, number>>({})
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    Promise.all([api.restorePlan(version.id), api.locations()])
+      .then(([p, locs]) => {
+        setPlan(p)
+        setTarget(p.default_target.id)
+        setLocations(locs.filter((l) => l.id !== deckId))
+      })
+      .catch((e) => setError((e as Error).message))
+  }, [version.id, deckId])
+
+  const out = plan?.outgoing.reduce((n, r) => n + r.quantity, 0) ?? 0
+  const inn = plan?.incoming.reduce((n, r) => n + r.quantity, 0) ?? 0
+  const missing = plan?.incoming.reduce((n, r) => n + r.missing, 0) ?? 0
+  const fromDecks = plan
+    ? plan.incoming.flatMap((r) => {
+        const chosen = r.sources.find((s) => s.id === sources[r.bandai_id])
+        const ordered = chosen ? [chosen, ...r.sources.filter((s) => s !== chosen)] : r.sources
+        return autoTake(ordered, r.quantity)
+          .filter((t) => t.source.kind === 'deck')
+          .map((t) => t.source.name)
+      })
+    : []
+  const card = (id: number) => plan?.catalog[id]
+
+  const run = async () => {
+    if (!plan || target == null) return
+    setBusy(true)
+    setError('')
+    try {
+      onDone(await api.restoreVersion(version.id, { default_target: target, targets, sources }))
+    } catch (e) {
+      setError((e as Error).message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={`Hacer principal ${versionLabel(version)}`} onClose={onClose}>
+      {!plan ? (
+        error ? <p className="error">{error}</p> : <p className="muted">Calculando qué copias hay que mover…</p>
+      ) : (
+        <div className="restore">
+          <p className="muted small">
+            La lista principal es lo que tienes físicamente en el mazo. Para que pase a ser {versionLabel(version)}, se mueven
+            estas copias en tu colección (haz lo mismo con las cartas de verdad).
+          </p>
+          {unsaved && (
+            <p className="deck-check warn">
+              ⚠ La lista actual tiene cambios sin guardar como versión: guárdala antes si quieres poder volver a ella.
+            </p>
+          )}
+
+          {out === 0 && inn === 0 ? (
+            <p>Las copias del mazo ya coinciden con {versionLabel(version)}; solo se ajusta el side deck.</p>
+          ) : null}
+
+          {out > 0 && (
+            <section className="restore-block">
+              <header>
+                <h3>
+                  Salen del mazo <span>{out} copias</span>
+                </h3>
+                <label className="restore-target">
+                  Llevarlas a
+                  <select className="input small" value={target ?? ''} onChange={(e) => setTarget(Number(e.target.value))}>
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </header>
+              <ul className="restore-list">
+                {plan.outgoing.map((r) => {
+                  const c = card(r.bandai_id)
+                  return (
+                    <li key={r.bandai_id}>
+                      {c && <img src={c.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+                      <span className="restore-name">
+                        <small>{c?.card_number}</small> {c?.name ?? `#${r.bandai_id}`}
+                      </span>
+                      <b>
+                        −{r.quantity}
+                        {r.fakes > 0 && <small> ({r.fakes} falsa{r.fakes > 1 ? 's' : ''})</small>}
+                      </b>
+                      <select
+                        className="input small"
+                        value={targets[r.bandai_id] ?? ''}
+                        onChange={(e) =>
+                          setTargets(({ [r.bandai_id]: _old, ...rest }) =>
+                            e.target.value ? { ...rest, [r.bandai_id]: Number(e.target.value) } : rest,
+                          )
+                        }
+                        aria-label={`Adónde van las copias de ${c?.name ?? r.bandai_id}`}
+                      >
+                        <option value="">Con el resto</option>
+                        {locations.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                          </option>
+                        ))}
+                      </select>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+
+          {inn > 0 && (
+            <section className="restore-block">
+              <header>
+                <h3>
+                  Entran al mazo <span>{inn} copias</span>
+                </h3>
+              </header>
+              <ul className="restore-list">
+                {plan.incoming.map((r) => {
+                  const c = card(r.bandai_id)
+                  const auto = autoTake(r.sources, r.quantity)
+                  return (
+                    <li key={r.bandai_id} className={r.missing ? 'short' : ''}>
+                      {c && <img src={c.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+                      <span className="restore-name">
+                        <small>{c?.card_number}</small> {c?.name ?? `#${r.bandai_id}`}
+                        {r.missing > 0 && (
+                          <em>
+                            {r.missing === r.quantity ? 'No tienes' : `Te faltan ${r.missing}`}: no {r.missing === 1 ? 'está' : 'están'}{' '}
+                            en ninguna otra ubicación
+                          </em>
+                        )}
+                      </span>
+                      <b>+{r.quantity}</b>
+                      {r.sources.length > 0 ? (
+                        <select
+                          className="input small"
+                          value={sources[r.bandai_id] ?? ''}
+                          onChange={(e) =>
+                            setSources(({ [r.bandai_id]: _old, ...rest }) =>
+                              e.target.value ? { ...rest, [r.bandai_id]: Number(e.target.value) } : rest,
+                            )
+                          }
+                          aria-label={`De dónde se cogen las copias de ${c?.name ?? r.bandai_id}`}
+                        >
+                          <option value="">De: {auto.map((t) => `${t.source.name} ${t.n}`).join(' + ')}</option>
+                          {r.sources.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              Primero de {sourceLabel(s)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="muted small">—</span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+
+          {fromDecks.length > 0 && (
+            <p className="deck-check warn">⚠ Se sacarán copias de otros mazos: {[...new Set(fromDecks)].join(', ')}.</p>
+          )}
+          {missing > 0 && (
+            <p className="deck-check error">
+              ⚠ Faltan {missing} {missing === 1 ? 'copia' : 'copias'}: el mazo quedará incompleto hasta que las consigas.
+            </p>
+          )}
+
+          <div className="match-form-actions">
+            {error && <span className="error small">{error}</span>}
+            <button className="btn" onClick={onClose}>
+              Cancelar
+            </button>
+            <button className="btn primary" onClick={run} disabled={busy}>
+              {busy ? 'Moviendo…' : out + inn > 0 ? `Mover ${out + inn - missing} copias y hacer principal` : 'Hacer principal'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }
 

@@ -263,3 +263,27 @@ export interface DeckVersionDetail extends DeckVersion {
   by_leader: LeaderRecord[]
   catalog: Record<number, CardSummary>
 }
+
+/** Hacer principal una versión: qué copias salen del mazo y cuáles entran (y de dónde). */
+export interface RestoreSource {
+  id: number
+  name: string
+  kind: LocationKind
+  is_default: boolean
+  authentic: number
+  fakes: number
+}
+
+export interface RestorePlan {
+  version: number
+  default_target: { id: number; name: string; kind: LocationKind; is_default: boolean }
+  outgoing: { bandai_id: number; quantity: number; fakes: number }[]
+  incoming: { bandai_id: number; quantity: number; missing: number; sources: RestoreSource[] }[]
+  catalog: Record<number, CardSummary>
+}
+
+export interface RestoreResult {
+  moved_out: number
+  moved_in: number
+  missing: { bandai_id: number; quantity: number }[]
+}

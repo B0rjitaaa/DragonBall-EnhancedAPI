@@ -1,5 +1,5 @@
 import type {
-  CardDetail, DeckDetail, DeckVersion, DeckVersionDetail, FacetsResponse, FieldDef,
+  CardDetail, DeckDetail, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, SearchResponse,
 } from './types'
 
@@ -124,6 +124,12 @@ export const api = {
   updateDeckVersion: (id: number, changes: Partial<Pick<DeckVersion, 'name' | 'notes'>>) =>
     request<DeckVersion>(`/my-collection/deck-versions/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
   deleteDeckVersion: (id: number) => request<void>(`/my-collection/deck-versions/${id}/`, { method: 'DELETE' }),
+  /** Hacer principal una versión: el plan de movimientos y ejecutarlo (las copias se mueven de verdad). */
+  restorePlan: (id: number) => request<RestorePlan>(`/my-collection/deck-versions/${id}/restore/`),
+  restoreVersion: (
+    id: number,
+    body: { default_target: number; targets: Record<number, number>; sources: Record<number, number> },
+  ) => request<RestoreResult>(`/my-collection/deck-versions/${id}/restore/`, post(body)),
   /** Sin `version`: con la lista actual (si cambió desde la última versión, se guarda una nueva). */
   addMatch: (deck: number, match: MatchInput) => request<Match>(`/my-collection/decks/${deck}/matches/`, post(match)),
   updateMatch: (id: number, changes: Partial<MatchInput>) =>

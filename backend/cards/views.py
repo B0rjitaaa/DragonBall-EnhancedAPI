@@ -587,6 +587,7 @@ class DeckProxyView(APIView):
       POST decks/<id>/matches/              anotar partida
       POST decks/<id>/side/                 {bandai_id, quantity} copias al side deck
       GET|PATCH|DELETE deck-versions/<id>/  una versión (cartas, cambios, partidas)
+      GET|POST deck-versions/<id>/restore/  hacer principal una versión (plan / mover las copias)
       PATCH|DELETE matches/<id>/            una partida
     """
 

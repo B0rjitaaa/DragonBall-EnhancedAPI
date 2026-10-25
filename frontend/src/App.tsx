@@ -79,6 +79,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     : ORDERINGS
   const [showFakes, setShowFakes] = useState<boolean>(inCollection ? initial.showFakes ?? false : false)
   const [notice, setNotice] = useState<string | null>(null)
+  // Se incrementa cuando algo fuera de la cuadrícula mueve copias (p. ej. hacer principal una versión del mazo).
+  const [reloadTick, setReloadTick] = useState(0)
 
   const reloadLocations = useCallback(() => {
     if (!inCollection) return
@@ -174,7 +176,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .catch((e: Error) => e.name !== 'AbortError' && setError(e.message))
       .finally(() => !ctrl.signal.aborted && setLoading(false))
     return () => ctrl.abort()
-  }, [searchKey, fields.length, pendingUid])
+  }, [searchKey, fields.length, pendingUid, reloadTick])
 
   // Recuentos de facetas dentro de la búsqueda actual
   useEffect(() => {
@@ -574,6 +576,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             <DeckView
               key={currentLocation.id}
               deck={currentLocation}
+              onCollectionChanged={() => {
+                setReloadTick((t) => t + 1)
+                reloadLocations()
+              }}
               cards={data?.results ?? []}
               loading={loading}
               onOpen={setOpenId}
