@@ -26,3 +26,11 @@ class Command(BaseCommand):
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
         self.stdout.write(self.style.SUCCESS(f"{card.card_number} · {card.name} · {card.card_set} → id {card.id}"))
+        # Que el escáner la reconozca ya: su huella, a partir de la imagen.
+        from scanner.fingerprints import build_pending
+
+        ok, errors = build_pending(card_ids=[card.id])
+        if errors:
+            self.stdout.write(self.style.WARNING("No se pudo calcular su huella (¿la imagen no descarga?)"))
+        else:
+            self.stdout.write(f"Huella para el escáner: {ok}")

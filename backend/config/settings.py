@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "cards",
     "collection",
     "decks",
+    "scanner",
 ]
 
 MIDDLEWARE = [
@@ -83,9 +84,6 @@ DATABASES = {
 }
 
 REDIS_URL = env("REDIS_URL", "redis://localhost:6379")
-
-# "Mi colección": la colección escaneada vive en DragonBall-CameraCardChecker.
-# URL de su API vista desde este backend (p. ej. http://192.168.178.104).
 
 CACHES = {
     "default": {
@@ -153,6 +151,39 @@ CELERY_BEAT_SCHEDULE = {
         "kwargs": {"full": True},
     },
 }
+
+# El reconocimiento va en su propia cola y su propio worker (scanner_worker): un sync
+# largo con Bandai no deja esperando a las cartas que se están escaneando.
+CELERY_TASK_ROUTES = {"scanner.tasks.*": {"queue": "scanner"}}
+# Cada cuántos segundos se "toca" el pipeline para que no acabe en swap (0 = nunca).
+KEEP_WARM_SECONDS = int(env("KEEP_WARM_SECONDS", "60"))
+if KEEP_WARM_SECONDS > 0:
+    CELERY_BEAT_SCHEDULE["scanner-keep-warm"] = {
+        "task": "scanner.tasks.keep_warm",
+        "schedule": KEEP_WARM_SECONDS,
+        # Si el worker está ocupado, no acumular ejecuciones atrasadas.
+        "options": {"expires": KEEP_WARM_SECONDS * 0.8},
+    }
+CELERY_BEAT_SCHEDULE["scanner-cleanup-old-scans"] = {
+    "task": "scanner.tasks.cleanup_old_scans",
+    "schedule": crontab(hour=5, minute=0, day_of_week="mon"),
+}
+
+# --- Escáner -------------------------------------------------------------------
+# Fotos de los escaneos e imágenes propias de impresiones (volumen media).
+MEDIA_URL = "/media/"
+MEDIA_ROOT = env("MEDIA_ROOT", "/media")
+# Caché local de imágenes oficiales para calcular huellas (ver scanner/images.py).
+CARD_IMAGES_DIR = env("CARD_IMAGES_DIR", "/data/card_images")
+MATCH_HASH_THRESHOLD = int(env("MATCH_HASH_THRESHOLD", "20"))
+MATCH_ORB_CANDIDATES = int(env("MATCH_ORB_CANDIDATES", "8"))
+MATCH_MIN_CONFIDENCE = float(env("MATCH_MIN_CONFIDENCE", "0.55"))
+# Modo ráfaga: confianza mínima para añadir la carta a la colección sin confirmar.
+# 0,65 tras la calibración del 19/10/2026: aciertos 70–100 %, zona vacía 33–41 %.
+AUTO_ADD_MIN_CONFIDENCE = float(env("AUTO_ADD_MIN_CONFIDENCE", "0.65"))
+SCAN_RETENTION_DAYS = int(env("SCAN_RETENTION_DAYS", "30"))
+# Servicio `camera` (webcam del archivador), el único que abre /dev/video0.
+CAMERA_URL = env("CAMERA_URL", "")
 
 # --- Bandai TCG+ -------------------------------------------------------------
 BANDAI_API_URL = env("BANDAI_API_URL", "https://api.bandai-tcg-plus.com/api/user")

@@ -7,6 +7,8 @@ x-backend: &backend
   volumes:
     - ./backend:/app
     - ./data:/data
+    # Fotos de los escaneos e imágenes propias de impresiones (MEDIA_ROOT).
+    - media:/media
   restart: unless-stopped
 
 services:
@@ -64,6 +66,16 @@ services:
     depends_on:
       backend: { condition: service_healthy }
 
+  # Reconocimiento de cartas (cola «scanner»): una tarea a la vez y con el índice
+  # de huellas en memoria, aparte del worker del sync.
+  scanner_worker:
+    <<: *backend
+    command: celery -A config worker -Q scanner -l info --pool=solo -n scanner@%h
+    environment:
+      SCANNER_WORKER: "1"
+    depends_on:
+      backend: { condition: service_healthy }
+
   celery_beat:
     <<: *backend
     command: celery -A config beat -l info
@@ -89,3 +101,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  media:

@@ -1,14 +1,19 @@
 """Importa los datos del antiguo escáner (DragonBall-CameraCardChecker).
 
 En el escáner:
-    docker compose exec -T backend python manage.py dumpdata cards.card collection decks > escaner.json
+    docker compose exec -T backend python manage.py dumpdata cards.card cards.cardfingerprint \
+        collection decks scans > escaner.json
 Aquí:
     python manage.py import_checker escaner.json
+y copiar sus fotos (media/scans/…) al volumen media de aquí, con las mismas rutas.
 
 Las cartas del escáner se cruzan con este catálogo por su id de Bandai (aquí, Card.id).
-Si alguna no está en el catálogo no se importa nada: hay que darla de alta antes
-(p. ej. con add_printing). Los mazos (decks.*) son opcionales en el volcado.
+Si alguna carta de la colección o de un mazo no está en el catálogo no se importa
+nada: hay que darla de alta antes (p. ej. con add_printing). Las huellas y escaneos
+de cartas que no estén se omiten (se avisa). Mazos, huellas y escaneos son opcionales
+en el volcado.
 """
+import base64
 import json
 import uuid
 from collections import Counter, defaultdict
@@ -20,6 +25,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 from cards.models import Card
 from collection.models import CollectionEntry, Location
 from decks.models import DeckVersion, DeckVersionCard, Match, SideCard
+from scanner.models import CardFingerprint, Scan, ScanSession
 
 
 class Command(BaseCommand):
@@ -50,17 +56,22 @@ class Command(BaseCommand):
             listing = ", ".join(f"{numbers[b]} ({b})" for b in missing)
             raise CommandError(f"Faltan en el catálogo {len(missing)} cartas: {listing}. Dalas de alta antes.")
 
-        if not replace and (CollectionEntry.objects.exists() or DeckVersion.objects.exists()):
-            raise CommandError("Ya hay colección o mazos aquí: usa --replace para sustituirlos")
+        if not replace and (CollectionEntry.objects.exists() or DeckVersion.objects.exists() or Scan.objects.exists()):
+            raise CommandError("Ya hay colección, mazos o escaneos aquí: usa --replace para sustituirlos")
 
         with transaction.atomic():
             if replace:
+                Scan.objects.all().delete()
+                ScanSession.objects.all().delete()
+                if rows["cards.cardfingerprint"]:
+                    CardFingerprint.objects.all().delete()
                 Match.objects.all().delete()
                 DeckVersion.objects.all().delete()
                 SideCard.objects.all().delete()
                 CollectionEntry.objects.all().delete()
                 Location.objects.all().delete()
             counts = self._import(rows, bandai)
+            counts.update(self._import_scanner(rows, bandai))
             if dry_run:
                 transaction.set_rollback(True)
         verb = "Se importarían" if dry_run else "Importado"
@@ -87,9 +98,11 @@ class Command(BaseCommand):
             locations[o["pk"]] = loc
             counts["ubicaciones"] += 1
 
+        self.entries: dict[int, CollectionEntry] = {}
+        self.locations = locations
         for o in rows["collection.collectionentry"]:
             f = o["fields"]
-            entry = CollectionEntry.objects.create(
+            entry = self.entries[o["pk"]] = CollectionEntry.objects.create(
                 card_id=bandai[f["card"]], location=locations[f["location"]], quantity=f["quantity"],
                 fake=f.get("fake", False), position=f.get("position", 0), notes=f.get("notes", ""),
             )
@@ -130,4 +143,65 @@ class Command(BaseCommand):
             )
             Match.objects.filter(pk=m.pk).update(created_at=parse_datetime(f["created_at"]))
             counts["partidas"] += 1
+        return counts
+
+    def _import_scanner(self, rows, bandai) -> Counter:
+        """Sesiones, escaneos y huellas del escáner (las fotos se copian aparte, mismas rutas)."""
+        counts = Counter()
+        known = set(Card.objects.values_list("id", flat=True))
+
+        def card_id(pk):
+            b = bandai.get(pk)
+            return b if b in known else None
+
+        sessions: dict[int, ScanSession] = {}
+        for o in rows["scans.scansession"]:
+            f = o["fields"]
+            session = ScanSession.objects.create(
+                mode=f.get("mode", "burst"), location=self.locations.get(f.get("location")),
+                ended_at=parse_datetime(f["ended_at"]) if f.get("ended_at") else None,
+            )
+            ScanSession.objects.filter(pk=session.pk).update(started_at=parse_datetime(f["started_at"]))
+            sessions[o["pk"]] = session
+            counts["sesiones"] += 1
+
+        scans: dict[int, Scan] = {}
+        for o in rows["scans.scan"]:
+            f = dict(o["fields"])
+            original = f.pop("matched_card", None)
+            matched = card_id(original) if original else None
+            if original and matched is None:
+                counts["escaneos con carta desconocida"] += 1
+            session = sessions.get(f.pop("session", None))
+            entry = self.entries.get(f.pop("collection_entry", None))
+            # Los candidatos guardan el id de carta del escáner: se pasan al de aquí.
+            candidates = []
+            for cand in f.pop("candidates", []) or []:
+                cid = card_id(cand.get("card_id"))
+                if cid is not None:
+                    candidates.append({**cand, "card_id": cid})
+            created_at, finished_at = f.pop("created_at"), f.pop("finished_at", None)
+            scan = Scan.objects.create(
+                matched_card_id=matched, session=session, collection_entry=entry, candidates=candidates,
+                **{k: v for k, v in f.items() if k in {fl.name for fl in Scan._meta.fields}},
+            )
+            Scan.objects.filter(pk=scan.pk).update(
+                created_at=parse_datetime(created_at), finished_at=parse_datetime(finished_at) if finished_at else None,
+            )
+            scans[o["pk"]] = scan
+            counts["escaneos"] += 1
+
+        prints = []
+        for o in rows["cards.cardfingerprint"]:
+            f = o["fields"]
+            cid = card_id(f["card"])
+            if cid is None:
+                counts["huellas omitidas (carta desconocida)"] += 1
+                continue
+            prints.append(CardFingerprint(
+                card_id=cid, face=f["face"], source_url=f.get("source_url", ""), scan=scans.get(f.get("scan")),
+                phash=f["phash"], dhash=f["dhash"], orb=base64.b64decode(f["orb"]), orb_count=f.get("orb_count", 0),
+            ))
+        CardFingerprint.objects.bulk_create(prints, batch_size=500)
+        counts["huellas"] += len(prints)
         return counts

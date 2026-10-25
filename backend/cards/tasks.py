@@ -73,6 +73,11 @@ def sync_cards(full: bool = False) -> dict:
         run.finished_at = timezone.now()
         run.save()
         cache.delete(LOCK_KEY)
+    if run.created or run.updated:
+        # Huellas para el escáner de lo nuevo o con imagen cambiada (en la cola del escáner).
+        from scanner.tasks import build_fingerprints
+
+        build_fingerprints.delay()
 
     return {
         "run": run.pk, "status": run.status, "listed": run.listed,

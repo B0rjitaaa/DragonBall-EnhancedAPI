@@ -7,15 +7,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# libglib2.0-0: dependencia de runtime de opencv-python-headless (escáner).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY . .
-RUN useradd --create-home app && chown -R app /app
+# /media: volumen de fotos del escáner (se crea con este dueño la primera vez).
+RUN useradd --create-home --uid 1000 app && mkdir -p /media && chown -R app /app /media
 USER app
 
 EXPOSE 8000
