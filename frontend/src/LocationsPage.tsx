@@ -7,6 +7,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useCallback, useEffect, useState, type SyntheticEvent } from 'react'
 import { KIND_LABELS } from './components/OwnedPanel'
 import { api } from './lib/api'
+import { locationPath } from './lib/query'
 import type { Location, LocationKind } from './lib/types'
 
 const KINDS = Object.entries(KIND_LABELS) as [LocationKind, string][]
@@ -17,10 +18,8 @@ const KIND_SECTIONS: [LocationKind, string][] = [
   ['other', 'Otras'],
 ]
 
-/** Enlace a Mi colección filtrada por una ubicación (el estado de la búsqueda va en el #). */
-export function collectionUrl(location: number): string {
-  return `/coleccion#${encodeURIComponent(JSON.stringify({ location, ordering: 'position' }))}`
-}
+/** Enlace a Mi colección dentro de una ubicación. */
+export const collectionUrl = (loc: Location): string => locationPath(loc)
 
 /** Asa de arrastre de una tarjeta de ubicación. */
 interface DragHandle {
@@ -145,7 +144,7 @@ export default function LocationsPage() {
           <p className="muted">
             Dónde guardas las copias: mazos, archivadores, cajas… Lo escaneado entra en «Sin ubicar» salvo que elijas otra
             ubicación al empezar el modo ráfaga. Para mover cartas, usa el modo{' '}
-            <a href={`/coleccion#${encodeURIComponent(JSON.stringify({ view: 'list' }))}`}>Lista de Mi colección</a>.
+            <a href="/coleccion?vista=list">Lista de Mi colección</a>.
           </p>
         </div>
         <form
@@ -247,7 +246,7 @@ function LocationCard({
       {loc.leader && (
         <a
           className="loc-leader"
-          href={collectionUrl(loc.id)}
+          href={collectionUrl(loc)}
           title={`${loc.leader.card_number} · ${loc.leader.name}`}
           draggable={false}
         >
@@ -306,7 +305,7 @@ function LocationCard({
         {loc.fakes > 0 && (
           <>
             {' · '}
-            <a className="fake-link" href={`/coleccion#${encodeURIComponent(JSON.stringify({ location: loc.id, ordering: 'position', showFakes: true }))}`}>
+            <a className="fake-link" href={`${collectionUrl(loc)}?falsas=1`}>
               {loc.fakes === 1 ? '1 falsa' : `${loc.fakes} falsas`}
             </a>
           </>
@@ -339,7 +338,7 @@ function LocationCard({
         </>
       )}
       <div className="loc-actions">
-        <a className="btn" href={collectionUrl(loc.id)}>
+        <a className="btn" href={collectionUrl(loc)}>
           Ver cartas
         </a>
         {!loc.is_default && (

@@ -68,6 +68,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [adjusting, setAdjusting] = useState<Set<number>>(() => new Set())
   // Mi colección: ubicaciones, la filtrada (null = todas) y el gestor.
   const [location, setLocation] = useState<number | null>(inCollection ? initial.location ?? null : null)
+  // Ubicación pedida en la ruta (/coleccion/mazo/<uid>): hasta conocer su id no se busca nada.
+  const [pendingUid, setPendingUid] = useState<string | null>(inCollection ? initial.locationUid ?? null : null)
   const [locations, setLocations] = useState<Location[]>([])
   const [view, setView] = useState<'grid' | 'list' | 'deck'>(inCollection ? initial.view ?? 'grid' : 'grid')
   // Mi colección: por defecto solo cuentan las copias auténticas; con esto, también las falsas.
@@ -83,17 +85,24 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     api
       .locations()
       .then(setLocations)
-      .catch(() => undefined) // sin lista de ubicaciones, el resto sigue funcionando
+      .catch(() => setPendingUid(null)) // sin lista de ubicaciones, el resto sigue funcionando
   }, [inCollection])
   useEffect(reloadLocations, [reloadLocations])
+  useEffect(() => {
+    if (!pendingUid || !locations.length) return
+    const found = locations.find((l) => l.uid === pendingUid)
+    if (found) setLocation(found.id)
+    else setNotice('Esa ubicación ya no existe: se muestra toda tu colección.')
+    setPendingUid(null)
+  }, [pendingUid, locations])
   // La ubicación filtrada ya no existe (se borró): se quita el filtro.
   useEffect(() => {
     if (location != null && locations.length && !locations.some((l) => l.id === location)) setLocation(null)
   }, [locations, location])
   // «Mi orden» solo existe dentro de una ubicación.
   useEffect(() => {
-    if (location == null && ordering === 'position') setOrdering('number')
-  }, [location, ordering])
+    if (location == null && !pendingUid && ordering === 'position') setOrdering('number')
+  }, [location, ordering, pendingUid])
   // Dentro de un mazo, la vista «Mazo» (líder, estadísticas y reglas); fuera de un mazo no existe.
   const currentLocation = locations.find((l) => l.id === location)
   const isDeck = inCollection && currentLocation?.kind === 'deck'
@@ -109,6 +118,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }, [isDeck, location, lastDeck, view, locations.length])
 
   useEffect(() => {
+    if (pendingUid) return
     Promise.all([api.fields(), api.facets(scope, location, showFakes)])
       .then(([f, fc]) => {
         setFields(f)
@@ -119,7 +129,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .keywordSkills()
       .then((d) => setSkills(new SkillIndex(d)))
       .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
-  }, [scope, location, showFakes])
+  }, [scope, location, showFakes, pendingUid])
 
   const query = useMemo(
     () => (fields.length ? buildQuery(facets, advanced, advancedOn, fields) : null),
@@ -152,7 +162,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
 
   // Resultados
   useEffect(() => {
-    if (!fields.length) return
+    if (!fields.length || pendingUid) return
     const ctrl = new AbortController()
     setLoading(true)
     api
@@ -164,7 +174,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .catch((e: Error) => e.name !== 'AbortError' && setError(e.message))
       .finally(() => !ctrl.signal.aborted && setLoading(false))
     return () => ctrl.abort()
-  }, [searchKey, fields.length])
+  }, [searchKey, fields.length, pendingUid])
 
   // Recuentos de facetas dentro de la búsqueda actual
   useEffect(() => {
@@ -181,9 +191,12 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     return () => ctrl.abort()
   }, [filterKey, fields.length])
 
+  const urlLocation = locations.find((l) => l.id === location) ?? null
   useEffect(() => {
-    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location, view, showFakes })
-  }, [q, facets, advanced, advancedOn, ordering, page, location, view, showFakes])
+    // Con una ubicación aún sin cargar no se toca la URL (se perdería su uid).
+    if (pendingUid || (location != null && !urlLocation)) return
+    writeUrlState({ q, facets, advanced, advancedOn, ordering, page, location, view, showFakes }, urlLocation)
+  }, [q, facets, advanced, advancedOn, ordering, page, location, view, showFakes, pendingUid, urlLocation])
 
   useEffect(() => {
     // En Chrome reciente scrollTo devuelve una Promise: no puede ser el valor de retorno del efecto

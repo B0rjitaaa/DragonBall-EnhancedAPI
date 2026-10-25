@@ -25,6 +25,13 @@ const sectionOf = (c: CardSummary): Section | 'leader' =>
   c.card_type === 'LEADER' ? 'leader' : c.card_type.startsWith('Z-') ? 'z' : 'main'
 const copies = (c: CardSummary) => c.quantity ?? 0
 
+interface Filter {
+  cost: number[]
+  type: string[]
+  color: string[]
+}
+const NO_FILTER: Filter = { cost: [], type: [], color: [] }
+
 interface Issue {
   level: 'error' | 'warn'
   text: string
@@ -191,6 +198,22 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
     return { issues, flagged }
   }, [main, zDeck, leader, leaders.length, stats.total])
 
+  // Filtros desde las estadísticas (coste, tipo, color): se aplican a cada sección por separado.
+  const [filter, setFilter] = useState<Filter>(NO_FILTER)
+  const filtering = filter.cost.length + filter.type.length + filter.color.length > 0
+  const toggle = <K extends keyof Filter>(key: K, value: Filter[K][number]) =>
+    setFilter((f) => {
+      const list = f[key] as Filter[K][number][]
+      return { ...f, [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] }
+    })
+  const passes = (c: CardSummary) =>
+    (!filter.cost.length || filter.cost.includes(Math.min(c.energy ?? 0, 10))) &&
+    (!filter.type.length || filter.type.includes(c.card_type)) &&
+    (!filter.color.length || c.colors.some((col) => filter.color.includes(col)))
+  const shown = (list: CardSummary[]) => (filtering ? list.filter(passes) : list)
+  const countOf = (list: CardSummary[]) => list.reduce((n, c) => n + copies(c), 0)
+  const onClass = (on: boolean) => (on ? 'on' : filtering ? 'dim' : '')
+
   const reorderSection = (section: Section, ids: number[]) => {
     if (!onReorder) return
     const order = [
@@ -205,7 +228,6 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
   const zTotal = zDeck.reduce((n, c) => n + copies(c), 0)
   const sideTotal = side.reduce((n, c) => n + copies(c), 0)
 
-  const record = version?.record ?? detail?.record
   const catalog = { ...(detail?.catalog ?? {}), ...(version?.catalog ?? {}) }
 
   return (
@@ -250,15 +272,6 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
                 <strong>{sideTotal}</strong> side
               </span>
             )}
-            {record && record.played > 0 && (
-              <span className="deck-count" title={`${record.wins} victorias, ${record.losses} derrotas, ${record.draws} empates`}>
-                <strong>
-                  {record.wins}-{record.losses}
-                  {record.draws ? `-${record.draws}` : ''}
-                </strong>{' '}
-                {record.win_rate != null && `${Math.round(record.win_rate * 100)}%`} en {record.played} partidas
-              </span>
-            )}
           </div>
           {issues.length === 0 ? (
             <span className="deck-check ok">✓ Cumple las reglas de construcción</span>
@@ -276,16 +289,36 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
           )}
         </div>
 
+        {detail ? (
+          <MatchesPanel
+            deckId={deck.id}
+            matches={version ? version.matches.map((m) => ({ ...m, version_number: version.number })) : detail.matches}
+            record={version?.record ?? detail.record}
+            byLeader={version?.by_leader ?? detail.by_leader}
+            catalog={catalog}
+            version={version}
+            onChanged={reload}
+          />
+        ) : (
+          <div className="deck-record" />
+        )}
+
         <div className="deck-stats">
           <figure className="deck-curve" aria-label="Curva de energía del mazo principal">
             <figcaption>Curva de energía</figcaption>
             <div className="deck-bars">
               {stats.bars.map((b) => (
-                <div key={b.cost} className="deck-bar" title={`Coste ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cartas`}>
+                <button
+                  key={b.cost}
+                  className={`deck-bar ${onClass(filter.cost.includes(b.cost))}`}
+                  title={`Coste ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cartas · pulsa para filtrar`}
+                  aria-pressed={filter.cost.includes(b.cost)}
+                  onClick={() => toggle('cost', b.cost)}
+                >
                   <span className="deck-bar-n">{b.n || ''}</span>
                   <span className="deck-bar-fill" style={{ height: `${(b.n / stats.peak) * 100}%` }} />
                   <span className="deck-bar-x">{b.cost === 10 ? '10+' : b.cost}</span>
-                </div>
+                </button>
               ))}
             </div>
           </figure>
@@ -293,9 +326,14 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
             <p className="deck-mix-title">Tipos</p>
             <div className="deck-chips">
               {[...stats.types].map(([t, n]) => (
-                <span key={t} className="deck-chip">
+                <button
+                  key={t}
+                  className={`deck-chip ${onClass(filter.type.includes(t))}`}
+                  aria-pressed={filter.type.includes(t)}
+                  onClick={() => toggle('type', t)}
+                >
                   {TYPE_LABELS[t] ?? t} <strong>{n}</strong>
-                </span>
+                </button>
               ))}
             </div>
             <p className="deck-mix-title">Colores</p>
@@ -308,11 +346,21 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
             </div>
             <div className="deck-chips">
               {[...stats.colors].map(([col, n]) => (
-                <span key={col} className="deck-chip">
+                <button
+                  key={col}
+                  className={`deck-chip ${onClass(filter.color.includes(col))}`}
+                  aria-pressed={filter.color.includes(col)}
+                  onClick={() => toggle('color', col)}
+                >
                   <i className={`dot ${colorClass(col)}`} /> {col} <strong>{n}</strong>
-                </span>
+                </button>
               ))}
             </div>
+            {filtering && (
+              <button className="link small deck-filter-clear" onClick={() => setFilter(NO_FILTER)}>
+                ✕ Quitar filtros
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -326,47 +374,45 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder }: Pr
       <DeckSection
         title="Mazo principal"
         count={stats.total}
-        cards={main}
+        shown={filtering ? countOf(shown(main)) : undefined}
+        cards={shown(main)}
         flagged={flagged}
         onOpen={onOpen}
         action={toSide}
-        onReorder={canReorderNow ? (ids) => reorderSection('main', ids) : undefined}
+        onReorder={canReorderNow && !filtering ? (ids) => reorderSection('main', ids) : undefined}
       />
       {zDeck.length > 0 && (
         <DeckSection
           title="Z Deck"
           count={zTotal}
-          cards={zDeck}
+          shown={filtering ? countOf(shown(zDeck)) : undefined}
+          cards={shown(zDeck)}
           flagged={flagged}
           onOpen={onOpen}
           action={toSide}
-          onReorder={canReorderNow ? (ids) => reorderSection('z', ids) : undefined}
+          onReorder={canReorderNow && !filtering ? (ids) => reorderSection('z', ids) : undefined}
         />
       )}
       {(side.length > 0 || viewingCurrent) && (
         <DeckSection
           title="Side deck"
           count={sideTotal}
-          cards={side}
+          shown={filtering ? countOf(shown(side)) : undefined}
+          cards={shown(side)}
           flagged={new Map()}
           onOpen={onOpen}
           action={fromSide}
-          empty={viewingCurrent ? 'Sin cartas en el side. Usa «→ Side» en una carta del mazo para apartar copias.' : undefined}
+          empty={
+            filtering
+              ? 'Ninguna carta del side con estos filtros.'
+              : viewingCurrent
+                ? 'Sin cartas en el side. Usa «→ Side» en una carta del mazo para apartar copias.'
+                : undefined
+          }
         />
       )}
-      {canReorderNow && <p className="reorder-hint">Arrastra las cartas para ordenarlas dentro de su sección (en el móvil, mantén pulsada una carta).</p>}
+      {canReorderNow && !filtering && <p className="reorder-hint">Arrastra las cartas para ordenarlas dentro de su sección (en el móvil, mantén pulsada una carta).</p>}
 
-      {detail && (
-        <MatchesPanel
-          deckId={deck.id}
-          matches={version ? version.matches.map((m) => ({ ...m, version_number: version.number })) : detail.matches}
-          record={version?.record ?? detail.record}
-          byLeader={version?.by_leader ?? detail.by_leader}
-          catalog={catalog}
-          version={version}
-          onChanged={reload}
-        />
-      )}
     </div>
   )
 }
@@ -379,10 +425,13 @@ function DeckSection({
   onOpen,
   onReorder,
   action,
-  empty = 'Sin cartas.',
+  shown,
+  empty = shown != null ? 'Ninguna carta con estos filtros.' : 'Sin cartas.',
 }: {
   title: string
   count: number
+  /** Con filtros: copias que se ven. */
+  shown?: number
   cards: CardSummary[]
   flagged: Map<number, string>
   onOpen: (id: number) => void
@@ -411,7 +460,7 @@ function DeckSection({
   return (
     <section className="deck-section">
       <h3>
-        {title} <span>{count} cartas</span>
+        {title} <span>{shown != null ? `${shown} de ${count}` : count} cartas</span>
       </h3>
       {cards.length === 0 ? (
         <p className="muted small">{empty}</p>

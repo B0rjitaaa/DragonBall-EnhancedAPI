@@ -6,10 +6,10 @@ import LocationsPage from './LocationsPage.tsx'
 import SiteNav from './components/SiteNav.tsx'
 
 // Dos páginas con el mismo buscador: todo el catálogo (/) y Mi colección
-// (/coleccion, solo las cartas escaneadas; el estado de filtros va en el #),
+// (/coleccion, solo las cartas escaneadas; /coleccion/mazo/<uid> dentro de un mazo),
 // más la de ubicaciones de Mi colección (/ubicaciones).
 const path = window.location.pathname.replace(/\/+$/, '')
-const page = path === '/coleccion' ? 'collection' : path === '/ubicaciones' ? 'locations' : 'search'
+const page = path === '/coleccion' || path.startsWith('/coleccion/') ? 'collection' : path === '/ubicaciones' ? 'locations' : 'search'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

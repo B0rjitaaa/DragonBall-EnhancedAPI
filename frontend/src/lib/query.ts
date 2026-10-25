@@ -128,20 +128,74 @@ export interface UrlState {
   showFakes?: boolean
 }
 
-export function readUrlState(): Partial<UrlState> {
+/** Lo que se lee de la URL: el estado, y la ubicación por su uid (se resuelve a su id al cargar las ubicaciones). */
+export type InitialUrlState = Partial<UrlState> & { locationUid?: string }
+
+const LOCATION_PATH = /^\/coleccion\/(mazo|ubicacion)\/([0-9a-f-]{36})\/?$/i
+
+/** Ruta de Mi colección dentro de una ubicación: /coleccion/mazo/<uid> o /coleccion/ubicacion/<uid>. */
+export function locationPath(loc: { uid: string; kind: string }): string {
+  return `/coleccion/${loc.kind === 'deck' ? 'mazo' : 'ubicacion'}/${loc.uid}`
+}
+
+const parseJson = <T,>(raw: string | null): T | undefined => {
+  if (!raw) return undefined
   try {
-    const raw = decodeURIComponent(window.location.hash.slice(1))
-    return raw ? (JSON.parse(raw) as Partial<UrlState>) : {}
+    return JSON.parse(raw) as T
   } catch {
-    return {}
+    return undefined
   }
 }
 
-export function writeUrlState(state: UrlState): void {
-  const empty =
-    !state.q && !Object.keys(state.facets).length && !state.advanced.children.length && state.page === 1 && !state.location && (state.view ?? 'grid') === 'grid' && !state.showFakes
-  const hash = empty && state.ordering === 'number' ? '' : `#${encodeURIComponent(JSON.stringify(state))}`
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`)
+/**
+ * Estado de la búsqueda desde la URL: la ubicación va en la ruta y lo demás en
+ * parámetros legibles (?q=goku&orden=-energy&pagina=2…), solo lo que no es por defecto.
+ * Los enlaces antiguos (todo en JSON tras el #) se siguen entendiendo.
+ */
+export function readUrlState(): InitialUrlState {
+  const legacy = parseJson<Partial<UrlState>>(decodeURIComponent(window.location.hash.slice(1)))
+  if (legacy) return legacy
+  const params = new URLSearchParams(window.location.search)
+  const state: InitialUrlState = {}
+  const match = window.location.pathname.match(LOCATION_PATH)
+  if (match) state.locationUid = match[2].toLowerCase()
+  if (params.get('q')) state.q = params.get('q')!
+  if (params.get('orden')) state.ordering = params.get('orden')!
+  else if (match) state.ordering = 'position'
+  const page = Number(params.get('pagina'))
+  if (page > 1) state.page = page
+  const view = params.get('vista')
+  if (view === 'grid' || view === 'list' || view === 'deck') state.view = view
+  if (params.get('falsas') === '1') state.showFakes = true
+  const facets = parseJson<FacetState>(params.get('filtros'))
+  if (facets) state.facets = facets
+  const advanced = parseJson<Group>(params.get('avanzado'))
+  if (advanced) {
+    state.advanced = advanced
+    state.advancedOn = params.get('avanzado_on') !== '0'
+  }
+  return state
+}
+
+/** Escribe el estado en la URL (sin recargar). `loc`: la ubicación filtrada, si la hay y ya se conoce. */
+export function writeUrlState(state: UrlState, loc?: { uid: string; kind: string } | null): void {
+  const params = new URLSearchParams()
+  const defaultOrdering = loc ? 'position' : 'number'
+  const defaultView = loc?.kind === 'deck' ? 'deck' : 'grid'
+  if (state.q) params.set('q', state.q)
+  if (state.ordering !== defaultOrdering) params.set('orden', state.ordering)
+  if (state.page > 1 && state.view !== 'deck') params.set('pagina', String(state.page))
+  if ((state.view ?? 'grid') !== defaultView) params.set('vista', state.view ?? 'grid')
+  if (state.showFakes) params.set('falsas', '1')
+  if (Object.keys(state.facets).length) params.set('filtros', JSON.stringify(state.facets))
+  if (state.advanced.children.length) {
+    params.set('avanzado', JSON.stringify(state.advanced))
+    if (!state.advancedOn) params.set('avanzado_on', '0')
+  }
+  const inCollection = window.location.pathname.startsWith('/coleccion')
+  const path = !inCollection ? window.location.pathname : loc ? locationPath(loc) : '/coleccion'
+  const search = params.toString()
+  window.history.replaceState(null, '', `${path}${search ? `?${search}` : ''}`)
 }
 
 // Misma normalización que el backend (cards/parsing.py) para que '[Activate : Main]' del texto

@@ -202,7 +202,7 @@ function ChangeList({ title, changes, catalog }: { title: string; changes: DeckC
   )
 }
 
-/** Partidas del mazo (o de una versión): balance, por líder rival, formulario y lista. */
+/** Partidas del mazo (o de una versión), en la cabecera: balance, por líder rival y las últimas. */
 export function MatchesPanel({
   deckId,
   matches,
@@ -226,6 +226,7 @@ export function MatchesPanel({
   const allCards = { ...catalog, ...known }
   const opponents = useMemo(() => [...new Set(matches.map((m) => m.opponent_name).filter(Boolean))], [matches])
   const events = useMemo(() => [...new Set(matches.map((m) => m.event).filter(Boolean))], [matches])
+  const leaderCard = (id: number | null) => (id != null ? allCards[id] : undefined)
 
   const submit = async (input: MatchInput, leader: CardSummary | null) => {
     if (leader) setKnown((k) => ({ ...k, [leader.id]: leader }))
@@ -242,39 +243,48 @@ export function MatchesPanel({
   }
 
   return (
-    <section className="deck-section deck-matches">
-      <h3>
-        Partidas {version ? `con ${versionLabel(version)}` : ''} <span>{record.played} jugadas</span>
-      </h3>
+    <section className="deck-record" aria-label="Partidas">
+      <div className="deck-record-head">
+        <p className="deck-mix-title">Partidas{version ? ` con v${version.number}` : ''}</p>
+        <button className="btn primary small" onClick={() => setEditing('new')}>
+          + Resultado
+        </button>
+      </div>
 
-      {record.played > 0 && (
-        <div className="match-summary">
-          <div className="match-rate">
-            <strong>{pct(record)}</strong>
-            <small>victorias</small>
-          </div>
-          <div className="match-wld" aria-label="Victorias, derrotas y empates">
-            <span className="win">{record.wins} V</span>
-            <span className="loss">{record.losses} D</span>
-            {record.draws > 0 && <span className="draw">{record.draws} E</span>}
-            <div className="match-bar">
-              <i className="win" style={{ flexGrow: record.wins }} />
-              <i className="draw" style={{ flexGrow: record.draws }} />
-              <i className="loss" style={{ flexGrow: record.losses }} />
+      {record.played === 0 ? (
+        <p className="muted small">
+          Sin partidas anotadas{version ? ' con esta versión' : ''}. Pulsa «+ Resultado» al terminar una.
+        </p>
+      ) : (
+        <>
+          <div className="match-summary">
+            <div className="match-rate">
+              <strong>{pct(record)}</strong>
+              <small>{record.played === 1 ? '1 partida' : `${record.played} partidas`}</small>
+            </div>
+            <div className="match-wld" aria-label="Victorias, derrotas y empates">
+              <span className="win">{record.wins} V</span>
+              <span className="loss">{record.losses} D</span>
+              {record.draws > 0 && <span className="draw">{record.draws} E</span>}
+              <div className="match-bar">
+                <i className="win" style={{ flexGrow: record.wins }} />
+                <i className="draw" style={{ flexGrow: record.draws }} />
+                <i className="loss" style={{ flexGrow: record.losses }} />
+              </div>
             </div>
           </div>
+
           <table className="match-leaders">
             <thead>
               <tr>
-                <th>Líder rival</th>
-                <th>Partidas</th>
+                <th>Contra</th>
                 <th>V-D-E</th>
                 <th>%</th>
               </tr>
             </thead>
             <tbody>
               {byLeader.map((r) => {
-                const card = r.leader_bandai_id != null ? allCards[r.leader_bandai_id] : undefined
+                const card = leaderCard(r.leader_bandai_id)
                 return (
                   <tr key={`${r.leader_bandai_id}-${r.leader_name}`}>
                     <td>
@@ -286,7 +296,6 @@ export function MatchesPanel({
                         </span>
                       </span>
                     </td>
-                    <td>{r.played}</td>
                     <td>
                       {r.wins}-{r.losses}-{r.draws}
                     </td>
@@ -296,74 +305,90 @@ export function MatchesPanel({
               })}
             </tbody>
           </table>
-        </div>
-      )}
 
-      {editing ? (
-        <MatchForm
-          initial={editing === 'new' ? null : editing}
-          catalog={allCards}
-          recentLeaders={byLeader}
-          opponents={opponents}
-          events={events}
-          note={
-            editing !== 'new'
-              ? undefined
-              : version
-                ? `Se anotará con ${versionLabel(version)}.`
-                : 'Se anotará con la lista principal (si ha cambiado desde la última versión, se guarda una versión nueva).'
-          }
-          onSubmit={submit}
-          onCancel={() => setEditing(null)}
-        />
-      ) : (
-        <button className="btn primary match-add" onClick={() => setEditing('new')}>
-          + Anotar partida
-        </button>
-      )}
-
-      {matches.length > 0 ? (
-        <ul className="match-list">
-          {matches.map((m) => {
-            const card = m.opponent_leader_bandai_id != null ? allCards[m.opponent_leader_bandai_id] : undefined
-            return (
-              <li key={m.id} className={`match ${m.result}`}>
-                <span className={`match-result ${m.result}`}>{RESULT_LABELS[m.result][0]}</span>
-                {card ? <img src={card.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="match-noimg" />}
-                <span className="match-main">
-                  <strong>vs {m.opponent_leader_name || 'líder sin indicar'}</strong>
-                  <small>
-                    {[
-                      m.opponent_name,
-                      m.score,
-                      m.went_first == null ? '' : m.went_first ? 'empecé yo' : 'empezó el rival',
-                      m.event,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </small>
-                  {m.notes && <small className="match-notes">{m.notes}</small>}
-                </span>
-                <span className="match-meta">
-                  <span>{fmtDate(m.played_on)}</span>
-                  {m.version_number != null && <span className="deck-tag">v{m.version_number}</span>}
+          <ul className="match-list" aria-label="Últimas partidas">
+            {matches.map((m) => {
+              const card = leaderCard(m.opponent_leader_bandai_id)
+              const details = [
+                m.opponent_name,
+                m.score,
+                m.went_first == null ? '' : m.went_first ? 'empecé yo' : 'empezó el rival',
+                m.event,
+              ].filter(Boolean)
+              return (
+                <li key={m.id} className={`match ${m.result}`} title={m.notes || undefined}>
+                  <span className={`match-result ${m.result}`} aria-label={RESULT_LABELS[m.result]}>
+                    {RESULT_LABELS[m.result][0]}
+                  </span>
+                  {card ? <img src={card.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="match-noimg" />}
+                  <span className="match-main">
+                    <strong>vs {m.opponent_leader_name || 'líder sin indicar'}</strong>
+                    <small>
+                      {fmtDate(m.played_on)}
+                      {m.version_number != null && ` · v${m.version_number}`}
+                      {details.length > 0 && ` · ${details.join(' · ')}`}
+                    </small>
+                    {m.notes && <small className="match-notes">{m.notes}</small>}
+                  </span>
                   <span className="match-actions">
-                    <button className="link small" onClick={() => setEditing(m)}>
-                      Editar
+                    <button className="icon-btn" onClick={() => setEditing(m)} title="Editar" aria-label="Editar partida">
+                      ✎
                     </button>
-                    <button className="link small danger" onClick={() => remove(m)}>
-                      Borrar
+                    <button className="icon-btn" onClick={() => remove(m)} title="Borrar" aria-label="Borrar partida">
+                      🗑
                     </button>
                   </span>
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      ) : (
-        !editing && <p className="muted small">Todavía no hay partidas anotadas{version ? ' con esta versión' : ''}.</p>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+
+      {editing && (
+        <Modal title={editing === 'new' ? 'Anotar resultado' : 'Editar partida'} onClose={() => setEditing(null)}>
+          <MatchForm
+            initial={editing === 'new' ? null : editing}
+            catalog={allCards}
+            recentLeaders={byLeader}
+            opponents={opponents}
+            events={events}
+            note={
+              editing !== 'new'
+                ? undefined
+                : version
+                  ? `Se anotará con ${versionLabel(version)}.`
+                  : 'Se anotará con la lista principal (si ha cambiado desde la última versión, se guarda una versión nueva).'
+            }
+            onSubmit={submit}
+            onCancel={() => setEditing(null)}
+          />
+        </Modal>
       )}
     </section>
+  )
+}
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    document.body.classList.add('no-scroll')
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.classList.remove('no-scroll')
+    }
+  }, [onClose])
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal match-modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <button className="icon-btn close" onClick={onClose} aria-label="Cerrar">
+          ✕
+        </button>
+        <h2>{title}</h2>
+        {children}
+      </div>
+    </div>
   )
 }
 
