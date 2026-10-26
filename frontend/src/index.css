@@ -968,3 +968,12 @@ button.deck-chip:hover { border-color: var(--accent); }
   .restore-list li { grid-template-columns: 30px minmax(0, 1fr) auto; }
   .restore-list li select, .restore-list li > .muted { grid-column: 1 / -1; }
 }
+
+/* Página no encontrada */
+.notfound-page { max-width: 32rem; margin: 0 auto; padding: 4rem 1rem; text-align: center; }
+.notfound-ball { width: 64px; height: 64px; margin: 0 auto 1.25rem; font-size: 1.6rem; }
+.notfound-code { margin: 0; color: var(--accent); font-weight: 700; letter-spacing: 0.08em; }
+.notfound-page h1 { margin: 0.25rem 0 0.5rem; }
+.notfound-page code { background: var(--bg-3); padding: 0 0.35rem; border-radius: 4px; }
+.notfound-links { display: flex; gap: 0.6rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+.notfound-links .btn { text-decoration: none; }

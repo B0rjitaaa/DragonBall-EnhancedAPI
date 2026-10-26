@@ -20,7 +20,9 @@ def env_list(name: str, default: str = "") -> list[str]:
 
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", "dev-insecure-change-me")
-DEBUG = env_bool("DJANGO_DEBUG", True)
+# Desactivado salvo que se pida (DJANGO_DEBUG=1 solo en desarrollo): con DEBUG, Django enseña
+# rutas, código y configuración en sus páginas de error.
+DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
 # Orígenes desde los que se usa el admin (p. ej. https://192.168.178.104).
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "")

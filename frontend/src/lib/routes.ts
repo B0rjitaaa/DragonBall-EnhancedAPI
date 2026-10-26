@@ -2,7 +2,7 @@
  * Rutas de la web (en inglés). Los enlaces antiguos en español (/coleccion/mazo/…,
  * ?orden=…) se reescriben a los nuevos al cargar, así siguen funcionando.
  */
-export type Page = 'search' | 'collection' | 'locations' | 'scan' | 'news'
+export type Page = 'search' | 'collection' | 'locations' | 'scan' | 'news' | 'notfound'
 
 const LEGACY_PATHS: [RegExp, string][] = [
   [/^\/coleccion\/mazo\//, '/collection/deck/'],
@@ -47,5 +47,6 @@ export function currentPage(): Page {
   if (path === '/locations') return 'locations'
   if (path === '/scan') return 'scan'
   if (path === '/news') return 'news'
-  return 'search'
+  if (path === '' || path === '/index.html') return 'search'
+  return 'notfound'
 }

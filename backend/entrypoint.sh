@@ -21,6 +21,9 @@ PY
 
 if [ "$RUN_MIGRATIONS" = "1" ]; then
   python manage.py migrate --noinput
+  # Estáticos del admin (los sirve WhiteNoise también con DEBUG desactivado). Se generan al
+  # arrancar porque el código se monta como volumen y taparía los de la imagen.
+  python manage.py collectstatic --noinput -v 0
   if [ -n "$IMPORT_ON_START" ]; then
     python manage.py import_cards "$IMPORT_ON_START" --if-empty
   fi

@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import LocationsPage from './LocationsPage.tsx'
 import NewsPage from './NewsPage.tsx'
+import NotFoundPage from './NotFoundPage.tsx'
 import SiteNav from './components/SiteNav.tsx'
 import { currentPage, upgradeLegacyUrl } from './lib/routes.ts'
 
@@ -22,6 +23,8 @@ createRoot(document.getElementById('root')!).render(
       <LocationsPage />
     ) : page === 'news' ? (
       <NewsPage />
+    ) : page === 'notfound' ? (
+      <NotFoundPage />
     ) : page === 'scan' ? (
       <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Cargando el escáner…</p>}>
         <ScanPage />

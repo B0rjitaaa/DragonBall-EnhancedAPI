@@ -289,6 +289,18 @@ class BanListView(APIView):
 CHANGES_PAGE_SIZE = 60
 
 
+class HealthView(APIView):
+    """Estado del sistema: base de datos, Redis, workers, syncs y listas oficiales (ver cards/health.py).
+
+    200 si todo va bien o solo hay avisos ("degraded"); 503 si falla algo crítico ("down")."""
+
+    def get(self, request):
+        from .health import system_health
+
+        data = system_health()
+        return Response(data, status=status.HTTP_503_SERVICE_UNAVAILABLE if data["status"] == "down" else 200)
+
+
 class ChangesView(APIView):
     """Novedades: cambios reales detectados en los syncs, del más reciente al más antiguo.
 
