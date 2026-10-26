@@ -210,6 +210,9 @@ BANDAI_REQUEST_DELAY = float(env("BANDAI_REQUEST_DELAY", "0.25"))
 BANDAI_WORKERS = int(env("BANDAI_WORKERS", "4"))
 KEYWORD_SKILLS_URL = env("KEYWORD_SKILLS_URL", "https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php")
 BANLIST_URL = env("BANLIST_URL", "https://www.dbs-cardgame.com/us-en/rule/banned-limited-cards.php")
+# Estado de la última copia de seguridad (lo escribe scripts/backup.sh en el equipo; en
+# producción se monta en el backend en solo lectura). Vacío: no se comprueba.
+BACKUP_STATUS_FILE = env("BACKUP_STATUS_FILE", "")
 ERRATA_URL = env("ERRATA_URL", "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php")
 CARD_FAQ_URL = env("CARD_FAQ_URL", "https://www.dbs-cardgame.com/us-en/rule/card_faq.php")
 

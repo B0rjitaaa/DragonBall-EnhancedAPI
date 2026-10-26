@@ -35,12 +35,33 @@ TARGET="$BACKUP_DIR/daily/$STAMP"
 mkdir -p "$TARGET"
 chmod 700 "$BACKUP_DIR"
 
+# Estado de la última copia, para /api/health/ (el backend monta esta carpeta en solo lectura).
+STATUS_FILE="$BACKUP_DIR/last_status.json"
+REMOTE_STATUS="off"
+STEP="inicio"
+write_status() {  # write_status <ok|error> <mensaje>
+    local q="'" msg="${2//\\//}"   # el mensaje va dentro de un JSON: sin \ ni comillas dobles
+    msg="${msg//\"/$q}"
+    printf '{"status": "%s", "finished_at": "%s", "target": "%s", "size": "%s", "remote": "%s", "message": "%s"}\n' \
+        "$1" "$(date -Iseconds)" "$TARGET" "$(du -sh "$TARGET" 2>/dev/null | cut -f1)" "$REMOTE_STATUS" "$msg" \
+        > "$STATUS_FILE.tmp" && mv "$STATUS_FILE.tmp" "$STATUS_FILE"
+}
+on_exit() {
+    local code=$?
+    if [ "$code" -ne 0 ]; then
+        write_status error "falló en: $STEP (código $code)"
+        log "copia FALLIDA en: $STEP (código $code)"
+    fi
+}
+trap on_exit EXIT
+
 for dir in $BACKUP_PROJECTS; do
     name="$(basename "$dir")"
     cd "$dir"
     user="$(env_value POSTGRES_USER)"; user="${user:-dbs}"
     db="$(env_value POSTGRES_DB)"; db="${db:-dbs}"
 
+    STEP="base de datos de $name"
     # Base de datos: formato custom de pg_dump (comprimido, restaurable con pg_restore).
     docker compose exec -T db pg_dump -U "$user" -d "$db" -Fc > "$TARGET/$name.dump"
     # Verificación: el volcado se puede leer entero.
@@ -52,6 +73,7 @@ for dir in $BACKUP_PROJECTS; do
     project="$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')"
     for vol in $(docker compose config --volumes); do
         case "$vol" in pgdata|redisdata) continue ;; esac
+        STEP="volumen $vol de $name"
         docker run --rm -v "${project}_${vol}:/data:ro" alpine:3.20 tar czf - -C /data . > "$TARGET/$name-$vol.tgz"
         tar tzf "$TARGET/$name-$vol.tgz" > /dev/null
         log "$name: volumen $vol $(du -h "$TARGET/$name-$vol.tgz" | cut -f1)"
@@ -73,11 +95,19 @@ prune() {
 prune "$KEEP_DAILY" "$BACKUP_DIR/daily"
 prune "$KEEP_WEEKLY" "$BACKUP_DIR/weekly"
 
-# Copia fuera del equipo
+# Copia fuera del equipo. Si falla, la copia local sigue siendo buena: se anota en el estado
+# (y /api/health/ lo avisa) en vez de dar toda la copia por fallida.
 if [ -n "$BACKUP_REMOTE" ]; then
-    rsync -aH --delete -e "ssh -i $BACKUP_SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
-        "$BACKUP_DIR/" "$BACKUP_REMOTE"
-    log "copia remota a $BACKUP_REMOTE"
+    STEP="copia remota"
+    if rsync -aH --delete -e "ssh -i $BACKUP_SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
+        "$BACKUP_DIR/" "$BACKUP_REMOTE"; then
+        REMOTE_STATUS="ok"
+        log "copia remota a $BACKUP_REMOTE"
+    else
+        REMOTE_STATUS="error"
+        log "copia remota a $BACKUP_REMOTE FALLIDA"
+    fi
 fi
 
 log "copia completa: $TARGET ($(du -sh "$TARGET" | cut -f1))"
+write_status ok "copia completa"

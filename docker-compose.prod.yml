@@ -10,6 +10,10 @@
 
 services:
   backend:
+    # Copias de seguridad del equipo (solo lectura): /api/health/ lee su último estado.
+    # BACKUP_DIR_HOST en el .env del servidor; sin él se monta ./data y no se comprueba nada.
+    volumes:
+      - ${BACKUP_DIR_HOST:-./data}:/backups:ro
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000

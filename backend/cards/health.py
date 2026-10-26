@@ -3,12 +3,16 @@
 - Críticas (si falla alguna, el estado es "down" y la respuesta 503): base de datos, Redis,
   el worker de Celery y el del escáner.
 - Avisos (estado "degraded", respuesta 200): syncs con Bandai y las listas oficiales que
-  llevan demasiado sin actualizarse.
+  llevan demasiado sin actualizarse, y la copia de seguridad diaria (fallida, antigua o
+  sin réplica a la Raspberry).
 - Opcional (se informa pero no cuenta): la cámara de la estación fija.
 """
 from __future__ import annotations
 
 from datetime import timedelta
+
+import json
+from datetime import datetime
 
 import requests
 from django.conf import settings
@@ -20,6 +24,7 @@ from django.utils import timezone
 from .models import BanListEntry, CardErrata, CardRuling, SyncRun
 
 SYNC_MAX_AGE = timedelta(days=2)  # cartas nuevas y banlist: a diario
+BACKUP_MAX_AGE = timedelta(hours=30)  # la copia es diaria (03:30)
 WEEKLY_MAX_AGE = timedelta(days=8)  # erratas y Q&A: los lunes
 PING_TIMEOUT = 1.5
 
@@ -72,6 +77,30 @@ def _official(model, max_age):
     return ok, f"actualizada {_ago(fetched)}"
 
 
+def _backup():
+    """Última copia de seguridad, según el estado que deja scripts/backup.sh (fuera de Docker)."""
+    path = settings.BACKUP_STATUS_FILE
+    if not path:
+        return None, "no configurada en este equipo"
+    try:
+        with open(path, encoding="utf-8") as fh:
+            status = json.load(fh)
+    except FileNotFoundError:
+        return False, "no hay registro de ninguna copia"
+    finished = datetime.fromisoformat(status["finished_at"])
+    size = (status.get("size") or "").strip()
+    if status.get("status") != "ok":
+        return False, f"la última copia falló ({_ago(finished)}): {status.get('message', '')}"
+    if timezone.now() - finished > BACKUP_MAX_AGE:
+        return False, f"la última copia es de {_ago(finished)}"
+    detail = f"última copia {_ago(finished)}" + (f", {size}" if size else "")
+    if status.get("remote") == "error":
+        return False, detail + "; la réplica a la Raspberry falló"
+    if status.get("remote") == "ok":
+        detail += "; replicada a la Raspberry"
+    return True, detail
+
+
 def _camera():
     if not settings.CAMERA_URL:
         return None, "no configurada"
@@ -94,6 +123,7 @@ CHECKS = [
     ("banlist", "Banlist oficial", "warning", lambda: _official(BanListEntry, SYNC_MAX_AGE)),
     ("errata", "Erratas oficiales", "warning", lambda: _official(CardErrata, WEEKLY_MAX_AGE)),
     ("rulings", "Card Q&A oficial", "warning", lambda: _official(CardRuling, WEEKLY_MAX_AGE)),
+    ("backup", "Copia de seguridad", "warning", _backup),
     ("camera", "Cámara de la estación fija", "optional", _camera),
 ]
 
@@ -119,7 +149,7 @@ def system_health() -> dict:
 
     if any(c["kind"] == "critical" and not c["ok"] for c in checks):
         status = "down"
-    elif any(c["kind"] == "warning" and not c["ok"] for c in checks):
+    elif any(c["kind"] == "warning" and c["ok"] is False for c in checks):  # None: no aplica aquí
         status = "degraded"
     else:
         status = "ok"

@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 from datetime import timedelta
 from unittest import mock
 
@@ -12,8 +15,9 @@ LOCMEM = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 BOTH_WORKERS = [{"celery@mint": {"ok": "pong"}}, {"scanner@mint": {"ok": "pong"}}]
 
 
-@override_settings(CACHES=LOCMEM, CAMERA_URL="")
-class HealthTests(TestCase):
+class HealthFixture:
+    """Todo en orden (sync reciente, listas oficiales cargadas) y ayudantes para pedir /api/health/."""
+
     def setUp(self):
         cache.clear()
         now = timezone.now()
@@ -31,6 +35,10 @@ class HealthTests(TestCase):
 
     def checks(self, response):
         return {c["key"]: c for c in response.json()["checks"]}
+
+
+@override_settings(CACHES=LOCMEM, CAMERA_URL="")
+class HealthTests(HealthFixture, TestCase):
 
     def test_all_ok(self):
         r = self.get()
@@ -75,3 +83,52 @@ class HealthTests(TestCase):
         self.assertEqual(r.json()["status"], "ok")
         self.assertFalse(self.checks(r)["camera"]["ok"])
         self.assertIn("sin webcam", self.checks(r)["camera"]["detail"])
+
+
+@override_settings(CACHES=LOCMEM, CAMERA_URL="")
+class BackupHealthTests(HealthFixture, TestCase):
+    """La copia de seguridad diaria, según el last_status.json que deja scripts/backup.sh."""
+
+    def write(self, **fields):
+        status = {"status": "ok", "finished_at": timezone.now().isoformat(), "size": "1,5G", "remote": "ok",
+                  "message": "copia completa", **fields}
+        fd, path = tempfile.mkstemp(suffix=".json")
+        with os.fdopen(fd, "w") as fh:
+            json.dump(status, fh)
+        self.addCleanup(os.remove, path)
+        return override_settings(BACKUP_STATUS_FILE=path)
+
+    def backup(self):
+        r = self.get()
+        return r.json()["status"], self.checks(r)["backup"]
+
+    def test_not_configured_does_not_count(self):
+        status, check = self.backup()
+        self.assertEqual(status, "ok")
+        self.assertIsNone(check["ok"])
+
+    def test_recent_and_replicated(self):
+        with self.write():
+            status, check = self.backup()
+        self.assertEqual(status, "ok")
+        self.assertTrue(check["ok"])
+        self.assertIn("replicada a la Raspberry", check["detail"])
+
+    def test_failed_old_or_not_replicated_is_a_warning(self):
+        cases = [
+            ({"status": "error", "message": "falló en: volumen media"}, "falló"),
+            ({"finished_at": (timezone.now() - timedelta(hours=40)).isoformat()}, "hace"),
+            ({"remote": "error"}, "réplica a la Raspberry falló"),
+        ]
+        for fields, text in cases:
+            with self.subTest(fields=fields), self.write(**fields):
+                status, check = self.backup()
+                self.assertEqual(status, "degraded")
+                self.assertFalse(check["ok"])
+                self.assertIn(text, check["detail"])
+
+    def test_missing_file(self):
+        with override_settings(BACKUP_STATUS_FILE="/no/existe/last_status.json"):
+            status, check = self.backup()
+        self.assertEqual(status, "degraded")
+        self.assertIn("no hay registro", check["detail"])
