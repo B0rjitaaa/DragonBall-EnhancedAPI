@@ -132,3 +132,63 @@ class BackupHealthTests(HealthFixture, TestCase):
             status, check = self.backup()
         self.assertEqual(status, "degraded")
         self.assertIn("no hay registro", check["detail"])
+
+
+@override_settings(CACHES=LOCMEM, CAMERA_URL="", TELEGRAM_BOT_TOKEN="t", TELEGRAM_CHAT_ID="1")
+class AlertTests(HealthFixture, TestCase):
+    """Avisos por Telegram: una vez al fallar (los críticos tras 10 min) y otra al arreglarse."""
+
+    def run_check(self, workers=BOTH_WORKERS):
+        from cards import alerts
+
+        with mock.patch("config.celery.app.control.ping", return_value=workers), \
+                mock.patch("cards.alerts.requests.post", return_value=mock.Mock(ok=True)) as post:
+            sent = alerts.check_and_alert()
+        return sent, [c.kwargs["data"] for c in post.call_args_list]
+
+    def age_state(self, key, minutes):
+        from cards import alerts
+
+        state = cache.get(alerts.STATE_KEY)
+        state[key]["since"] = (timezone.now() - timedelta(minutes=minutes)).isoformat()
+        cache.set(alerts.STATE_KEY, state, None)
+
+    def test_all_ok_sends_nothing(self):
+        self.assertEqual(self.run_check(), ([], []))
+
+    def test_critical_waits_ten_minutes_then_alerts_once_and_on_recovery(self):
+        only_celery = [{"celery@mint": {"ok": "pong"}}]
+        self.assertEqual(self.run_check(only_celery)[0], [])  # recién caído: aún no
+
+        self.age_state("scanner_worker", 11)
+        sent, calls = self.run_check(only_celery)
+        self.assertEqual(len(sent), 1)
+        self.assertIn("Worker del escáner", sent[0])
+        self.assertIn("desde hace 11 min", sent[0])
+        self.assertFalse(calls[0]["disable_notification"])  # crítico: con sonido
+
+        self.assertEqual(self.run_check(only_celery)[0], [])  # ya avisado: no se repite
+
+        sent, _ = self.run_check()
+        self.assertEqual(len(sent), 1)
+        self.assertIn("Vuelve a funcionar: Worker del escáner", sent[0])
+
+    def test_short_outage_is_never_reported(self):
+        self.run_check([{"celery@mint": {"ok": "pong"}}])
+        self.assertEqual(self.run_check()[0], [])  # se arregló antes de los 10 min
+
+    def test_warning_alerts_at_once_and_silently(self):
+        SyncRun.objects.create(status=SyncRun.Status.FAILED, error="403 de Bandai")
+        sent, calls = self.run_check()
+        self.assertEqual(len(sent), 1)
+        self.assertIn("🟡", sent[0])
+        self.assertIn("403 de Bandai", sent[0])
+        self.assertTrue(calls[0]["disable_notification"])
+
+    @override_settings(TELEGRAM_BOT_TOKEN="")
+    def test_without_bot_nothing_is_sent_and_it_retries_later(self):
+        from cards import alerts
+
+        SyncRun.objects.create(status=SyncRun.Status.FAILED, error="x")
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertFalse(cache.get(alerts.STATE_KEY)["cards_sync"]["alerted"])

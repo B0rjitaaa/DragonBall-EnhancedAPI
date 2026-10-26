@@ -7,7 +7,7 @@ from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
-from . import banlist, changes, errata, rulings, skills
+from . import alerts, banlist, changes, errata, rulings, skills
 from .bandai import BandaiClient
 from .importer import upsert_cards
 from .models import Card, SyncRun
@@ -112,3 +112,9 @@ def sync_errata() -> dict:
 def sync_rulings() -> dict:
     """Actualiza el Card Q&A oficial (preguntas y respuestas por carta)."""
     return rulings.sync_rulings()
+
+
+@shared_task(name="cards.tasks.check_health")
+def check_health() -> int:
+    """Avisa por Telegram de lo que falla en /api/health/ y de lo que se arregla."""
+    return len(alerts.check_and_alert())

@@ -179,6 +179,11 @@ if KEEP_WARM_SECONDS > 0:
         # Si el worker está ocupado, no acumular ejecuciones atrasadas.
         "options": {"expires": KEEP_WARM_SECONDS * 0.8},
     }
+CELERY_BEAT_SCHEDULE["check-health-alerts"] = {
+    "task": "cards.tasks.check_health",
+    "schedule": 300,
+    "options": {"expires": 240},
+}
 CELERY_BEAT_SCHEDULE["scanner-cleanup-old-scans"] = {
     "task": "scanner.tasks.cleanup_old_scans",
     "schedule": crontab(hour=5, minute=0, day_of_week="mon"),
@@ -215,6 +220,9 @@ BANLIST_URL = env("BANLIST_URL", "https://www.dbs-cardgame.com/us-en/rule/banned
 BACKUP_STATUS_FILE = env("BACKUP_STATUS_FILE", "")
 ERRATA_URL = env("ERRATA_URL", "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php")
 CARD_FAQ_URL = env("CARD_FAQ_URL", "https://www.dbs-cardgame.com/us-en/rule/card_faq.php")
+# Avisos por Telegram (cards/alerts.py) cuando algo de /api/health/ falla. Vacíos: sin avisos.
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = env("TELEGRAM_CHAT_ID", "")
 
 LOGGING = {
     "version": 1,
