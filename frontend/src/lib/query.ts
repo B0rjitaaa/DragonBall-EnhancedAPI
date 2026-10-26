@@ -166,6 +166,9 @@ export function readUrlState(): InitialUrlState {
   if (page > 1) state.page = page
   const view = params.get('view')
   if (view === 'grid' || view === 'list' || view === 'deck') state.view = view
+  // /collection/deck/<uid>: ya se sabe que es un mazo, se empieza en la vista Mazo
+  // (si no, se buscaba primero en cuadrícula y otra vez al cambiar de vista).
+  else if (match?.[1].toLowerCase() === 'deck') state.view = 'deck'
   if (params.get('fakes') === '1') state.showFakes = true
   const facets = parseJson<FacetState>(params.get('filters'))
   if (facets) state.facets = facets

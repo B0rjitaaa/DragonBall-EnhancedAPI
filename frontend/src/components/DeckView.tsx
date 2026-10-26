@@ -1,7 +1,7 @@
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { colorClass } from '../lib/colors'
 import type { CardSummary, DeckChange, DeckDetail, DeckListCard, DeckVersionDetail, Location, RestoreResult } from '../lib/types'
@@ -105,8 +105,16 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
       })
       .catch((e) => setHistoryError((e as Error).message))
   }, [deck.id])
-  // Las copias del mazo pueden cambiar desde fuera (escáner, mover copias): se recarga con las cartas.
-  useEffect(reload, [reload, cards])
+  // Las copias del mazo pueden cambiar desde fuera (escáner, mover copias): se recarga cuando
+  // cambian de verdad (no cada vez que se redibuja la lista, que crea otro array con lo mismo).
+  const copiesKey = useMemo(() => cards.map((c) => `${c.id}:${c.quantity ?? 0}`).join(','), [cards])
+  const lastKey = useRef('')
+  useEffect(reload, [reload])
+  useEffect(() => {
+    // La primera llegada de las cartas (lista vacía → llena) no es un cambio de copias.
+    if (lastKey.current && copiesKey && copiesKey !== lastKey.current) reload()
+    if (copiesKey) lastKey.current = copiesKey
+  }, [copiesKey, reload])
   useEffect(() => {
     if (selected == null) return
     let alive = true

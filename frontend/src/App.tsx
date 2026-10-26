@@ -110,27 +110,35 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const isDeck = inCollection && currentLocation?.kind === 'deck'
   const [lastDeck, setLastDeck] = useState<number | null>(null)
   useEffect(() => {
-    if (!locations.length) return
+    // Hasta saber qué ubicación pide la ruta no se sabe si es un mazo: no se cambia de vista.
+    if (!locations.length || pendingUid) return
     if (isDeck && location !== lastDeck) {
       setLastDeck(location)
       if (view === 'grid') setView('deck')
     } else if (!isDeck && view === 'deck') {
       setView('grid')
     }
-  }, [isDeck, location, lastDeck, view, locations.length])
+  }, [isDeck, location, lastDeck, view, locations.length, pendingUid])
 
+  // Campos filtrables y keyword skills: no cambian, se piden una vez y sin esperar a nada
+  // (la búsqueda solo necesita los campos; antes esperaba también a los recuentos).
   useEffect(() => {
-    if (pendingUid) return
-    Promise.all([api.fields(), api.facets(scope, location, showFakes)])
-      .then(([f, fc]) => {
-        setFields(f)
-        setGlobalFacets(fc.facets)
-      })
+    api
+      .fields()
+      .then(setFields)
       .catch((e: Error) => setBootError(e.message))
     api
       .keywordSkills()
       .then((d) => setSkills(new SkillIndex(d)))
       .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
+  }, [])
+  // Recuentos de los filtros (dependen del ámbito, la ubicación y las falsas).
+  useEffect(() => {
+    if (pendingUid) return
+    api
+      .facets(scope, location, showFakes)
+      .then((fc) => setGlobalFacets(fc.facets))
+      .catch((e: Error) => setBootError(e.message))
   }, [scope, location, showFakes, pendingUid])
 
   const query = useMemo(
@@ -152,15 +160,16 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     return reqs
   }, [q, query, facets, advanced, advancedOn, fields, scope, location, showFakes])
   const filterKey = useDebounced(JSON.stringify(facetRequests))
-  const searchKey = useDebounced(
-    JSON.stringify({
-      q: q.trim(), query, ordering, scope, location, include_fakes: showFakes,
-      // Un mazo cabe entero en una página.
-      page: view === 'deck' ? 1 : page,
-      page_size: view === 'deck' ? 200 : PAGE_SIZE,
-    }),
-    150,
-  )
+  // Solo se espera a que termine de escribir: el resto (ubicación, orden, página, filtros)
+  // llega completo y busca al momento. Con todo retrasado, al abrir un mazo por su enlace
+  // salía primero una búsqueda en toda la colección (aún sin la ubicación) que se tiraba.
+  const typedQ = useDebounced(q.trim(), 150)
+  const searchKey = JSON.stringify({
+    q: typedQ, query, ordering, scope, location, include_fakes: showFakes,
+    // Un mazo cabe entero en una página.
+    page: view === 'deck' ? 1 : page,
+    page_size: view === 'deck' ? 200 : PAGE_SIZE,
+  })
 
   // Resultados
   useEffect(() => {
