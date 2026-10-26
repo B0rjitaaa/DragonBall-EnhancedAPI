@@ -17,13 +17,14 @@ from collection.models import Location
 from collection.serializers import LocationSerializer
 from collection.services import delete_location
 
+from collection.models import CollectionEntry
+
 from .collection import (
     CollectionUnavailable,
-    Owned,
+    Scope,
     adjust_owned,
     backup_document,
     fetch_export,
-    fetch_owned,
     move_owned,
     note_owned,
     reorder_owned,
@@ -144,19 +145,20 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         body = SearchRequestSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         data = body.validated_data
-        try:
-            owned = owned_or_error(data.get("scope"), data.get("location"), data.get("fake"), data.get("include_fakes"))
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
+        scope = collection_scope(data.get("scope"), data.get("location"), data.get("fake"), data.get("include_fakes"))
 
         qs = build_queryset(data.get("q"), data.get("query"))
         ordering = (data.get("ordering") or "number").strip()
-        if owned is not None:
-            qs = qs.filter(id__in=owned.ids)
-        if owned is not None and ordering.lstrip("-") == "quantity":
-            qs = order_by_quantity(qs, owned, desc=ordering.startswith("-"))
-        elif owned is not None and ordering == "position" and data.get("location"):
-            qs = order_by_position(qs, owned, int(data["location"]))
+        if scope is not None:
+            qs = qs.filter(id__in=scope.card_ids())
+        if scope is not None and ordering.lstrip("-") == "quantity":
+            # Por copias (solo en Mi colección); desempate por número de carta.
+            natural = apply_ordering(qs, "number").query.order_by
+            qs = scope.with_quantity(qs).order_by("-owned_qty" if ordering.startswith("-") else "owned_qty", *natural)
+        elif scope is not None and ordering == "position" and scope.location_id is not None:
+            # «Mi orden»: el que el usuario ha dado a las cartas de esa ubicación.
+            natural = apply_ordering(qs, "number").query.order_by
+            qs = scope.with_position(qs).order_by("owned_pos", *natural)
         else:
             qs = apply_ordering(qs, ordering)
 
@@ -170,12 +172,12 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
             "pages": max(1, -(-total // size)),
             "results": items,
         }
-        if owned is not None:
-            matched = list(qs.values_list("id", flat=True))
-            response["results"] = with_owned(items, owned)
-            response["total_copies"] = sum(owned.quantity(i) for i in matched)
-            catalog = set(Card.objects.filter(id__in=owned.ids).values_list("id", flat=True))
-            response["missing"] = sorted({n for i, n in owned.numbers.items() if i not in catalog})
+        if scope is not None:
+            details = scope.details([c["id"] for c in items])
+            response["results"] = [{**c, **details.get(c["id"], {})} for c in items]
+            response["total_copies"] = scope.total_copies(qs)
+            # Las copias apuntan al catálogo (clave ajena): ya no puede haber cartas que falten.
+            response["missing"] = []
         return Response(response)
 
 
@@ -190,19 +192,16 @@ class FacetsView(APIView):
     """GET: valores y recuentos globales. POST {q, query}: recuentos dentro de la búsqueda actual."""
 
     def get(self, request):
-        try:
-            owned = owned_or_error(
-                request.query_params.get("scope"),
-                request.query_params.get("location"),
-                request.query_params.get("fake"),
-                request.query_params.get("include_fakes"),
-            )
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
-        if owned is None:
+        scope = collection_scope(
+            request.query_params.get("scope"),
+            request.query_params.get("location"),
+            request.query_params.get("fake"),
+            request.query_params.get("include_fakes"),
+        )
+        if scope is None:
             return Response(cached_facets(Card.objects.all()))
-        # Ámbito Mi colección: la huella de la colección en la clave de caché.
-        return Response(cached_facets(Card.objects.filter(id__in=owned.ids), {"owned": owned.fingerprint}))
+        # Ámbito Mi colección: la huella de sus copias en la clave de caché.
+        return Response(cached_facets(Card.objects.filter(id__in=scope.card_ids()), {"owned": scope.fingerprint()}))
 
     def post(self, request):
         """Body: {q, query, only?: [campos], scope?: "collection"}. `only` limita el cálculo a esos campos."""
@@ -210,16 +209,13 @@ class FacetsView(APIView):
         only = request.data.get("only") or None
         if only is not None and (not isinstance(only, list) or any(k not in FIELDS for k in only)):
             raise ValidationError({"only": "Lista de campos no válida"})
-        try:
-            owned = owned_or_error(
-                request.data.get("scope"), request.data.get("location"), request.data.get("fake"),
-                request.data.get("include_fakes"),
-            )
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
+        scope = collection_scope(
+            request.data.get("scope"), request.data.get("location"), request.data.get("fake"),
+            request.data.get("include_fakes"),
+        )
         qs, payload = build_queryset(q, tree), {"q": q, "query": tree}
-        if owned is not None:
-            qs, payload["owned"] = qs.filter(id__in=owned.ids), owned.fingerprint
+        if scope is not None:
+            qs, payload["owned"] = qs.filter(id__in=scope.card_ids()), scope.fingerprint()
         return Response(cached_facets(qs, payload, only))
 
 
@@ -307,7 +303,7 @@ def _bool(value, name: str) -> bool | None:
     raise ValidationError({name: "Debe ser true o false"})
 
 
-def owned_or_error(request_scope: str | None, location=None, fake=None, include_fakes=None) -> Owned | None:
+def collection_scope(request_scope: str | None, location=None, fake=None, include_fakes=None) -> Scope | None:
     """Mi colección si el ámbito es "collection" (o None).
 
     Por defecto solo cuentan las copias auténticas; `include_fakes=true` suma
@@ -316,7 +312,6 @@ def owned_or_error(request_scope: str | None, location=None, fake=None, include_
     """
     if request_scope != "collection":
         return None
-    owned = fetch_owned()
     location_id = None
     if location not in (None, ""):
         try:
@@ -324,62 +319,25 @@ def owned_or_error(request_scope: str | None, location=None, fake=None, include_
         except (TypeError, ValueError):
             raise ValidationError({"location": "Debe ser un id de ubicación"}) from None
     only_fakes = bool(_bool(fake, "fake"))
-    with_fakes = only_fakes or bool(_bool(include_fakes, "include_fakes"))
-    # Todas las condiciones sobre la misma fila (p. ej. las falsas que están en esa ubicación).
-    return owned.filtered(
-        lambda loc: (location_id is None or loc["id"] == location_id)
-        and (with_fakes or not loc.get("fake"))
-        and (not only_fakes or loc.get("fake"))
-    )
+    return Scope(location_id, with_fakes=only_fakes or bool(_bool(include_fakes, "include_fakes")), only_fakes=only_fakes)
 
 
 def collection_error(exc: CollectionUnavailable) -> Response:
     return Response({**exc.data, "detail": str(exc)}, status=exc.status)
 
 
-def order_by_position(qs: QuerySet, owned: Owned, location_id: int) -> QuerySet:
-    """«Mi orden»: el orden que el usuario ha dado a las cartas de esa ubicación."""
-    positions = {}
-    for card_id, item in owned.cards.items():
-        here = [loc.get("position", 0) for loc in item["locations"] if loc["id"] == location_id]
-        if here:
-            positions[card_id] = min(here)
-    qs = apply_ordering(qs, "number")  # desempate por número de carta
-    if not positions:
-        return qs
-    pos = Case(*[When(id=i, then=Value(p)) for i, p in positions.items()], default=Value(0), output_field=IntegerField())
-    return qs.annotate(owned_pos=pos).order_by("owned_pos", *qs.query.order_by)
-
-
-def order_by_quantity(qs: QuerySet, owned: Owned, desc: bool) -> QuerySet:
-    """Orden por número de copias (solo en Mi colección)."""
-    if not owned.cards:
-        return apply_ordering(qs, "number")
-    qty = Case(*[When(id=i, then=Value(n["quantity"])) for i, n in owned.cards.items()],
-               default=Value(0), output_field=IntegerField())
-    qs = apply_ordering(qs, "number")  # desempate por número de carta
-    return qs.annotate(owned_qty=qty).order_by("-owned_qty" if desc else "owned_qty", *qs.query.order_by)
-
-
-def with_owned(cards: list[dict], owned: Owned) -> list[dict]:
-    return [{**c, **owned.cards[c["id"]]} for c in cards]
-
-
 class MyCollectionView(APIView):
     """Resumen de Mi colección: totales y cartas escaneadas que este catálogo aún no tiene."""
 
     def get(self, request):
-        try:
-            owned = fetch_owned()
-        except CollectionUnavailable as exc:
-            return collection_error(exc)
-        cards = CardListSerializer(Card.objects.filter(id__in=owned.ids), many=True).data
-        found = {c["id"] for c in cards}
+        scope = Scope(with_fakes=True)
+        cards = CardListSerializer(Card.objects.filter(id__in=scope.card_ids()), many=True).data
+        details = scope.details([c["id"] for c in cards])
         return Response({
             "total_cards": len(cards),
-            "total_copies": sum(owned.quantity(c["id"]) for c in cards),
-            "missing": sorted({n for i, n in owned.numbers.items() if i not in found}),
-            "results": with_owned(cards, owned),
+            "total_copies": sum(d["quantity"] for d in details.values()),
+            "missing": [],
+            "results": [{**c, **details.get(c["id"], {})} for c in cards],
         })
 
 
@@ -472,21 +430,20 @@ class MyCollectionReorderView(APIView):
 LOCATION_FIELDS = ("name", "kind", "notes", "position")
 
 
-def deck_leaders(owned: Owned) -> dict[int, dict]:
+def deck_leaders() -> dict[int, dict]:
     """Líder de cada mazo: su carta LEADER (las Z-Leader no se despiertan), con la imagen
     de su cara despertada. Si hubiera varias, la auténtica y con más copias."""
-    leader_ids = set(
-        Card.objects.filter(id__in=owned.ids, card_type="LEADER").values_list("id", flat=True)
-    )
     best: dict[int, tuple] = {}
-    for card_id in leader_ids:
-        for loc in owned.cards[card_id]["locations"]:
-            if loc.get("kind") != "deck":
-                continue
-            rank = (not loc.get("fake"), loc["quantity"])
-            if loc["id"] not in best or rank > best[loc["id"]][0]:
-                best[loc["id"]] = (rank, card_id)
-    cards = Card.objects.in_bulk([card_id for _, card_id in best.values()])
+    rows = CollectionEntry.objects.filter(location__kind="deck", card__card_type="LEADER").values_list(
+        "location_id", "card_id", "fake", "quantity"
+    )
+    for location_id, card_id, fake, quantity in rows:
+        rank = (not fake, quantity, -card_id)
+        if location_id not in best or rank > best[location_id][0]:
+            best[location_id] = (rank, card_id)
+    cards = Card.objects.only("id", "card_number", "name", "back_name", "image_url", "back_image_url").in_bulk(
+        [card_id for _, card_id in best.values()]
+    )
     return {
         location_id: {
             "id": card.id,
@@ -505,7 +462,7 @@ class LocationsView(APIView):
 
     def get(self, request):
         locations = LocationSerializer.listing()
-        leaders = deck_leaders(fetch_owned()) if any(loc["kind"] == "deck" for loc in locations) else {}
+        leaders = deck_leaders() if any(loc["kind"] == "deck" for loc in locations) else {}
         return Response([{**loc, "leader": leaders.get(loc["id"])} for loc in locations])
 
     def post(self, request):

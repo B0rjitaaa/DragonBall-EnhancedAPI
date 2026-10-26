@@ -1,25 +1,24 @@
 """Mi colección vista desde el catálogo: copias por carta y su reparto por ubicación.
 
-Las copias viven en la app `collection` (ubicaciones y filas de copias); aquí se
-agregan por carta para el buscador, las facetas y las acciones de Mi colección.
+Las copias viven en la app `collection` (ubicaciones y filas de copias). Aquí se
+consultan para el buscador, las facetas y las acciones de Mi colección: todo se
+resuelve en la base de datos (qué cartas entran, orden y totales) y el reparto por
+ubicaciones solo se lee para las cartas de la página que se muestra.
 """
 from __future__ import annotations
 
 import hashlib
-import json
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from django.db import transaction
+from django.db.models import Min, OuterRef, Q, QuerySet, Subquery, Sum
+from django.db.models.functions import Coalesce
 
 from collection import services
 from collection.models import CollectionEntry, Location
 
 from .models import Card
-
-# Ya no hay caché (la colección está en esta misma base de datos): se mantiene el
-# nombre para quien la invalidaba.
-CACHE_KEY = "my-collection:owned"
 
 
 class CollectionUnavailable(Exception):
@@ -32,74 +31,107 @@ class CollectionUnavailable(Exception):
 
 
 @dataclass
-class Owned:
-    # id -> {quantity, fakes, locations: [{id, name, kind, quantity, fake, position, notes}]}
-    cards: dict[int, dict] = field(default_factory=dict)
-    numbers: dict[int, str] = field(default_factory=dict)  # id -> número de carta
+class Scope:
+    """Qué copias cuentan en Mi colección: todas o las de una ubicación, auténticas, con falsas o solo falsas.
+
+    Una carta entra si tiene alguna fila de copias que cumpla todas las condiciones a la
+    vez (p. ej. las falsas que están en esa ubicación).
+    """
+
+    location_id: int | None = None
+    with_fakes: bool = False
+    only_fakes: bool = False
 
     @property
-    def ids(self) -> list[int]:
-        return list(self.cards)
+    def entries(self) -> QuerySet:
+        """Filas de copias que cuentan."""
+        q = Q()
+        if self.location_id is not None:
+            q &= Q(location_id=self.location_id)
+        if self.only_fakes:
+            q &= Q(fake=True)
+        elif not self.with_fakes:
+            q &= Q(fake=False)
+        return CollectionEntry.objects.filter(q)
 
-    @property
+    def card_ids(self) -> QuerySet:
+        """Subconsulta con los ids de las cartas que entran (para Card.objects.filter(id__in=…))."""
+        return self.entries.values("card_id")
+
+    def _per_card(self, value: str, aggregate):
+        return Subquery(
+            self.entries.filter(card_id=OuterRef("id")).order_by().values("card_id")
+            .annotate(v=aggregate(value)).values("v")[:1]
+        )
+
+    def with_quantity(self, cards: QuerySet) -> QuerySet:
+        """Anota `owned_qty`: copias que cuentan de cada carta (para ordenar por copias)."""
+        return cards.annotate(owned_qty=Coalesce(self._per_card("quantity", Sum), 0))
+
+    def with_position(self, cards: QuerySet) -> QuerySet:
+        """Anota `owned_pos`: posición de la carta en la ubicación («Mi orden»)."""
+        return cards.annotate(owned_pos=Coalesce(self._per_card("position", Min), 0))
+
+    def total_copies(self, cards: QuerySet) -> int:
+        return self.entries.filter(card_id__in=cards.order_by().values("id")).aggregate(n=Sum("quantity"))["n"] or 0
+
     def fingerprint(self) -> str:
-        """Cambia en cuanto cambia la colección: sirve de clave de caché (facetas)."""
-        raw = json.dumps(sorted((i, c["quantity"]) for i, c in self.cards.items()))
-        return hashlib.sha1(raw.encode()).hexdigest()[:16]
+        """Cambia en cuanto cambian las copias que cuentan: clave de caché de las facetas."""
+        rows = self.entries.order_by("card_id", "location_id", "fake").values_list("card_id", "quantity")
+        return hashlib.sha1(repr(list(rows)).encode()).hexdigest()[:16]
 
-    def quantity(self, card_id: int) -> int:
-        return self.cards.get(card_id, {}).get("quantity", 0)
+    def details(self, card_ids) -> dict[int, dict]:
+        """Por carta: copias que cuentan (`quantity`), en total (`total_quantity`), falsas y su
+        reparto por ubicación (todas las filas, no solo las que cuentan)."""
+        counted = dict(
+            self.entries.filter(card_id__in=card_ids).order_by().values("card_id")
+            .annotate(n=Sum("quantity")).values_list("card_id", "n")
+        )
+        out: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "total_quantity": 0, "fakes": 0, "locations": []})
+        for row in _rows(CollectionEntry.objects.filter(card_id__in=card_ids)):
+            item = out[row["bandai_id"]]
+            item["total_quantity"] += row["quantity"]
+            item["fakes"] += row["quantity"] if row["fake"] else 0
+            item["locations"].append({
+                "id": row["location_id"],
+                "name": row["location"],
+                "kind": row["location_kind"],
+                "quantity": row["quantity"],
+                "fake": row["fake"],
+                "position": row["position"],
+                "notes": row["notes"],
+            })
+        for card_id, item in out.items():
+            item["quantity"] = counted.get(card_id, 0)
+        return dict(out)
 
-    def filtered(self, keep) -> "Owned":
-        """Solo las cartas con alguna fila de copias que cumpla `keep`; `quantity` pasa a ser las de esas filas."""
-        cards = {}
-        for card_id, item in self.cards.items():
-            here = sum(loc["quantity"] for loc in item["locations"] if keep(loc))
-            if here:
-                cards[card_id] = {**item, "quantity": here, "total_quantity": item.get("total_quantity", item["quantity"])}
-        return Owned(cards, {i: n for i, n in self.numbers.items() if i in cards})
+
+_FIELDS = {
+    "bandai_id": "card_id",
+    "card_number": "card__card_number",
+    "name": "card__name",
+    "quantity": "quantity",
+    "location_id": "location_id",
+    "location": "location__name",
+    "location_kind": "location__kind",
+    "fake": "fake",
+    "position": "position",
+    "notes": "notes",
+}
+
+
+def _rows(entries: QuerySet) -> list[dict]:
+    """Filas de copias con solo las columnas que se usan: la ficha completa de cada carta
+    (respuesta de Bandai, textos…) pesa ~2 KB y aquí no hace falta."""
+    entries = entries.order_by(
+        "card__card_number", "card_id", "-location__is_default", "location__position", "location__name", "fake"
+    )
+    return [dict(zip(_FIELDS, values)) for values in entries.values_list(*_FIELDS.values())]
 
 
 def fetch_export() -> list[dict]:
-    """Una fila por carta, ubicación y autenticidad (también la usa la copia de seguridad)."""
-    rows = CollectionEntry.objects.select_related("card", "location").order_by(
-        "card__card_number", "card_id", "-location__is_default", "location__position", "location__name", "fake"
-    )
-    return [
-        {
-            "bandai_id": e.card_id,
-            "card_number": e.card.card_number,
-            "name": e.card.name,
-            "quantity": e.quantity,
-            "location_id": e.location_id,
-            "location": e.location.name,
-            "location_kind": e.location.kind,
-            "fake": e.fake,
-            "position": e.position,
-            "notes": e.notes,
-        }
-        for e in rows
-    ]
-
-
-def fetch_owned() -> Owned:
-    cards: dict[int, dict] = defaultdict(lambda: {"quantity": 0, "fakes": 0, "locations": []})
-    numbers: dict[int, str] = {}
-    for entry in fetch_export():
-        item = cards[entry["bandai_id"]]
-        item["quantity"] += entry["quantity"]
-        item["fakes"] += entry["quantity"] if entry["fake"] else 0
-        item["locations"].append({
-            "id": entry["location_id"],
-            "name": entry["location"],
-            "kind": entry["location_kind"],
-            "quantity": entry["quantity"],
-            "fake": entry["fake"],
-            "position": entry["position"],
-            "notes": entry["notes"],
-        })
-        numbers[entry["bandai_id"]] = entry["card_number"]
-    return Owned(dict(cards), numbers)
+    """Una fila por carta, ubicación y autenticidad (la usa la copia de seguridad)."""
+    return _rows(CollectionEntry.objects.all())
 
 
 def _summary(card: Card) -> dict:
