@@ -188,6 +188,10 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
             response["total_copies"] = scope.total_copies(qs)
             # Las copias apuntan al catálogo (clave ajena): ya no puede haber cartas que falten.
             response["missing"] = []
+        else:
+            # Buscador: tus copias de las cartas de la página (insignia ×N y añadir desde la ficha).
+            details = Scope().details([c["id"] for c in items])
+            response["results"] = [{**c, **details.get(c["id"], {})} for c in items]
         return Response(response)
 
 

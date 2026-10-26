@@ -84,13 +84,13 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // Se incrementa cuando algo fuera de la cuadrícula mueve copias (p. ej. hacer principal una versión del mazo).
   const [reloadTick, setReloadTick] = useState(0)
 
+  // También en el buscador: el panel de la ficha permite añadir copias a una ubicación.
   const reloadLocations = useCallback(() => {
-    if (!inCollection) return
     api
       .locations()
       .then(setLocations)
       .catch(() => setPendingUid(null)) // sin lista de ubicaciones, el resto sigue funcionando
-  }, [inCollection])
+  }, [])
   useEffect(reloadLocations, [reloadLocations])
   useEffect(() => {
     if (!pendingUid || !locations.length) return
@@ -269,12 +269,17 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   }
 
   const labels = useMemo(() => Object.fromEntries(fields.map((f) => [f.key, f.label])), [fields])
-  // Mi colección: copias de cada carta de la página (insignia ×N y ficha).
+  // Copias de cada carta de la página (insignia ×N y ficha). En el buscador, solo las que tienes.
   const quantities = useMemo(
-    () => (inCollection ? Object.fromEntries((data?.results ?? []).map((c) => [c.id, c.quantity ?? 0])) : undefined),
+    () =>
+      Object.fromEntries(
+        (data?.results ?? [])
+          .filter((c) => inCollection || (c.quantity ?? 0) > 0)
+          .map((c) => [c.id, c.quantity ?? 0]),
+      ),
     [data, inCollection],
   )
-  const openOwned = inCollection ? data?.results.find((c) => c.id === openId) : undefined
+  const openOwned = data?.results.find((c) => c.id === openId)
 
   // Mi colección: refleja en la página el resultado de una operación sobre una
   // carta. Con filtro de ubicación, sus copias son las de esa ubicación; si
@@ -288,11 +293,12 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       setData((prev) => {
         if (!prev) return prev
         const before = prev.results.find((c) => c.id === id)?.quantity ?? 0
-        const removed = shown === 0
+        // En Mi colección una carta sin copias sale de la lista; en el buscador se queda.
+        const removed = inCollection && shown === 0
         return {
           ...prev,
           count: removed ? prev.count - 1 : prev.count,
-          total_copies: (prev.total_copies ?? 0) + (shown - before),
+          total_copies: inCollection ? (prev.total_copies ?? 0) + (shown - before) : prev.total_copies,
           results: removed
             ? prev.results.filter((c) => c.id !== id)
             : prev.results.map((c) =>
@@ -300,10 +306,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               ),
         }
       })
-      if (shown === 0 && openId === id) setOpenId(null)
+      if (inCollection && shown === 0 && openId === id) setOpenId(null)
       reloadLocations() // los totales por ubicación del selector
     },
-    [location, showFakes, openId, reloadLocations],
+    [location, showFakes, openId, reloadLocations, inCollection],
   )
 
   const runOnCard = useCallback(

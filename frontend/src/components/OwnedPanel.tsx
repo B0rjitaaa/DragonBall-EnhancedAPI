@@ -1,6 +1,24 @@
 import { useState } from 'react'
 import type { CardSummary, Location, OwnedLocation } from '../lib/types'
 
+// Última ubicación a la que añadiste copias desde una ficha (en este navegador).
+const LAST_KEY = 'dbs-last-add-location'
+function lastLocation(): number | null {
+  try {
+    const value = Number(localStorage.getItem(LAST_KEY))
+    return Number.isFinite(value) && value > 0 ? value : null
+  } catch {
+    return null
+  }
+}
+function rememberLocation(id: number): void {
+  try {
+    localStorage.setItem(LAST_KEY, String(id))
+  } catch {
+    // sin almacenamiento: la próxima vez propondrá «Sin ubicar»
+  }
+}
+
 export const KIND_LABELS: Record<string, string> = { deck: 'Mazo', binder: 'Archivador', storage: 'Almacén', other: 'Otro' }
 
 /** Una fila de copias: ubicación + auténticas o falsas. */
@@ -21,18 +39,31 @@ interface Props {
   onNote: (spot: Spot, notes: string) => void
 }
 
-/** Ficha de una carta de Mi colección: sus copias en cada ubicación, con − / +, mover, falsas y nota. */
+/** Panel de copias de la ficha (en Mi colección y en el buscador): sus copias en cada ubicación, con − / +,
+ *  mover, falsas y nota, y añadir a una ubicación (la última usada). */
 export default function OwnedPanel({ card, locations, busy, notice, onAdjust, onMove, onNote }: Props) {
   const owned = card.locations ?? []
   const total = card.total_quantity ?? card.quantity ?? 0
   const fakes = card.fakes ?? owned.filter((l) => l.fake).reduce((n, l) => n + l.quantity, 0)
   const free = locations.filter((l) => !owned.some((o) => o.id === l.id && !o.fake))
-  const [addTo, setAddTo] = useState<number | ''>('')
+  // Se propone la última ubicación usada; si no, «Sin ubicar».
+  const [addTo, setAddTo] = useState<number | ''>(() => {
+    const last = lastLocation()
+    const pick = free.find((l) => l.id === last) ?? free.find((l) => l.is_default)
+    return pick ? pick.id : ''
+  })
+  const selected = free.some((l) => l.id === addTo) ? addTo : ''
 
   return (
     <section className="owned-panel" aria-label="Copias en tu colección">
       <header>
-        En tu colección: <strong>×{total}</strong>
+        {total === 0 ? (
+          <>No la tienes en tu colección</>
+        ) : (
+          <>
+            En tu colección: <strong>×{total}</strong>
+          </>
+        )}
         {fakes > 0 && <span className="fake-badge">{fakes === 1 ? '1 falsa' : `${fakes} falsas`}</span>}
       </header>
       {notice && <p className="owned-notice">{notice}</p>}
@@ -57,8 +88,8 @@ export default function OwnedPanel({ card, locations, busy, notice, onAdjust, on
       </ul>
       {free.length > 0 && (
         <div className="owned-add">
-          <span>Añadir una copia en</span>
-          <select className="input" value={addTo} onChange={(e) => setAddTo(e.target.value ? Number(e.target.value) : '')}>
+          <span>{total === 0 ? 'Añadir a Mi colección en' : 'Añadir una copia en'}</span>
+          <select className="input" value={selected} onChange={(e) => setAddTo(e.target.value ? Number(e.target.value) : '')}>
             <option value="">elige ubicación…</option>
             {free.map((l) => (
               <option key={l.id} value={l.id}>
@@ -68,10 +99,11 @@ export default function OwnedPanel({ card, locations, busy, notice, onAdjust, on
           </select>
           <button
             className="btn"
-            disabled={busy || addTo === ''}
+            disabled={busy || selected === ''}
             onClick={() => {
-              if (addTo !== '') onAdjust({ location: addTo, fake: false }, 1)
-              setAddTo('')
+              if (selected === '') return
+              onAdjust({ location: selected, fake: false }, 1)
+              rememberLocation(selected)
             }}
           >
             Añadir

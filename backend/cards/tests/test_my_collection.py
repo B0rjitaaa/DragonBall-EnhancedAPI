@@ -201,3 +201,24 @@ class MyCollectionTests(TestCase):
         self.assertEqual(self.qty(self.vados, self.loose), 2)
         self.assertEqual(self.client.delete(f"/api/my-collection/locations/{self.loose.id}/").status_code, 400)
         self.assertEqual(self.client.delete("/api/my-collection/locations/999/").status_code, 404)
+
+
+class SearchShowsOwnedCopiesTests(TestCase):
+    """En el buscador (todo el catálogo), cada carta trae tus copias para la insignia y la ficha."""
+
+    def setUp(self):
+        self.champa = Card.objects.create(id=4, card_number="BT1-001", name="Champa", card_type="LEADER", colors=["Red"])
+        self.vados = Card.objects.create(id=7, card_number="BT1-008", name="Vados", card_type="BATTLE", colors=["Blue"])
+        self.deck = Location.objects.create(name="Mazo rojo", kind="deck")
+        CollectionEntry.objects.create(card=self.champa, location=Location.default(), quantity=2)
+        CollectionEntry.objects.create(card=self.champa, location=self.deck, quantity=1, fake=True)
+        self.client = APIClient()
+
+    def test_owned_cards_carry_their_copies(self):
+        results = {r["id"]: r for r in self.client.post("/api/cards/search/", {}, format="json").data["results"]}
+        self.assertEqual(results[4]["quantity"], 2)  # auténticas
+        self.assertEqual(results[4]["total_quantity"], 3)
+        self.assertEqual(results[4]["fakes"], 1)
+        self.assertEqual(sorted(loc["name"] for loc in results[4]["locations"]), ["Mazo rojo", "Sin ubicar"])
+        self.assertNotIn("quantity", results[7])  # no la tienes
+        self.assertEqual(len(results), 2)  # el buscador sigue mostrando todo el catálogo
