@@ -49,6 +49,8 @@ export interface CardSummary {
   card_number: string
   name: string
   image_url: string
+  /** Miniatura (WebP, 320 px) para cuadrículas y listas; la ficha usa image_url. */
+  thumb_url?: string
   card_type: string
   colors: string[]
   rarity: string
@@ -294,3 +296,6 @@ export interface RestoreResult {
   moved_in: number
   missing: { bandai_id: number; quantity: number }[]
 }
+
+/** Imagen para cuadrículas y listas: la miniatura si la hay, si no la original. */
+export const cardThumb = (card: Pick<CardSummary, 'image_url' | 'thumb_url'>): string => card.thumb_url || card.image_url

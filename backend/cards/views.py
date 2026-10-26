@@ -1,9 +1,10 @@
 import json
+import logging
 import re
 
 from django.core.cache import cache
-from django.db.models import Case, F, IntegerField, Q, QuerySet, Value, When
-from django.http import HttpResponse
+from django.db.models import F, Q, QuerySet
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -29,6 +30,7 @@ from .collection import (
     note_owned,
     reorder_owned,
 )
+from . import thumbs
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
 from .parsing import normalize_search
@@ -38,6 +40,8 @@ from .serializers import (
     SyncRunSerializer,
 )
 from .tasks import sync_cards
+
+logger = logging.getLogger(__name__)
 
 NATURAL = ["series", "set_number", "collector_number", "card_number", "id"]
 ORDERINGS = {
@@ -511,3 +515,21 @@ class MyCollectionBackupView(APIView):
         response = HttpResponse(body, content_type="application/json; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.json"'
         return response
+
+
+def card_thumb(request, card_id: int, version: str):
+    """Miniatura WebP de una carta (se genera la primera vez). Si no se puede, la imagen original."""
+    card = Card.objects.filter(id=card_id).only("id", "image_url").first()
+    if card is None or not card.image_url:
+        raise Http404
+    if version != thumbs.version(card.image_url):
+        # Imagen cambiada desde que se pidió la página: a la URL de la nueva.
+        return HttpResponseRedirect(thumbs.thumb_url(card.id, card.image_url))
+    try:
+        path = thumbs.make_thumb(card.id, card.image_url)
+    except Exception:  # noqa: BLE001 - sin miniatura, la imagen de siempre
+        logger.warning("Miniatura de %s falló", card_id, exc_info=True)
+        return HttpResponseRedirect(card.image_url)
+    response = FileResponse(open(path, "rb"), content_type="image/webp")
+    response["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response

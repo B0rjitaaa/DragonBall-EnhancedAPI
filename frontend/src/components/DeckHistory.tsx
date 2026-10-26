@@ -4,6 +4,7 @@ import type {
   CardSummary, DeckChange, DeckDetail, DeckListCard, DeckVersionDetail, LeaderRecord, Location, Match, MatchInput,
   MatchRecord, MatchResult, RestorePlan, RestoreResult, RestoreSource,
 } from '../lib/types'
+import { cardThumb } from '../lib/types'
 
 /** Líderes rivales que se ven en la cabecera (los demás, en «Ver más»). */
 const RECENT = 5
@@ -283,7 +284,7 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
               const c = card(r.bandai_id)
               return (
                 <li key={r.bandai_id}>
-                  {c && <img src={c.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+                  {c && <img src={cardThumb(c)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
                   <span className="restore-name">
                     <small>{c?.card_number}</small> {c?.name ?? `#${r.bandai_id}`}
                   </span>
@@ -324,7 +325,7 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
               const auto = autoTake(r.sources, r.quantity)
               return (
                 <li key={r.bandai_id} className={r.missing ? 'short' : ''}>
-                  {c && <img src={c.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+                  {c && <img src={cardThumb(c)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
                   <span className="restore-name">
                     <small>{c?.card_number}</small> {c?.name ?? `#${r.bandai_id}`}
                     {r.missing > 0 && (
@@ -588,7 +589,7 @@ export function CardPicker({
                   }}
                   title={`${c.card_number} · ${c.name} · ${c.card_set}`}
                 >
-                  <img src={c.image_url} alt={c.name} loading="lazy" referrerPolicy="no-referrer" />
+                  <img src={cardThumb(c)} alt={c.name} loading="lazy" referrerPolicy="no-referrer" />
                   {n > 0 && <span className="deck-qty">{n}</span>}
                   <span className="deck-card-name">
                     <small>{c.card_number}</small>
@@ -626,7 +627,7 @@ function ChangeList({ title, changes, catalog }: { title: string; changes: DeckC
             return (
               <li key={`${c.bandai_id}-${c.section}`} className={c.delta > 0 ? 'plus' : 'minus'}>
                 <b>{c.delta > 0 ? `+${c.delta}` : `−${-c.delta}`}</b>
-                {card && <img src={card.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+                {card && <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
                 <span>
                   <small>{card?.card_number}</small> {card?.name ?? `#${c.bandai_id}`}
                 </span>
@@ -735,7 +736,7 @@ export function MatchesPanel({
                   <tr key={`${r.leader_bandai_id}-${r.leader_name}`}>
                     <td>
                       <span className="match-leader">
-                        {card && <img src={card.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+                        {card && <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
                         <span>
                           {r.leader_name || 'Sin indicar'}
                           {card && <small>{card.card_number}</small>}
@@ -774,7 +775,7 @@ export function MatchesPanel({
                   <span className={`match-result ${m.result}`} aria-label={RESULT_LABELS[m.result]}>
                     {RESULT_LABELS[m.result][0]}
                   </span>
-                  {card ? <img src={card.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="match-noimg" />}
+                  {card ? <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="match-noimg" />}
                   <span className="match-main">
                     <strong>vs {m.opponent_leader_name || 'líder sin indicar'}</strong>
                     <small>
@@ -916,7 +917,7 @@ function MatchForm({
         <span className="match-label">Líder rival</span>
         {m.opponent_leader_name ? (
           <span className="match-picked">
-            {leader && <img src={leader.image_url} alt="" referrerPolicy="no-referrer" />}
+            {leader && <img src={cardThumb(leader)} alt="" referrerPolicy="no-referrer" />}
             <span>
               <strong>{m.opponent_leader_name}</strong>
               {leader && <small>{leader.card_number}</small>}
@@ -1048,7 +1049,7 @@ function LeaderPicker({
             const card = catalog[r.leader_bandai_id!]
             return (
               <button type="button" key={card.id} onClick={() => onPick(card)} title={`${card.card_number} · ${card.name}`}>
-                <img src={card.image_url} alt="" referrerPolicy="no-referrer" />
+                <img src={cardThumb(card)} alt="" referrerPolicy="no-referrer" />
                 <span>{card.name}</span>
               </button>
             )
@@ -1060,7 +1061,7 @@ function LeaderPicker({
           {results.map((c) => (
             <li key={c.id}>
               <button type="button" onClick={() => onPick(c)}>
-                <img src={c.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                <img src={cardThumb(c)} alt="" loading="lazy" referrerPolicy="no-referrer" />
                 <span>
                   <strong>{c.name}</strong>
                   <small>

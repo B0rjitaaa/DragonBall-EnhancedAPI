@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { colorClass } from '../lib/colors'
 import type { CardSummary, DeckChange, DeckDetail, DeckListCard, DeckVersionDetail, Location, RestoreResult } from '../lib/types'
+import { cardThumb } from '../lib/types'
 import { CardPicker, MatchesPanel, SaveListModal, VersionBar, versionLabel } from './DeckHistory'
 
 /** Reglas de construcción de Dragon Ball Super Masters que se comprueban. */
@@ -702,7 +703,7 @@ function DeckCard({
   return (
     <div className={`deck-card-wrap ${delta > 0 ? 'added' : delta < 0 ? 'removed' : ''}`}>
       <button className={`deck-card ${flag ? 'flagged' : ''}`} onClick={() => onOpen(card.id)} title={`${card.card_number} · ${card.name}`}>
-        <img src={card.image_url} alt={card.name} loading="lazy" referrerPolicy="no-referrer" draggable={false} />
+        <img src={cardThumb(card)} alt={card.name} loading="lazy" referrerPolicy="no-referrer" draggable={false} />
         <span className="deck-qty" aria-label={`${n} copias`}>
           {n}
         </span>

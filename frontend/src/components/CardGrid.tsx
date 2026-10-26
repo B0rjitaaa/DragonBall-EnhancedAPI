@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { colorClass } from '../lib/colors'
 import type { SkillIndex } from '../lib/skills'
 import type { CardSummary } from '../lib/types'
+import { cardThumb } from '../lib/types'
 
 // Etiqueta corta en el listado para las keyword skills que limitan la construcción del mazo
 const DECK_BADGES: Record<string, string> = { Ultimate: '1 COPIA', 'Super Combo': 'SC ≤4', 'Dragon Ball': 'DB ≤7' }
@@ -62,7 +63,7 @@ export default function CardGrid({
           <button className={`tile ${c.legality === 'banned' ? 'is-banned' : ''}`} onClick={() => onOpen(c.id)} title={`${c.card_number} · ${c.name}`}>
             <div className="tile-img">
               <img
-                src={c.image_url}
+                src={cardThumb(c)}
                 alt=""
                 loading="lazy"
                 referrerPolicy="no-referrer"

@@ -1,18 +1,24 @@
 from rest_framework import serializers
 
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
+from .thumbs import thumb_url
 
 
 class CardListSerializer(serializers.ModelSerializer):
     has_back = serializers.BooleanField(read_only=True)
+    # Miniatura para cuadrículas y listas (ver cards/thumbs.py); la imagen completa sigue en image_url.
+    thumb_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Card
         fields = [
-            "id", "card_number", "name", "image_url", "card_type", "colors", "rarity", "rarity_code",
+            "id", "card_number", "name", "image_url", "thumb_url", "card_type", "colors", "rarity", "rarity_code",
             "energy", "power", "set_code", "card_set", "has_back", "back_name", "back_image_url",
             "legality", "legality_since", "keyword_skills",
         ]
+
+    def get_thumb_url(self, card) -> str:
+        return thumb_url(card.id, card.image_url)
 
 
 class CardDetailSerializer(serializers.ModelSerializer):

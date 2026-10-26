@@ -13,6 +13,7 @@ urlpatterns = [
     path("banlist/", views.BanListView.as_view(), name="banlist"),
     path("keyword-skills/", views.KeywordSkillsView.as_view(), name="keyword-skills"),
     path("my-collection/", views.MyCollectionView.as_view(), name="my-collection"),
+    path("thumbs/<int:card_id>/<str:version>.webp", views.card_thumb, name="card-thumb"),
     path("my-collection/adjust/", views.MyCollectionAdjustView.as_view(), name="my-collection-adjust"),
     path("my-collection/backup/", views.MyCollectionBackupView.as_view(), name="my-collection-backup"),
     path("my-collection/move/", views.MyCollectionMoveView.as_view(), name="my-collection-move"),

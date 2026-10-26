@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CardSummary, Location, OwnedLocation } from '../lib/types'
+import { cardThumb } from '../lib/types'
 import type { Spot } from './OwnedPanel'
 
 interface Props {
@@ -176,7 +177,7 @@ function ListRow({
     <li className={`list-row ${checked ? 'checked' : ''}`}>
       <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`Seleccionar ${card.name}`} />
       <button className="list-card" onClick={onOpen} title="Ver ficha">
-        <img src={card.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+        <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" />
         <span>
           <strong>{card.name}</strong>
           <small className="muted">
