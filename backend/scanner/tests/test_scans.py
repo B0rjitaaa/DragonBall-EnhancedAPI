@@ -436,3 +436,74 @@ class SessionLocationTests(TestCase):
         scan = Scan.objects.create(session=ScanSession.objects.get(pk=session["id"]), matched_card=self.card, status="done")
         add_scan_to_collection(scan)
         self.assertEqual(list(self.Entry.objects.values_list("location__name", "quantity")), [("Mazo rojo", 1)])
+
+
+def _stamped(card):
+    """La misma carta con un sello (como una promo Judge): solo cambia una esquina."""
+    import cv2
+
+    stamped = card.copy()
+    cv2.circle(stamped, (60, 380), 34, (255, 255, 255), -1)
+    cv2.putText(stamped, "J", (46, 395), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 200), 3)
+    return stamped
+
+
+def _png(img):
+    import cv2
+
+    return cv2.imencode(".png", img)[1].tobytes()
+
+
+@override_settings(MEDIA_ROOT=MEDIA, CELERY_TASK_ALWAYS_EAGER=True, AUTO_ADD_MIN_CONFIDENCE=0.65)
+class SiblingPrintingTests(BurstFixture, TestCase):
+    """Impresiones hermanas (mismo número, otra edición): se desempata por sus diferencias y,
+    si no se puede, va a "Revisar" sin auto-añadirse."""
+
+    def _add_promo(self, image):
+        base = self.cards[4]
+        promo = Card.objects.create(id=900_000_004, card_number=base.card_number, name=base.name,
+                                    card_set="Judge Pack", image_url="https://example.com/promo.png")
+        base.image_url = "https://example.com/4.png"
+        base.save(update_fields=["image_url"])
+        prints = fp.compute(image)
+        CardFingerprint.objects.create(card=promo, source_url=promo.image_url, phash=prints.phash,
+                                       dhash=prints.dhash, orb=prints.orb, orb_count=prints.orb_count)
+        return base, promo
+
+    def _images(self, base_img, promo_img):
+        urls = {"https://example.com/4.png": _png(base_img), "https://example.com/promo.png": _png(promo_img)}
+        return mock.patch("scanner.services.get_image", side_effect=lambda url: urls[url])
+
+    def setUp(self):
+        super().setUp()
+        from scanner import services
+
+        services._REFERENCES.clear()
+
+    def test_stamped_promo_is_recognized_and_auto_added(self):
+        stamped = _stamped(make_card(4))
+        base, promo = self._add_promo(stamped)
+        with self._images(make_card(4), stamped):
+            scan = self._scan(encode_jpeg(make_photo(stamped)))
+        self.assertEqual(scan["candidates"][0]["card_id"], promo.id)
+        self.assertFalse(scan["needs_review"])
+        self.assertTrue(scan["added_to_collection"])
+        self.assertEqual((self._quantity(promo), self._quantity(base)), (1, 0))
+
+    def test_plain_card_is_not_taken_for_the_promo(self):
+        stamped = _stamped(make_card(4))
+        base, promo = self._add_promo(stamped)
+        with self._images(make_card(4), stamped):
+            scan = self._scan(self._card_photo(4))
+        self.assertEqual(scan["candidates"][0]["card_id"], base.id)
+        self.assertEqual((self._quantity(base), self._quantity(promo)), (1, 0))
+
+    def test_identical_editions_go_to_review_and_are_not_auto_added(self):
+        base, promo = self._add_promo(make_card(4))
+        with self._images(make_card(4), make_card(4)):
+            scan = self._scan(self._card_photo(4))
+        self.assertEqual(scan["candidates"][0]["card_number"], scan["candidates"][1]["card_number"])
+        self.assertIn("card_set", scan["candidates"][0])
+        self.assertTrue(scan["needs_review"])
+        self.assertFalse(scan["added_to_collection"])
+        self.assertEqual(self._quantity(base) + self._quantity(promo), 0)

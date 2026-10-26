@@ -13,9 +13,11 @@ from cards.models import Card
 from collection.models import CollectionEntry, Location
 from vision import fingerprint as fp
 from vision.matcher import FingerprintIndex, MatchResult, identify
-from vision.preprocess import decode_image
+from vision.preprocess import decode_image, decode_reference, prepare_reference
+from vision.siblings import tiebreak
 
-from .models import CardFingerprint
+from .images import get_image
+from .models import CardFingerprint, Scan
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +158,78 @@ def set_scan_copies(scan, copies: int) -> None:
         add_scan_to_collection(scan)
 
 
+# Imágenes oficiales ya preparadas (tamaño canónico), por URL: el desempate las reutiliza.
+_REFERENCES: dict[str, np.ndarray | None] = {}
+_REFERENCES_MAX = 256
+
+
+def _official_reference(url: str) -> np.ndarray | None:
+    if url not in _REFERENCES:
+        if len(_REFERENCES) >= _REFERENCES_MAX:
+            _REFERENCES.pop(next(iter(_REFERENCES)))
+        try:
+            _REFERENCES[url] = prepare_reference(decode_reference(get_image(url)))
+        except Exception:  # noqa: BLE001 - sin imagen, esa impresión no entra en el desempate
+            logger.warning("Sin imagen de referencia para el desempate: %s", url)
+            _REFERENCES[url] = None
+    return _REFERENCES[url]
+
+
+def _learned_reference(card_id: int, exclude_scan: int | None) -> np.ndarray | None:
+    """Tu foto confirmada más reciente de esa impresión: compara foto con foto, sin las
+    diferencias de color y nitidez de las imágenes oficiales (que vienen de fuentes distintas)."""
+    scan = (
+        Scan.objects.filter(confirmed=True, dismissed=False, matched_card_id=card_id)
+        .exclude(pk=exclude_scan).exclude(cropped_image="").order_by("-id").first()
+    )
+    if scan is None:
+        return None
+    try:
+        import cv2
+
+        return cv2.imread(scan.cropped_image.path)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def resolve_siblings(candidates: list[dict], crop: np.ndarray, exclude_scan: int | None = None) -> tuple[bool, int | None]:
+    """Si los dos mejores candidatos son impresiones hermanas (mismo número), desempata entre
+    todas las ediciones de ese número mirando solo donde se diferencian (vision.siblings).
+
+    Devuelve (había_duda, id_ganadora); ganadora None = no se puede decidir: a "Revisar".
+    """
+    if len(candidates) < 2 or candidates[0]["card_number"] != candidates[1]["card_number"]:
+        return False, None
+    printings = Card.objects.filter(card_number=candidates[0]["card_number"]).exclude(image_url="").order_by("id")
+    ids, references = [], []
+    for card in printings.only("id", "image_url"):
+        reference = _learned_reference(card.id, exclude_scan)
+        if reference is None:
+            reference = _official_reference(card.image_url)
+        if reference is not None:
+            ids.append(card.id)
+            references.append(reference)
+    if len(references) < 2:
+        return True, None
+    try:
+        result = tiebreak(crop, references)
+    except Exception:  # noqa: BLE001 - ante cualquier fallo, mejor preguntar que adivinar
+        logger.exception("Desempate entre hermanas fallido")
+        return True, None
+    return True, (ids[result.winner] if result.winner is not None else None)
+
+
+def promote_candidate(candidates: list[dict], card_id: int) -> list[dict]:
+    """Pone primera la impresión elegida por el desempate (aunque no estuviera en el top)."""
+    rest = [c for c in candidates if c["card_id"] != card_id]
+    chosen = next((c for c in candidates if c["card_id"] == card_id), None)
+    if chosen is None:
+        card = Card.objects.get(id=card_id)
+        chosen = {**candidates[0], "card_id": card.id, "card_number": card.card_number, "name": card.name,
+                  "card_set": card.card_set, "image_url": card.image_url}
+    return [chosen, *rest][: max(len(candidates), 1)]
+
+
 def apply_burst_rules(scan) -> None:
     """Tras identificar un escaneo de una sesión de modo ráfaga."""
     if not scan.session_id or scan.status != scan.Status.DONE:
@@ -170,7 +244,8 @@ def apply_burst_rules(scan) -> None:
         # que se ha recolocado. Se pregunta en vez de sumar otra copia.
         scan.repeat_suspect = True
         scan.save(update_fields=["repeat_suspect"])
-    elif confidence >= settings.AUTO_ADD_MIN_CONFIDENCE:
+    elif confidence >= settings.AUTO_ADD_MIN_CONFIDENCE and not scan.needs_review:
+        # "Revisar" con confianza alta = no se pudo decidir entre ediciones hermanas: hay que elegirla.
         add_scan_to_collection(scan)
 
 
@@ -207,6 +282,7 @@ def serialize_candidates(result: MatchResult, limit: int = 5) -> list[dict]:
                 "card_id": card.id,
                 "card_number": card.card_number,
                 "name": card.name,
+                "card_set": card.card_set,
                 "image_url": card.image_url,
                 "distance": cand.distance,
                 "orb_matches": cand.orb_matches,

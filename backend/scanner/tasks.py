@@ -12,7 +12,7 @@ from vision.preprocess import crop_region, decode_image, encode_jpeg
 from . import camera
 from .fingerprints import build_pending
 from .models import Scan
-from .services import apply_burst_rules, run_identification, serialize_candidates, warm_up
+from .services import apply_burst_rules, run_identification, promote_candidate, resolve_siblings, serialize_candidates, warm_up
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,14 @@ def identify_card(scan_id: int):
         scan.confidence = round(result.confidence, 3) if result.best else None
         scan.matched_card_id = result.best.card_id if result.best else None
         scan.needs_review = result.confidence < settings.MATCH_MIN_CONFIDENCE
+        # Impresiones hermanas (promos, Judge…): se decide la edición por sus diferencias; si no
+        # se puede, a "Revisar" para que el usuario la elija (en ráfaga no se añade sola).
+        doubt, winner = resolve_siblings(scan.candidates, result.crop, scan.pk)
+        if doubt and winner:
+            scan.candidates = promote_candidate(scan.candidates, winner)
+            scan.matched_card_id = winner
+        elif doubt:
+            scan.needs_review = True
         scan.status = Scan.Status.DONE
     except Exception as exc:  # noqa: BLE001 - el error se guarda en el Scan
         logger.exception("Scan %s falló", scan_id)

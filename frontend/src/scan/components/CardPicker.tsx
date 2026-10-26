@@ -9,6 +9,7 @@ interface Option {
   card_number: string;
   name: string;
   image_url: string;
+  card_set?: string;
   hint?: string;
 }
 
@@ -18,11 +19,26 @@ function fromCandidate(c: Candidate): Option {
     card_number: c.card_number,
     name: c.name,
     image_url: c.image_url,
+    card_set: c.card_set,
     hint: `${Math.round(c.score * 100)}%`,
   };
 }
 
-/** Elige la carta correcta: entre los candidatos del escaneo o buscándola. */
+function Tile({ o, busy, onPick, showSet }: { o: Option; busy: boolean; onPick: (id: number) => void; showSet?: boolean }) {
+  return (
+    <button className="scan-tile" disabled={busy} onClick={() => onPick(o.id)} title="Es esta">
+      {o.image_url && <img src={o.image_url} alt={o.name} loading="lazy" />}
+      <span>
+        {o.card_number} · {o.name}
+        {o.hint && <span className="muted"> · {o.hint}</span>}
+      </span>
+      {showSet && o.card_set && <span className="tile-set">{o.card_set}</span>}
+    </button>
+  );
+}
+
+/** Elige la carta correcta: entre los candidatos del escaneo o buscándola. Si duda entre
+ *  impresiones hermanas (mismo número: promos, Judge…), enseña juntas todas sus ediciones. */
 export default function CardPicker({
   candidates,
   onPick,
@@ -40,7 +56,27 @@ export default function CardPicker({
     enabled: term.length >= 2,
   });
 
-  const options: Option[] = term.length >= 2 ? (results.data?.results ?? []) : candidates.map(fromCandidate);
+  // Los dos mejores son la misma carta en distinta impresión: la duda es la edición.
+  const siblingNumber =
+    candidates.length > 1 && candidates[0].card_number === candidates[1].card_number ? candidates[0].card_number : null;
+  const printings = useQuery({
+    queryKey: ["cards", "printings", siblingNumber],
+    queryFn: () => api.searchCards(siblingNumber!),
+    enabled: siblingNumber != null && term.length < 2,
+  });
+
+  const searching = term.length >= 2;
+  const scores = new Map(candidates.map((c) => [c.card_id, `${Math.round(c.score * 100)}%`]));
+  const siblings: Option[] = siblingNumber
+    ? (printings.data?.results ?? candidates.filter((c) => c.card_number === siblingNumber).map(fromCandidate))
+        .filter((o) => o.card_number === siblingNumber)
+        .map((o) => ({ ...o, hint: scores.get(o.id) }))
+        // primero las que el escáner propuso (por puntuación), luego el resto de ediciones
+        .sort((a, b) => (b.hint ? parseInt(b.hint) : -1) - (a.hint ? parseInt(a.hint) : -1))
+    : [];
+  const others: Option[] = searching
+    ? (results.data?.results ?? [])
+    : candidates.filter((c) => c.card_number !== siblingNumber).map(fromCandidate);
 
   return (
     <div className="picker">
@@ -50,18 +86,26 @@ export default function CardPicker({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {term.length >= 2 && results.data && (
+      {searching && results.data && (
         <p className="muted">{results.data.count} resultados{results.data.count > 30 && " (se muestran 30)"}</p>
       )}
+      {!searching && siblings.length > 0 && (
+        <div className="picker-siblings">
+          <p className="picker-note">
+            Es <strong>{siblings[0].card_number} · {siblings[0].name}</strong>, pero hay varias impresiones: elige la
+            edición de tu carta.
+          </p>
+          <div className="picker-grid">
+            {siblings.map((o) => (
+              <Tile key={o.id} o={o} busy={busy} onPick={onPick} showSet />
+            ))}
+          </div>
+          {others.length > 0 && <p className="muted small">Otros candidatos</p>}
+        </div>
+      )}
       <div className="picker-grid">
-        {options.map((o) => (
-          <button key={o.id} className="scan-tile" disabled={busy} onClick={() => onPick(o.id)} title="Es esta">
-            {o.image_url && <img src={o.image_url} alt={o.name} loading="lazy" />}
-            <span>
-              {o.card_number} · {o.name}
-              {o.hint && <span className="muted"> · {o.hint}</span>}
-            </span>
-          </button>
+        {others.map((o) => (
+          <Tile key={o.id} o={o} busy={busy} onPick={onPick} showSet={searching} />
         ))}
       </div>
       <p className="muted small">

@@ -103,3 +103,37 @@ class MatcherTests(SimpleTestCase):
         result = identify(make_photo(self.cards[0]), FingerprintIndex.from_rows([]), self.load_orb)
         self.assertIsNone(result.best)
         self.assertEqual(result.method, "none")
+
+
+class SiblingTiebreakTests(SimpleTestCase):
+    """vision.siblings: elegir entre ediciones casi iguales mirando solo donde difieren."""
+
+    def setUp(self):
+        import cv2
+
+        from .synthetic import make_card
+
+        self.plain = make_card(7)
+        self.stamped = self.plain.copy()
+        cv2.circle(self.stamped, (60, 380), 34, (255, 255, 255), -1)
+
+    def test_picks_the_edition_with_the_stamp(self):
+        from vision.siblings import tiebreak
+
+        self.assertEqual(tiebreak(self.stamped, [self.plain, self.stamped]).winner, 1)
+        self.assertEqual(tiebreak(self.plain, [self.plain, self.stamped]).winner, 0)
+
+    def test_upside_down_photo(self):
+        import cv2
+
+        from vision.siblings import tiebreak
+
+        upside_down = cv2.rotate(self.stamped, cv2.ROTATE_180)
+        self.assertEqual(tiebreak(upside_down, [self.plain, self.stamped]).winner, 1)
+
+    def test_identical_references_are_undecidable(self):
+        from vision.siblings import tiebreak
+
+        result = tiebreak(self.plain, [self.plain, self.plain.copy()])
+        self.assertIsNone(result.winner)
+        self.assertEqual(result.reason, "identical")

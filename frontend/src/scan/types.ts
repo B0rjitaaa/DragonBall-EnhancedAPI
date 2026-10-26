@@ -22,6 +22,8 @@ export interface Candidate {
   card_number: string;
   name: string;
   image_url: string;
+  /** Edición: distingue impresiones hermanas (promos, Judge…). */
+  card_set?: string;
   distance: number;
   orb_matches: number | null;
   score: number;
@@ -77,6 +79,7 @@ export interface CardOption {
   card_number: string;
   name: string;
   image_url: string;
+  card_set?: string;
 }
 
 export interface SessionScan {
