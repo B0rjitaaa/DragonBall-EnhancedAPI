@@ -3,6 +3,7 @@ import CardGrid from './components/CardGrid'
 import CardModal from './components/CardModal'
 import FacetPanel from './components/FacetPanel'
 import CollectionList from './components/CollectionList'
+import Pagination from './components/Pagination'
 import DeckView from './components/DeckView'
 import OwnedPanel, { type Spot } from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
@@ -620,17 +621,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           )}
 
           {data && data.pages > 1 && view !== 'deck' && (
-            <nav className="pagination">
-              <button className="btn ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                ← Anterior
-              </button>
-              <span>
-                Página {data.page} de {data.pages}
-              </span>
-              <button className="btn ghost" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>
-                Siguiente →
-              </button>
-            </nav>
+            <Pagination page={data.page} pages={data.pages} onPage={setPage} />
           )}
         </main>
       </div>

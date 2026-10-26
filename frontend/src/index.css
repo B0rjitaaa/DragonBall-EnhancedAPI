@@ -225,7 +225,22 @@ body.no-scroll { overflow: hidden; }
 .dot.c-black { background: var(--c-black); }
 .dot.c-white { background: var(--c-white); }
 .empty { padding: 3rem; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); }
-.pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 0.6rem; margin: 1.5rem 0; }
+.page-list { display: flex; align-items: center; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
+.page-num {
+  min-width: 2.3rem; height: 2.3rem; padding: 0 0.5rem; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-2); color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.page-num:hover:not(.current) { border-color: var(--accent); color: var(--accent-2); }
+.page-num.current { background: var(--accent); border-color: var(--accent); color: #1a1205; font-weight: 700; cursor: default; }
+.page-gap { min-width: 1.4rem; text-align: center; color: var(--muted); }
+@media (max-width: 600px) {
+  .pagination { gap: 0.3rem; }
+  .page-list { gap: 0.2rem; }
+  .page-num { min-width: 2rem; height: 2.2rem; padding: 0 0.3rem; }
+  .page-step { padding: 0.45rem 0.7rem; }
+}
 
 /* Modal */
 .modal-backdrop {
