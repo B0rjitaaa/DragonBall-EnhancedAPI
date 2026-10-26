@@ -31,6 +31,7 @@ from .collection import (
     reorder_owned,
 )
 from . import thumbs
+from .collection_csv import CsvImportError, apply_import, export_csv, parse_import
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
 from .parsing import parse_search_terms
@@ -520,6 +521,34 @@ class MyCollectionBackupView(APIView):
         response = HttpResponse(body, content_type="application/json; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.json"'
         return response
+
+
+class MyCollectionCsvView(APIView):
+    """Mi colección en CSV para hojas de cálculo (botón "Descargar CSV")."""
+
+    def get(self, request):
+        now = timezone.localtime()
+        response = HttpResponse(export_csv(), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.csv"'
+        return response
+
+
+class MyCollectionImportView(APIView):
+    """Importa un CSV sumando copias. Body: {csv: texto, apply: bool}.
+
+    Sin `apply` devuelve la vista previa; con `apply` suma las filas reconocidas.
+    Nunca borra copias."""
+
+    def post(self, request):
+        text = request.data.get("csv")
+        if not isinstance(text, str) or not text.strip():
+            return Response({"detail": "Falta el contenido del CSV"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if request.data.get("apply"):
+                return Response({"applied": apply_import(text)})
+            return Response(parse_import(text))
+        except CsvImportError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def card_thumb(request, card_id: int, version: str):

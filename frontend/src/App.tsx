@@ -7,7 +7,8 @@ import Pagination from './components/Pagination'
 import DeckView from './components/DeckView'
 import OwnedPanel, { type Spot } from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
-import { api, ApiError, COLLECTION_BACKUP_URL, type Scope } from './lib/api'
+import CsvImport from './components/CsvImport'
+import { api, ApiError, COLLECTION_BACKUP_URL, COLLECTION_CSV_URL, type Scope } from './lib/api'
 import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
 } from './lib/query'
@@ -583,6 +584,19 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Descarga un JSON con tus ubicaciones y todas tus cartas, con sus copias en cada ubicación">
                 Descargar copia
               </a>
+            )}
+            {inCollection && (
+              <a className="btn backup-link" href={COLLECTION_CSV_URL} download title="Descarga tu colección en CSV para abrirla en Excel u otra hoja de cálculo">
+                Descargar CSV
+              </a>
+            )}
+            {inCollection && (
+              <CsvImport
+                onDone={() => {
+                  setReloadTick((t) => t + 1)
+                  reloadLocations()
+                }}
+              />
             )}
             {inCollection && (
               <a className="btn primary scan-link" href="/scan">

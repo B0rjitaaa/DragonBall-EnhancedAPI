@@ -150,6 +150,24 @@ export interface CardDetail extends CardSummary {
   rulings: CardRuling[]
 }
 
+/** Vista previa de importar Mi colección desde CSV (nunca borra: solo suma copias). */
+export interface CsvImportPreview {
+  rows: {
+    line: number
+    card_id: number
+    card_number: string
+    name: string
+    location: string
+    unknown_location: string
+    qty: number
+    fake: boolean
+    notes: string
+  }[]
+  errors: { line: number; reason: string }[]
+  ambiguous: { line: number; number: string; qty: number; options: { id: number; card_set: string }[] }[]
+  totals: { rows: number; copies: number; fakes: number; unknown_locations: string[]; skipped: number }
+}
+
 export interface CardErrataInfo {
   card_name: string
   before: string

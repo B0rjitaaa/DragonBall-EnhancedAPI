@@ -1,5 +1,5 @@
 import type {
-  CardDetail, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  CardDetail, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, SearchResponse,
 } from './types'
 
@@ -7,6 +7,8 @@ const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
 /** Descarga directa (enlace) de la copia de seguridad de Mi colección. */
 export const COLLECTION_BACKUP_URL = `${BASE}/my-collection/backup/`
+/** Descarga directa de Mi colección en CSV (para hojas de cálculo). */
+export const COLLECTION_CSV_URL = `${BASE}/my-collection/csv/`
 
 /** Error de la API con su estado HTTP y el cuerpo (p. ej. el 409 de quitar una copia repartida). */
 export class ApiError extends Error {
@@ -110,6 +112,10 @@ export const api = {
   /** «Mi orden»: esas cartas, en ese orden, dentro de la ubicación. */
   reorderCollection: (location: number, cardIds: number[]) =>
     request<void>('/my-collection/reorder/', post({ location, card_ids: cardIds })),
+  /** Importar un CSV: sin `apply`, vista previa; con `apply`, suma las copias reconocidas. */
+  previewCsvImport: (csv: string) => request<CsvImportPreview>('/my-collection/import/', post({ csv })),
+  applyCsvImport: (csv: string) =>
+    request<{ applied: CsvImportPreview['totals'] }>('/my-collection/import/', post({ csv, apply: true })),
   locations: () => request<Location[]>('/my-collection/locations/'),
   createLocation: (name: string, kind: LocationKind, position = 0) =>
     request<Location>('/my-collection/locations/', post({ name, kind, position })),
