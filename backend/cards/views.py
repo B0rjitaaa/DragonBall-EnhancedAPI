@@ -33,7 +33,7 @@ from .collection import (
 from . import thumbs
 from .facets import cached_facets
 from .models import BanListEntry, Card, KeywordSkill, SyncRun
-from .parsing import normalize_search
+from .parsing import parse_search_terms
 from .query import FIELDS, QueryError, fields_schema, params_to_tree, tree_to_q
 from .serializers import (
     BanListEntrySerializer, CardDetailSerializer, KeywordSkillSerializer, CardListSerializer, SearchRequestSerializer,
@@ -68,14 +68,19 @@ def apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
 
 
 def text_search(q: str | None) -> Q:
-    """Busca la frase en nombre, número y texto, ignorando corchetes y mayúsculas.
+    """Busca por palabras en nombre, número y texto, ignorando corchetes y mayúsculas.
 
+    Todas las palabras han de aparecer (AND), así 'goku barrier' ya devuelve resultados.
+    Admite "frase exacta" entre comillas y -palabra (o -"frase") para excluir.
     'it gains Barrier' encuentra '... it gains [Barrier]'.
     """
-    needle = normalize_search(q)
-    if not needle:
-        return Q()
-    return Q(search_text__contains=needle)
+    included, excluded = parse_search_terms(q)
+    condition = Q()
+    for term in included:
+        condition &= Q(search_text__contains=term)
+    for term in excluded:
+        condition &= ~Q(search_text__contains=term)
+    return condition
 
 
 def build_queryset(q: str | None, tree: dict | None, extra: dict | None = None) -> QuerySet:

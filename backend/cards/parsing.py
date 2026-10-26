@@ -40,6 +40,31 @@ def normalize_search(value: str | None) -> str:
     return s.strip().lower()
 
 
+# Un término de búsqueda: '-' opcional para excluir, luego "frase entre comillas" o palabra suelta.
+SEARCH_TOKEN_RE = re.compile(r'(?P<neg>-?)(?:"(?P<phrase>[^"]*)"|(?P<word>[^\s"]+))')
+
+
+def parse_search_terms(q: str | None) -> tuple[list[str], list[str]]:
+    """Parte la búsqueda libre en términos a incluir y a excluir.
+
+    - Palabras sueltas: se exigen todas (AND) sobre el texto normalizado.
+    - "entre comillas": frase exacta.
+    - -palabra o -"frase": excluir ese término.
+    Cada término se normaliza igual que `search_text`, y se descartan los que quedan sin letras ni dígitos.
+    """
+    included: list[str] = []
+    excluded: list[str] = []
+    for match in SEARCH_TOKEN_RE.finditer(q or ""):
+        raw = match.group("phrase")
+        if raw is None:
+            raw = match.group("word")
+        term = normalize_search(raw)
+        if not any(ch.isalnum() for ch in term):
+            continue
+        (excluded if match.group("neg") == "-" else included).append(term)
+    return included, excluded
+
+
 def clean(value: Any) -> str | None:
     """'' y None -> None; strings recortados."""
     if value is None:

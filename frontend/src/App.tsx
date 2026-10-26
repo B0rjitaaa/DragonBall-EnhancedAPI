@@ -54,6 +54,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [skills, setSkills] = useState<SkillIndex>(SkillIndex.empty)
 
   const [q, setQ] = useState(initial.q ?? '')
+  const [qFocused, setQFocused] = useState(false)
   const [facets, setFacets] = useState<FacetState>(initial.facets ?? {})
   const [advanced, setAdvanced] = useState<Group>(initial.advanced ?? newGroup())
   const [advancedOn, setAdvancedOn] = useState(initial.advancedOn ?? false)
@@ -392,7 +393,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           className="input search"
           type="search"
           placeholder={inCollection ? 'Buscar en mi colección por nombre, número o texto…' : 'Buscar por nombre, número o texto…'}
+          title={'Busca por palabras: aparecen todas (AND).\n"frase exacta" entre comillas · -palabra para excluir'}
           value={q}
+          onFocus={() => setQFocused(true)}
+          onBlur={() => setQFocused(false)}
           onChange={(e) => {
             setQ(e.target.value)
             setPage(1)
@@ -415,6 +419,12 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           Modo avanzado {advancedOn ? 'ON' : 'OFF'}
         </button>
       </header>
+
+      {(qFocused || q.trim().length > 0) && (
+        <p className="search-help">
+          Busca por palabras: aparecen <strong>todas</strong>. <code>"frase exacta"</code> entre comillas · <code>-palabra</code> para excluir.
+        </p>
+      )}
 
       <div className="layout">
         {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} aria-hidden />}

@@ -183,6 +183,23 @@ class ApiTests(TestCase):
             r = self.client.post("/api/cards/search/", {"q": q}, format="json")
             self.assertEqual([c["id"] for c in r.json()["results"]], [10], q)
 
+    def test_search_words_are_anded(self):
+        # 'goku' y 'barrier' no aparecen seguidos en el texto; antes no devolvía nada.
+        r = self.client.post("/api/cards/search/", {"q": "goku barrier"}, format="json")
+        self.assertEqual([c["id"] for c in r.json()["results"]], [10])
+
+    def test_search_exact_phrase(self):
+        # Entre comillas sí exige la frase seguida: 'son goku' la tiene; 'goku son' no.
+        hit = self.client.post("/api/cards/search/", {"q": '"son goku"'}, format="json")
+        self.assertEqual([c["id"] for c in hit.json()["results"]], [10])
+        miss = self.client.post("/api/cards/search/", {"q": '"goku son"'}, format="json")
+        self.assertEqual(miss.json()["count"], 0)
+
+    def test_search_exclusion(self):
+        # 'barrier' lo tienen 10 y 11; excluir 'blocker' deja solo a Vegeta (11).
+        r = self.client.post("/api/cards/search/", {"q": "barrier -blocker"}, format="json")
+        self.assertEqual([c["id"] for c in r.json()["results"]], [11])
+
     def test_text_condition_ignores_brackets(self):
         r = self.client.post("/api/cards/search/", {"query": {
             "field": "text", "operator": "contains", "value": "counter: play limit 1"}}, format="json")
