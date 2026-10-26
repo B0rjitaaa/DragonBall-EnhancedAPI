@@ -150,6 +150,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "cards.tasks.sync_keyword_skills",
         "schedule": crontab(hour=3, minute=45, day_of_week="mon"),
     },
+    "sync-errata-weekly": {
+        "task": "cards.tasks.sync_errata",
+        "schedule": crontab(hour=3, minute=50, day_of_week="mon"),
+    },
+    "sync-rulings-weekly": {
+        "task": "cards.tasks.sync_rulings",
+        "schedule": crontab(hour=3, minute=55, day_of_week="mon"),
+    },
     "sync-all-cards-weekly": {
         "task": "cards.tasks.sync_cards",
         "schedule": crontab(hour=5, minute=0, day_of_week="sun"),
@@ -197,6 +205,8 @@ BANDAI_REQUEST_DELAY = float(env("BANDAI_REQUEST_DELAY", "0.25"))
 BANDAI_WORKERS = int(env("BANDAI_WORKERS", "4"))
 KEYWORD_SKILLS_URL = env("KEYWORD_SKILLS_URL", "https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php")
 BANLIST_URL = env("BANLIST_URL", "https://www.dbs-cardgame.com/us-en/rule/banned-limited-cards.php")
+ERRATA_URL = env("ERRATA_URL", "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php")
+CARD_FAQ_URL = env("CARD_FAQ_URL", "https://www.dbs-cardgame.com/us-en/rule/card_faq.php")
 
 LOGGING = {
     "version": 1,

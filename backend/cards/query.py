@@ -32,6 +32,7 @@ OPERATORS: dict[str, list[str]] = {
     "enum": ["eq", "in"],
     "array": ["has", "has_any", "has_all", "is_empty"],
     "boolean": ["eq"],
+    "flag": ["eq"],
 }
 
 
@@ -60,6 +61,8 @@ FIELDS: dict[str, Field] = {
     "card_set": Field("Card Set", "enum", ("card_set",), "Set", facet=True),
     "regulation": Field("Regulation", "array", ("regulations",), "Set", facet=True),
     "legality": Field("Banned / Limited", "enum", ("legality",), "Tournament", facet=True),
+    "has_errata": Field("Has Errata", "flag", ("has_errata",), "Tournament"),
+    "has_ruling": Field("Has Q&A", "flag", ("rulings_count",), "Tournament"),
     # card_config
     "type": Field("Type", "enum", ("card_type",), "Attributes", facet=True),
     "color": Field("Color", "array", ("colors",), "Attributes", facet=True),
@@ -190,6 +193,11 @@ def condition_to_q(node: dict) -> Q:
             q = Q(**{f"{col}__overlap": [str(v) for v in _as_list(value)]})
         else:  # has_all
             q = Q(**{f"{col}__contains": [str(v) for v in _as_list(value)]})
+
+    elif f.type == "flag":  # has_errata (bool), has_ruling (rulings_count > 0)
+        q = Q(**{f"{col}__gt": 0}) if col == "rulings_count" else Q(**{col: True})
+        if not _as_bool(value):
+            q = ~q
 
     else:  # boolean (has_back)
         q = Q(**{f"{col}__isnull": not _as_bool(value)})

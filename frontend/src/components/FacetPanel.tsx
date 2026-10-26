@@ -46,6 +46,9 @@ const SECTIONS: Section[] = [
 
 const EMPTY: FacetSelection = { values: [], match: 'any' }
 
+// Campos booleanos que se muestran como casilla en el panel (etiquetas en español)
+const FLAG_LABELS: Record<string, string> = { has_errata: 'Tiene errata', has_ruling: 'Tiene Q&A' }
+
 interface Props {
   fields: FieldDef[]
   global: Record<string, Facet>
@@ -69,8 +72,24 @@ export default function FacetPanel({ fields, global, context, state, onChange, s
   }
   const update = (key: string, sel: FacetSelection) => updateMany({ [key]: sel })
 
+  const flagFields = fields.filter((f) => f.type === 'flag')
+
   return (
     <div className="facets">
+      {flagFields.length > 0 && (
+        <div className="facet-flags">
+          {flagFields.map((f) => (
+            <label key={f.key} className="flag-toggle">
+              <input
+                type="checkbox"
+                checked={(state[f.key]?.values.length ?? 0) > 0}
+                onChange={(e) => update(f.key, e.target.checked ? { values: ['true'], match: 'any' } : EMPTY)}
+              />
+              {FLAG_LABELS[f.key] ?? f.label}
+            </label>
+          ))}
+        </div>
+      )}
       {SECTIONS.map(({ key, mode, open, sort, skills: withSkills, subsets }) => {
         const field = byKey[key]
         const facet = global[key]

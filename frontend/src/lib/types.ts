@@ -1,4 +1,4 @@
-export type FieldType = 'text' | 'number' | 'enum' | 'array' | 'boolean'
+export type FieldType = 'text' | 'number' | 'enum' | 'array' | 'boolean' | 'flag'
 
 export interface FieldDef {
   key: string
@@ -65,6 +65,10 @@ export interface CardSummary {
   legality: 'legal' | 'limited' | 'banned'
   legality_since: string
   keyword_skills: string[]
+  /** Tiene errata oficial. */
+  has_errata: boolean
+  /** Número de preguntas/respuestas oficiales (Card Q&A). */
+  rulings_count: number
   /** Solo en Mi colección: copias (las de la ubicación filtrada, si hay filtro) y su reparto. */
   quantity?: number
   /** Con filtro de ubicación: copias en total, en todas las ubicaciones. */
@@ -140,6 +144,28 @@ export interface CardDetail extends CardSummary {
   regulations: string[]
   config: Record<string, string | null>
   back_config: Record<string, string | null>
+  /** Errata oficial de la carta (null si no tiene). */
+  errata: CardErrataInfo | null
+  /** Preguntas y respuestas oficiales (Card Q&A). */
+  rulings: CardRuling[]
+}
+
+export interface CardErrataInfo {
+  card_name: string
+  before: string
+  after: string
+  notes: string
+  image_url: string
+  date: string
+  list_updated: string
+}
+
+export interface CardRuling {
+  order: number
+  question: string
+  answer: string
+  is_new: boolean
+  set_label: string
 }
 
 export interface SearchResponse {

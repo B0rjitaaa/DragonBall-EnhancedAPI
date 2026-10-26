@@ -68,6 +68,10 @@ class Card(models.Model):
     legality = models.CharField(max_length=8, choices=Legality.choices, default=Legality.LEGAL, db_index=True)
     legality_since = models.CharField(max_length=255, blank=True)
 
+    # Errata y Q&A oficiales (se aplican por card_number, ver errata.py y rulings.py)
+    has_errata = models.BooleanField(default=False, db_index=True)
+    rulings_count = models.PositiveSmallIntegerField(default=0, db_index=True)
+
     # Texto normalizado para búsquedas (sin corchetes/HTML, minúsculas). Ver parsing.normalize_search
     effect_text = models.TextField(blank=True, help_text="Texto de ambas caras normalizado")
     search_text = models.TextField(blank=True, help_text="Nombre + número + texto normalizados")
@@ -153,6 +157,53 @@ class BanListEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.card_number} ({self.status})"
+
+
+class CardErrata(models.Model):
+    """Errata oficial de una carta (dbs-cardgame.com). Una por número de carta."""
+
+    card_number = models.CharField(max_length=32, primary_key=True)
+    card_name = models.CharField(max_length=255, blank=True)
+    before = models.TextField(blank=True, help_text="Texto anterior")
+    after = models.TextField(blank=True, help_text="Texto corregido")
+    notes = models.TextField(blank=True, help_text="Errata Notes")
+    image_url = models.URLField(max_length=500, blank=True)
+    date = models.CharField(max_length=16, blank=True, help_text="Fecha de la errata, p. ej. 2025.02.28")
+    list_updated = models.CharField(max_length=64, blank=True, help_text="'updated on …' de la web oficial")
+    source = models.CharField(max_length=16, default="official", help_text="official | snapshot")
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["card_number"]
+        verbose_name = "Errata de carta"
+        verbose_name_plural = "Erratas"
+
+    def __str__(self) -> str:
+        return f"Errata {self.card_number}"
+
+
+class CardRuling(models.Model):
+    """Pregunta/respuesta oficial (Card Q&A, dbs-cardgame.com). Varias por carta."""
+
+    card_number = models.CharField(max_length=32, db_index=True)
+    order = models.PositiveSmallIntegerField(default=0, help_text="Orden dentro de la carta (Q1, Q2…)")
+    card_name = models.CharField(max_length=255, blank=True)
+    question = models.TextField()
+    answer = models.TextField()
+    is_new = models.BooleanField(default=False, help_text="Marcada como nueva en la web oficial")
+    set_label = models.CharField(max_length=255, blank=True)
+    list_updated = models.CharField(max_length=64, blank=True)
+    source = models.CharField(max_length=16, default="official")
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["card_number", "order"]
+        constraints = [models.UniqueConstraint(fields=["card_number", "order"], name="unique_ruling_order")]
+        verbose_name = "Pregunta/respuesta"
+        verbose_name_plural = "Card Q&A"
+
+    def __str__(self) -> str:
+        return f"Q&A {self.card_number} #{self.order}"
 
 
 class KeywordSkill(models.Model):

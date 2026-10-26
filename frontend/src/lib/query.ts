@@ -25,7 +25,7 @@ export const OPERATOR_LABELS: Record<string, string> = {
 export function defaultValue(field: FieldDef, operator: string): unknown {
   if (operator === 'between') return ['', '']
   if (['in', 'has_any', 'has_all'].includes(operator)) return []
-  if (operator === 'isnull' || operator === 'is_empty' || field.type === 'boolean') return true
+  if (operator === 'isnull' || operator === 'is_empty' || field.type === 'boolean' || field.type === 'flag') return true
   return ''
 }
 
@@ -81,6 +81,8 @@ export function facetsToConditions(state: FacetState, fields: FieldDef[]): Recor
       const lo = sel.min ?? ''
       const hi = sel.max ?? ''
       if (lo !== '' || hi !== '') out.push({ field: key, operator: 'between', value: [lo, hi] })
+    } else if (f.type === 'flag') {
+      if (sel.values.length) out.push({ field: key, operator: 'eq', value: true })
     } else if (sel.values.length) {
       if (f.type === 'array') {
         out.push({ field: key, operator: sel.match === 'all' ? 'has_all' : 'has_any', value: sel.values })

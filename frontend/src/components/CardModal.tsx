@@ -85,6 +85,22 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
                   <strong>🃏 Construcción de mazo:</strong> {deckRules.join(' · ')}
                 </div>
               )}
+              {card.errata && (
+                <div className="legal-banner errata">
+                  <strong>✎ Errata oficial{card.errata.date && <small> {card.errata.date}</small>}</strong>
+                  <div className="errata-cols">
+                    <div>
+                      <span className="errata-tag">Antes</span>
+                      <p>{card.errata.before}</p>
+                    </div>
+                    <div>
+                      <span className="errata-tag after">Después</span>
+                      <p>{card.errata.after}</p>
+                    </div>
+                  </div>
+                  {card.errata.notes && <p className="errata-notes">{card.errata.notes}</p>}
+                </div>
+              )}
               {children}
               <CardText text={back ? card.back_text : card.text} skills={skills} onKeyword={(kw) => onFilter('keyword', kw)} />
 
@@ -137,6 +153,25 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
                     ))}
                   </div>
                 </>
+              )}
+              {card.rulings.length > 0 && (
+                <details className="rulings">
+                  <summary>
+                    Preguntas y respuestas <span className="count">{card.rulings.length}</span>
+                  </summary>
+                  <dl className="qa">
+                    {card.rulings.map((r) => (
+                      <div key={r.order} className="qa-item">
+                        <dt>
+                          <span className="qa-q">P{r.order}</span>
+                          {r.is_new && <span className="qa-new">nueva</span>}
+                          {r.question}
+                        </dt>
+                        <dd>{r.answer}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
               )}
               {card.notes && <p className="muted small">Notas: {card.notes.split('|').pop()}</p>}
             </div>

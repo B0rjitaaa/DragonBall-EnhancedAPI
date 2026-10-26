@@ -7,7 +7,7 @@ from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
-from . import banlist, skills
+from . import banlist, errata, rulings, skills
 from .bandai import BandaiClient
 from .importer import upsert_cards
 from .models import Card, SyncRun
@@ -95,3 +95,15 @@ def sync_banlist() -> dict:
 def sync_keyword_skills() -> dict:
     """Actualiza las keyword skills oficiales (nombres, categorías y textos)."""
     return skills.sync_keyword_skills()
+
+
+@shared_task(name="cards.tasks.sync_errata", autoretry_for=(Exception,), retry_backoff=600, max_retries=3)
+def sync_errata() -> dict:
+    """Actualiza las erratas oficiales de las cartas."""
+    return errata.sync_errata()
+
+
+@shared_task(name="cards.tasks.sync_rulings", autoretry_for=(Exception,), retry_backoff=600, max_retries=3)
+def sync_rulings() -> dict:
+    """Actualiza el Card Q&A oficial (preguntas y respuestas por carta)."""
+    return rulings.sync_rulings()

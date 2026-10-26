@@ -93,6 +93,18 @@ export default function CardGrid({
                   {c.legality === 'banned' ? 'BAN' : 'LIMIT 1'}
                 </span>
               )}
+              {(c.has_errata || c.rulings_count > 0) && (
+                <span className="card-marks">
+                  {c.has_errata && (
+                    <span className="mark errata" title="Tiene errata oficial">✎</span>
+                  )}
+                  {c.rulings_count > 0 && (
+                    <span className="mark qa" title={`${c.rulings_count} preguntas y respuestas oficiales`}>
+                      ?{c.rulings_count}
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
             <div className="tile-body">
               <div className="tile-title">{c.name}</div>
