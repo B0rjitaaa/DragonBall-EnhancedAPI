@@ -1,5 +1,5 @@
 import type {
-  CardDetail, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  CardDetail, ChangesResponse, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, SearchResponse,
 } from './types'
 
@@ -78,6 +78,11 @@ export const api = {
     request<SearchResponse>('/cards/search/', { method: 'POST', body: JSON.stringify(body), signal }),
   card: (id: number) => request<CardDetail>(`/cards/${id}/`),
   keywordSkills: () => request<KeywordSkillsResponse>('/keyword-skills/'),
+  /** Novedades: cambios reales detectados en los syncs. */
+  changes: (kinds: string[] = [], page = 1) =>
+    request<ChangesResponse>(`/changes/?page=${page}${kinds.length ? `&kind=${kinds.join(',')}` : ''}`),
+  changesCount: (since: string | null) =>
+    request<{ count: number; latest: string | null }>(`/changes/count/${since ? `?since=${encodeURIComponent(since)}` : ''}`),
   /** Mi colección: suma (delta > 0) o resta copias; sin `location`, + va a "Sin ubicar". */
   /** Mi colección: suma (delta > 0) o resta copias; sin `location`, + va a "Sin ubicar". `fake`: restar solo de falsas/auténticas. */
   adjustCollection: (cardId: number, delta: number, location?: number | null, fake?: boolean) =>

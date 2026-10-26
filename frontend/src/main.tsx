@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import LocationsPage from './LocationsPage.tsx'
+import NewsPage from './NewsPage.tsx'
 import SiteNav from './components/SiteNav.tsx'
 import { currentPage, upgradeLegacyUrl } from './lib/routes.ts'
 
@@ -19,6 +20,8 @@ createRoot(document.getElementById('root')!).render(
     <SiteNav active={page} />
     {page === 'locations' ? (
       <LocationsPage />
+    ) : page === 'news' ? (
+      <NewsPage />
     ) : page === 'scan' ? (
       <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Cargando el escáner…</p>}>
         <ScanPage />

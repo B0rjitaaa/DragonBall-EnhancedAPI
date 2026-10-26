@@ -150,6 +150,29 @@ export interface CardDetail extends CardSummary {
   rulings: CardRuling[]
 }
 
+/** Un cambio real detectado al sincronizar (carta nueva, texto, banlist, errata…). */
+export interface CardChange {
+  id: number
+  kind: 'new' | 'text' | 'image' | 'stats' | 'banned' | 'limited' | 'legal' | 'errata' | 'ruling'
+  kind_label: string
+  created_at: string
+  card_id: number | null
+  card_number: string
+  card_name: string
+  thumb_url: string
+  field: string
+  before: string
+  after: string
+}
+
+export interface ChangesResponse {
+  count: number
+  page: number
+  pages: number
+  kinds: { kind: CardChange['kind']; label: string; count: number }[]
+  results: CardChange[]
+}
+
 /** Vista previa de importar Mi colección desde CSV (nunca borra: solo suma copias). */
 export interface CsvImportPreview {
   rows: {

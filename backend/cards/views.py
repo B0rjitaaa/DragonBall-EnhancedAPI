@@ -3,7 +3,7 @@ import logging
 import re
 
 from django.core.cache import cache
-from django.db.models import F, Q, QuerySet
+from django.db.models import Count, F, Q, QuerySet
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -33,12 +33,12 @@ from .collection import (
 from . import thumbs
 from .collection_csv import CsvImportError, apply_import, export_csv, parse_import
 from .facets import cached_facets
-from .models import BanListEntry, Card, KeywordSkill, SyncRun
+from .models import BanListEntry, Card, CardChange, KeywordSkill, SyncRun
 from .parsing import parse_search_terms
 from .query import FIELDS, QueryError, fields_schema, params_to_tree, tree_to_q
 from .serializers import (
     BanListEntrySerializer, CardDetailSerializer, KeywordSkillSerializer, CardListSerializer, SearchRequestSerializer,
-    SyncRunSerializer,
+    CardChangeSerializer, SyncRunSerializer,
 )
 from .tasks import sync_cards
 
@@ -280,6 +280,49 @@ class BanListView(APIView):
             "fetched_at": first.fetched_at if first else None,
             "entries": BanListEntrySerializer(entries, many=True).data,
         })
+
+
+CHANGES_PAGE_SIZE = 60
+
+
+class ChangesView(APIView):
+    """Novedades: cambios reales detectados en los syncs, del más reciente al más antiguo.
+
+    ?kind=new,banned… filtra por tipo; ?page=N pagina (60 por página)."""
+
+    def get(self, request):
+        qs = CardChange.objects.select_related("card")
+        kinds = [k for k in (request.query_params.get("kind") or "").split(",") if k]
+        if kinds:
+            qs = qs.filter(kind__in=kinds)
+        try:
+            page = max(1, int(request.query_params.get("page") or 1))
+        except ValueError:
+            page = 1
+        total = qs.count()
+        start = (page - 1) * CHANGES_PAGE_SIZE
+        counts = dict(
+            CardChange.objects.values_list("kind").annotate(n=Count("id")).values_list("kind", "n")
+        )
+        return Response({
+            "count": total,
+            "page": page,
+            "pages": max(1, -(-total // CHANGES_PAGE_SIZE)),
+            "kinds": [{"kind": k, "label": label, "count": counts.get(k, 0)} for k, label in CardChange.Kind.choices],
+            "results": CardChangeSerializer(qs[start:start + CHANGES_PAGE_SIZE], many=True).data,
+        })
+
+
+class ChangesCountView(APIView):
+    """Cuántas novedades hay desde una fecha (?since=ISO): el aviso de la cabecera."""
+
+    def get(self, request):
+        since = parse_datetime(request.query_params.get("since") or "")
+        qs = CardChange.objects.all()
+        if since:
+            qs = qs.filter(created_at__gt=since)
+        latest = CardChange.objects.order_by("-created_at").values_list("created_at", flat=True).first()
+        return Response({"count": qs.count(), "latest": latest})
 
 
 class SyncRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):

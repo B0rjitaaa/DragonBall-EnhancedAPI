@@ -7,7 +7,7 @@ from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
 
-from . import banlist, errata, rulings, skills
+from . import banlist, changes, errata, rulings, skills
 from .bandai import BandaiClient
 from .importer import upsert_cards
 from .models import Card, SyncRun
@@ -32,9 +32,14 @@ def sync_cards(full: bool = False) -> dict:
 
     run = SyncRun.objects.create(full=full)
     buffer: list[dict] = []
+    # Primera importación: no se apuntan como novedades las miles de cartas que entran.
+    catalog_was_empty = not Card.objects.exists()
 
     def flush() -> None:
+        ids = [int(c["id"]) for c in buffer if c.get("id")]
+        before = changes.snapshot_cards(ids)
         created, updated, errors = upsert_cards(buffer)
+        changes.record_card_changes(before, ids, run, catalog_was_empty)
         run.created += created
         run.updated += updated
         run.failed_ids += errors

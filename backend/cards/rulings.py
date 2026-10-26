@@ -132,7 +132,11 @@ def sync_rulings() -> dict:
     updated, entries = parse_faq_html(page)
     if len(entries) < MIN_EXPECTED:
         raise RulingsError(f"Solo se han encontrado {len(entries)} Q&A: ¿ha cambiado la web oficial?")
+    old = set(CardRuling.objects.values_list("card_number", "question"))
     store_entries(entries, updated, "official")
+    from .changes import record_ruling_changes
+
+    record_ruling_changes(old, entries)
     cards = apply_rulings()
     from .importer import invalidate_facets
 

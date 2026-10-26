@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import BanListEntry, Card, CardErrata, CardRuling, KeywordSkill, SyncRun
+from .models import BanListEntry, Card, CardChange, CardErrata, CardRuling, KeywordSkill, SyncRun
 from .thumbs import thumb_url
 
 
@@ -19,6 +19,20 @@ class CardListSerializer(serializers.ModelSerializer):
 
     def get_thumb_url(self, card) -> str:
         return thumb_url(card.id, card.image_url)
+
+
+class CardChangeSerializer(serializers.ModelSerializer):
+    kind_label = serializers.CharField(source="get_kind_display", read_only=True)
+    thumb_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CardChange
+        fields = ["id", "kind", "kind_label", "created_at", "card_id", "card_number", "card_name",
+                  "thumb_url", "field", "before", "after"]
+
+    def get_thumb_url(self, change) -> str:
+        card = change.card
+        return thumb_url(card.id, card.image_url) if card and card.image_url else ""
 
 
 class CardErrataSerializer(serializers.ModelSerializer):

@@ -1,6 +1,7 @@
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.utils import timezone
 
 
 def _array(max_length: int = 64) -> ArrayField:
@@ -136,6 +137,39 @@ class SyncRun(models.Model):
 
     def __str__(self) -> str:
         return f"Sync {self.started_at:%Y-%m-%d %H:%M} ({self.status})"
+
+
+class CardChange(models.Model):
+    """Un cambio real detectado al sincronizar: carta nueva, texto, imagen, banlist, errata o Q&A."""
+
+    class Kind(models.TextChoices):
+        NEW = "new", "Carta nueva"
+        TEXT = "text", "Cambio de texto"
+        IMAGE = "image", "Imagen nueva"
+        STATS = "stats", "Cambio de atributos"
+        BANNED = "banned", "Prohibida"
+        LIMITED = "limited", "Limitada"
+        LEGAL = "legal", "Vuelve a ser legal"
+        ERRATA = "errata", "Errata oficial"
+        RULING = "ruling", "Nueva pregunta (Q&A)"
+
+    kind = models.CharField(max_length=8, choices=Kind.choices, db_index=True)
+    card = models.ForeignKey(Card, null=True, blank=True, on_delete=models.SET_NULL, related_name="changes")
+    card_number = models.CharField(max_length=32, db_index=True)
+    card_name = models.CharField(max_length=255, blank=True)
+    field = models.CharField(max_length=32, blank=True, help_text="Qué cambió (texto, power…)")
+    before = models.TextField(blank=True)
+    after = models.TextField(blank=True)
+    run = models.ForeignKey(SyncRun, null=True, blank=True, on_delete=models.SET_NULL, related_name="changes")
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "card_number"]
+        verbose_name = "Cambio"
+        verbose_name_plural = "Novedades"
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} {self.card_number}"
 
 
 class BanListEntry(models.Model):

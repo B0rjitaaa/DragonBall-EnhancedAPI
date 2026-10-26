@@ -116,7 +116,11 @@ def sync_errata() -> dict:
     updated, entries = parse_errata_html(page)
     if len(entries) < MIN_EXPECTED:
         raise ErrataError(f"Solo se han encontrado {len(entries)} erratas: ¿ha cambiado la web oficial?")
+    old = dict(CardErrata.objects.values_list("card_number", "after"))
     store_entries(entries, updated, "official")
+    from .changes import record_errata_changes
+
+    record_errata_changes(old, entries)
     cards = apply_errata()
     from .importer import invalidate_facets
 

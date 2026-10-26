@@ -135,7 +135,11 @@ def sync_banlist() -> dict:
     banned = sum(e["status"] == Legality.BANNED for e in entries)
     if banned < MIN_EXPECTED_BANNED:
         raise BanListError(f"Solo se han encontrado {banned} prohibidas: ¿ha cambiado la web oficial?")
+    old = dict(BanListEntry.objects.values_list("card_number", "status"))
     store_entries(entries, updated, "official")
+    from .changes import record_banlist_changes
+
+    record_banlist_changes(old, entries)
     cards = apply_banlist()
     from .importer import invalidate_facets
 
