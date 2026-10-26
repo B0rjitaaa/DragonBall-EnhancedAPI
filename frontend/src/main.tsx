@@ -5,6 +5,7 @@ import App from './App.tsx'
 import LocationsPage from './LocationsPage.tsx'
 import NewsPage from './NewsPage.tsx'
 import NotFoundPage from './NotFoundPage.tsx'
+import HealthBanner from './components/HealthBanner.tsx'
 import SiteNav from './components/SiteNav.tsx'
 import { currentPage, upgradeLegacyUrl } from './lib/routes.ts'
 
@@ -19,6 +20,7 @@ const page = currentPage()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <SiteNav active={page} />
+    <HealthBanner />
     {page === 'locations' ? (
       <LocationsPage />
     ) : page === 'news' ? (
