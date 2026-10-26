@@ -57,6 +57,26 @@ class ParsingTests(TestCase):
         self.assertEqual(normalize_attr("DBS：SUPER HERO Saga"), "DBS : SUPER HERO Saga")
         self.assertEqual(normalize_attr("Son Gohan : Adolescence"), "Son Gohan : Adolescence")
 
+    def test_attribute_quotes_and_bandai_typos(self):
+        from cards.parsing import normalize_attr
+        self.assertEqual(normalize_attr("Frieza’s Army"), "Frieza's Army")
+        self.assertEqual(normalize_attr("Resurrection ‘F’ Saga"), "Resurrection 'F' Saga")
+        self.assertEqual(normalize_attr("Resurrection ’F’ Saga"), "Resurrection 'F' Saga")
+        self.assertEqual(normalize_attr("(Duplicate) Vegeta"), "Vegeta")
+        self.assertEqual(normalize_attr("Napapa"), "Nappa")
+        self.assertEqual(normalize_attr("Sleeping Proncess in Devil’s Castle Saga"),
+                         "Sleeping Princess in Devil's Castle Saga")
+        self.assertEqual(normalize_attr("Evil Wizard Babidi Saga"), "The Evil Wizard Babidi Saga")
+        # Es oficial (viene impreso así en TB2-022): no se toca.
+        self.assertEqual(normalize_attr("Son Goten : Adolescence"), "Son Goten : Adolescence")
+
+    def test_color_cost_typo(self):
+        card = parse_card(make_card(99, "TB1-001", "X", Type="BATTLE", Color_Cost="(Bule)(1)",
+                                    Special_Trait="Frieza’s Army/Saiyan"))
+        self.assertEqual(card["color_cost"], "(Blue)(1)")
+        self.assertEqual(card["color_cost_colors"], ["Blue", "1"])
+        self.assertEqual(card["special_traits"], ["Frieza's Army", "Saiyan"])
+
     def test_keywords_and_families(self):
         kws, fams, mentions = extract_keywords("[Activate : Main/Battle][Limit 1][+1][Counter : Play][Revive Blue/Green]")
         self.assertEqual(mentions, [])

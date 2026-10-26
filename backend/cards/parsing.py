@@ -13,6 +13,17 @@ COLOR = r"(?:Red|Blue|Green|Yellow|Black|White)"
 FAMILY_SUFFIX_RE = re.compile(rf"(?:\s+(?:{COLOR}(?:\s*\d+)?|\d+|X)(?:/(?:{COLOR}(?:\s*\d+)?|\d+))*)+$")
 JP_COLORS = {"赤": "Red", "青": "Blue", "緑": "Green", "黄": "Yellow", "黒": "Black", "白": "White"}
 KEYWORD_ALIASES = {"Doube Strike": "Double Strike", "Energy Exhaust": "Energy-Exhaust", "Union Potara": "Union-Potara"}
+# Bandai mezcla comillas rectas y tipográficas: "Frieza's Army" y "Frieza’s Army" son el mismo rasgo.
+QUOTES = str.maketrans({"’": "'", "‘": "'", "“": '"', "”": '"'})
+# Erratas de Bandai en personajes, rasgos, eras y colores (ya normalizados), para que
+# no salgan como valores aparte en los filtros.
+ATTR_ALIASES = {
+    "Bule": "Blue",
+    "(Duplicate) Vegeta": "Vegeta",
+    "Napapa": "Nappa",
+    "Sleeping Proncess in Devil's Castle Saga": "Sleeping Princess in Devil's Castle Saga",
+    "Evil Wizard Babidi Saga": "The Evil Wizard Babidi Saga",
+}
 # 'Activate Main' (sin dos puntos) -> 'Activate: Main'
 MISSING_COLON_RE = re.compile(r"^(Activate|Counter) (?=[A-Z])")
 LOWER_WORD_RE = re.compile(r"(?<![A-Za-z])([a-z])([a-z]*)")
@@ -83,12 +94,14 @@ def to_int(value: Any) -> int | None:
 
 def normalize_attr(value: str) -> str:
     """Unifica variantes de Bandai: 'Dr.Myuu' -> 'Dr. Myuu', 'Universe7' -> 'Universe 7',
-    'DBS：SUPER HERO Saga' -> 'DBS : SUPER HERO Saga'."""
-    s = unicodedata.normalize("NFKC", value)
+    'DBS：SUPER HERO Saga' -> 'DBS : SUPER HERO Saga', 'Frieza’s Army' -> "Frieza's Army",
+    y corrige las erratas conocidas (ATTR_ALIASES)."""
+    s = unicodedata.normalize("NFKC", value).translate(QUOTES)
     s = re.sub(r"\.(?=[A-Z])", ". ", s)
     s = re.sub(r"(?<=[a-z])(?=\d)", " ", s)
     s = re.sub(r"\s*:\s*", " : ", s)
-    return re.sub(r"\s+", " ", s).strip()
+    s = re.sub(r"\s+", " ", s).strip()
+    return ATTR_ALIASES.get(s, s)
 
 
 def split_multi(value: Any) -> list[str]:
@@ -241,8 +254,8 @@ def parse_card(data: dict) -> dict[str, Any]:
         "rarity": rarity,
         "rarity_code": rarity_code,
         "energy": to_int(cfg.get("Energy")),
-        "color_cost": cfg.get("Color Cost") or "",
-        "color_cost_colors": COLOR_COST_RE.findall(cfg.get("Color Cost") or ""),
+        "color_cost": COLOR_COST_RE.sub(lambda m: f"({normalize_attr(m.group(1))})", cfg.get("Color Cost") or ""),
+        "color_cost_colors": [normalize_attr(c) for c in COLOR_COST_RE.findall(cfg.get("Color Cost") or "")],
         "combo_energy": to_int(cfg.get("Combo Energy")),
         "combo_power": to_int(cfg.get("Combo power") or cfg.get("Combo Power")),
         "power": to_int(cfg.get("Power")),
