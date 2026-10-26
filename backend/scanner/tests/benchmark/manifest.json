@@ -1,0 +1,110 @@
+[
+ {
+  "image": "116289_4116.jpg",
+  "card_id": 116289,
+  "card_number": "BT31-106",
+  "confidence": 1.0
+ },
+ {
+  "image": "120632_4144.jpg",
+  "card_id": 120632,
+  "card_number": "P-761",
+  "confidence": 1.0
+ },
+ {
+  "image": "3998_4152.jpg",
+  "card_id": 3998,
+  "card_number": "BT15-067",
+  "confidence": 1.0
+ },
+ {
+  "image": "3817_4166.jpg",
+  "card_id": 3817,
+  "card_number": "BT14-140",
+  "confidence": 1.0
+ },
+ {
+  "image": "2696_4172.jpg",
+  "card_id": 2696,
+  "card_number": "BT10-100",
+  "confidence": 0.688
+ },
+ {
+  "image": "105907_4176.jpg",
+  "card_id": 105907,
+  "card_number": "BT29-093",
+  "confidence": 1.0
+ },
+ {
+  "image": "96764_4248.jpg",
+  "card_id": 96764,
+  "card_number": "BT28-126",
+  "confidence": 0.45
+ },
+ {
+  "image": "96766_4251.jpg",
+  "card_id": 96766,
+  "card_number": "BT28-128",
+  "confidence": 0.8
+ },
+ {
+  "image": "96770_4257.jpg",
+  "card_id": 96770,
+  "card_number": "BT28-132",
+  "confidence": 0.55
+ },
+ {
+  "image": "96772_4262.jpg",
+  "card_id": 96772,
+  "card_number": "BT28-134",
+  "confidence": 0.633
+ },
+ {
+  "image": "105933_4268.jpg",
+  "card_id": 105933,
+  "card_number": "BT29-112",
+  "confidence": 0.717
+ },
+ {
+  "image": "2537_4272.jpg",
+  "card_id": 2537,
+  "card_number": "DB2-159",
+  "confidence": 0.833
+ },
+ {
+  "image": "105962_4278.jpg",
+  "card_id": 105962,
+  "card_number": "BT29-138",
+  "confidence": 0.567
+ },
+ {
+  "image": "37105_4373.jpg",
+  "card_id": 37105,
+  "card_number": "BT19-150",
+  "confidence": 0.594
+ },
+ {
+  "image": "76754_4386.jpg",
+  "card_id": 76754,
+  "card_number": "BT26-082",
+  "confidence": 0.594
+ },
+ {
+  "image": "76758_4387.jpg",
+  "card_id": 76758,
+  "card_number": "BT26-085",
+  "confidence": 0.6
+ },
+ {
+  "image": "72417_4442.jpg",
+  "card_id": 72417,
+  "card_number": "BT25-120",
+  "confidence": 1.0
+ },
+ {
+  "image": "105914_4453.jpg",
+  "card_id": 105914,
+  "card_number": "BT29-099",
+  "confidence": 0.609
+ }
+]
