@@ -190,7 +190,10 @@ MEDIA_ROOT = env("MEDIA_ROOT", "/media")
 CARD_IMAGES_DIR = env("CARD_IMAGES_DIR", "/data/card_images")
 MATCH_HASH_THRESHOLD = int(env("MATCH_HASH_THRESHOLD", "20"))
 MATCH_ORB_CANDIDATES = int(env("MATCH_ORB_CANDIDATES", "8"))
-MATCH_MIN_CONFIDENCE = float(env("MATCH_MIN_CONFIDENCE", "0.55"))
+# 0.45: calibrado con 348 escaneos reales (la banda 0,45–0,55 acierta ~90%); por
+# encima van sin marca de "Revisar". El auto-añadido del modo ráfaga usa su propio
+# umbral (AUTO_ADD_MIN_CONFIDENCE, 0.65, con 100% de precisión en esos datos).
+MATCH_MIN_CONFIDENCE = float(env("MATCH_MIN_CONFIDENCE", "0.45"))
 # Modo ráfaga: confianza mínima para añadir la carta a la colección sin confirmar.
 # 0,65 tras la calibración del 19/10/2026: aciertos 70–100 %, zona vacía 33–41 %.
 AUTO_ADD_MIN_CONFIDENCE = float(env("AUTO_ADD_MIN_CONFIDENCE", "0.65"))
