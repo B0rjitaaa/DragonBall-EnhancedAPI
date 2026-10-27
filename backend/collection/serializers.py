@@ -11,8 +11,15 @@ class LocationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Location
-        fields = ["id", "uid", "name", "kind", "notes", "is_default", "position", "cards", "copies", "fakes"]
-        read_only_fields = ["uid", "is_default"]
+        fields = ["id", "uid", "name", "kind", "status", "parked_at", "notes", "is_default", "position",
+                  "cards", "copies", "fakes"]
+        read_only_fields = ["uid", "is_default", "parked_at"]
+
+    def validate_status(self, value):
+        # El estado cambia solo con sus acciones propias, que además mueven copias y lo apuntan en el registro.
+        if value != (self.instance.status if self.instance else Location.Status.ACTIVE):
+            raise serializers.ValidationError("Usa «Mover al histórico» o «Volver a usar».")
+        return value
 
     @staticmethod
     def annotate(queryset):

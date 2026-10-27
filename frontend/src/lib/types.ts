@@ -97,6 +97,10 @@ export interface Location {
   uid: string
   name: string
   kind: LocationKind
+  /** Solo cuenta en los mazos: «parked» = en el histórico (sus copias pasan a «Sin ubicar»). */
+  status: LocationStatus
+  /** Desde cuándo está en el histórico (ISO), o null. */
+  parked_at: string | null
   notes: string
   is_default: boolean
   position: number
@@ -105,7 +109,33 @@ export interface Location {
   fakes: number
   /** Solo en mazos: su carta Líder, con la imagen de la cara despertada. */
   leader?: DeckLeader | null
+  /** Solo en mazos con problemas: prohibidas y limitadas con más de una copia (números de carta). */
+  issues?: { banned: string[]; limited: string[] } | null
+  /** Solo en mazos del histórico: copias de su última lista guardada. */
+  last_list?: number | null
+  /** Solo en mazos: cada vez que pasó al histórico o volvió a usarse, del más reciente al más antiguo. */
+  status_log?: StatusChange[]
 }
+
+/** Un paso de un mazo al histórico (con las copias que salieron) o su vuelta a usarse. */
+export interface StatusChange {
+  status: LocationStatus
+  at: string
+  copies: number
+}
+
+/** Copias de un mazo que van (o han ido) a «Sin ubicar» al pasarlo al histórico. */
+export interface HistoryCard {
+  bandai_id: number
+  card_number: string
+  name: string
+  card_type: string
+  image: string
+  quantity: number
+  fake: boolean
+}
+
+export type LocationStatus = 'active' | 'parked'
 
 export interface DeckLeader {
   id: number
@@ -113,6 +143,7 @@ export interface DeckLeader {
   name: string
   image: string
   awakened: boolean
+  colors: string[]
 }
 
 /** Respuesta de las operaciones de Mi colección sobre una carta. */

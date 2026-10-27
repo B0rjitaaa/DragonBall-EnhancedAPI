@@ -184,7 +184,8 @@ class MyCollectionTests(TestCase):
         data = {loc["name"]: loc for loc in self.client.get("/api/my-collection/locations/").data}
         self.assertIsNone(data["Sin ubicar"]["leader"])  # no es un mazo
         self.assertEqual(data["Mazo rojo"]["leader"], {"id": 4, "card_number": "BT1-001", "name": "Champa, Fighting for Fun",
-                                                       "image": "https://x/BT1-001_b.png", "awakened": True})
+                                                       "image": "https://x/BT1-001_b.png", "awakened": True,
+                                                       "colors": ["Red"]})
         self.assertEqual((data["Mazo rojo"]["copies"], data["Mazo rojo"]["fakes"]), (3, 1))
         self.assertTrue(data["Mazo rojo"]["uid"])
 

@@ -3,7 +3,7 @@ import logging
 import re
 
 from django.core.cache import cache
-from django.db.models import Count, F, Q, QuerySet
+from django.db.models import Count, F, Q, QuerySet, Sum
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -14,7 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from collection.models import Location
+from collection.models import Location, StatusChange
 from collection.serializers import LocationSerializer
 from collection.services import delete_location
 
@@ -496,7 +496,7 @@ class MyCollectionReorderView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-LOCATION_FIELDS = ("name", "kind", "notes", "position")
+LOCATION_FIELDS = ("name", "kind", "status", "notes", "position")
 
 
 def deck_leaders() -> dict[int, dict]:
@@ -510,7 +510,17 @@ def deck_leaders() -> dict[int, dict]:
         rank = (not fake, quantity, -card_id)
         if location_id not in best or rank > best[location_id][0]:
             best[location_id] = (rank, card_id)
-    cards = Card.objects.only("id", "card_number", "name", "back_name", "image_url", "back_image_url").in_bulk(
+    # Mazos sin su líder en la caja (p. ej. en el histórico): el de su última lista guardada.
+    from decks.models import DeckVersionCard
+
+    for location_id, card_id in (
+        DeckVersionCard.objects.filter(version__deck__kind="deck", card__card_type="LEADER")
+        .exclude(version__deck_id__in=list(best))
+        .order_by("version__deck_id", "-version__number")
+        .values_list("version__deck_id", "card_id")
+    ):
+        best.setdefault(location_id, ((), card_id))
+    cards = Card.objects.only("id", "card_number", "name", "back_name", "image_url", "back_image_url", "colors").in_bulk(
         [card_id for _, card_id in best.values()]
     )
     return {
@@ -520,10 +530,54 @@ def deck_leaders() -> dict[int, dict]:
             "name": card.back_name or card.name,
             "image": card.back_image_url or card.image_url,
             "awakened": bool(card.back_image_url),
+            "colors": card.colors,
         }
         for location_id, (_, card_id) in best.items()
         if (card := cards.get(card_id))
     }
+
+
+def history_list_sizes() -> dict[int, int]:
+    """Mazos del histórico: cuántas copias tenía su última lista guardada."""
+    from decks.models import DeckVersion
+
+    sizes: dict[int, int] = {}
+    versions = (
+        DeckVersion.objects.filter(deck__kind="deck", deck__status="parked")
+        .order_by("deck_id", "-number")
+        .annotate(total=Sum("cards__quantity"))
+        .values_list("deck_id", "total")
+    )
+    for deck_id, total in versions:
+        sizes.setdefault(deck_id, total or 0)
+    return sizes
+
+
+def status_logs() -> dict[int, list[dict]]:
+    """Registro de uso de cada mazo (pasos al histórico y vueltas), del más reciente al más antiguo."""
+    logs: dict[int, list[dict]] = {}
+    for change in StatusChange.objects.all():
+        logs.setdefault(change.location_id, []).append(
+            {"status": change.status, "at": change.at, "copies": change.copies}
+        )
+    return logs
+
+
+def deck_issues() -> dict[int, dict]:
+    """Por mazo: cartas prohibidas y limitadas con más de una copia (solo las auténticas)."""
+    rows = (
+        CollectionEntry.objects.filter(location__kind="deck", fake=False, card__legality__in=["banned", "limited"])
+        .values("location_id", "card__card_number", "card__legality")
+        .annotate(copies=Sum("quantity"))
+    )
+    issues: dict[int, dict] = {}
+    for row in rows:
+        found = issues.setdefault(row["location_id"], {"banned": [], "limited": []})
+        if row["card__legality"] == "banned":
+            found["banned"].append(row["card__card_number"])
+        elif row["copies"] > 1:
+            found["limited"].append(row["card__card_number"])
+    return {k: v for k, v in issues.items() if v["banned"] or v["limited"]}
 
 
 class LocationsView(APIView):
@@ -531,8 +585,14 @@ class LocationsView(APIView):
 
     def get(self, request):
         locations = LocationSerializer.listing()
-        leaders = deck_leaders() if any(loc["kind"] == "deck" for loc in locations) else {}
-        return Response([{**loc, "leader": leaders.get(loc["id"])} for loc in locations])
+        has_decks = any(loc["kind"] == "deck" for loc in locations)
+        leaders, issues = (deck_leaders(), deck_issues()) if has_decks else ({}, {})
+        listed, logs = (history_list_sizes(), status_logs()) if has_decks else ({}, {})
+        return Response([
+            {**loc, "leader": leaders.get(loc["id"]), "issues": issues.get(loc["id"]), "last_list": listed.get(loc["id"]),
+             "status_log": logs.get(loc["id"], [])}
+            for loc in locations
+        ])
 
     def post(self, request):
         body = LocationSerializer(data={k: request.data[k] for k in LOCATION_FIELDS if k in request.data})

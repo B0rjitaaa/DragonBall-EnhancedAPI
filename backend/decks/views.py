@@ -249,3 +249,28 @@ class DeckSideView(APIView):
         card = get_object_or_404(Card, id=body.validated_data["bandai_id"])
         n = services.set_side(deck, card, body.validated_data["quantity"])
         return Response({"bandai_id": card.id, "side": n})
+
+
+class DeckToHistoryView(APIView):
+    """GET: qué copias saldrían del mazo. POST: lo pasa al histórico y sus copias van a «Sin ubicar»."""
+
+    def get(self, request, pk):
+        deck = _deck(pk)
+        return Response({"deck": deck.name, "cards": services.history_preview(deck)})
+
+    def post(self, request, pk):
+        deck = _deck(pk)
+        if deck.status == Location.Status.PARKED:
+            return Response({"detail": "El mazo ya está en el histórico"}, status=status.HTTP_400_BAD_REQUEST)
+        moved = services.move_to_history(deck)
+        return Response({"deck": deck.name, "target": Location.default().name, "cards": moved})
+
+
+class DeckBackInUseView(APIView):
+    """POST: un mazo del histórico vuelve a usarse (y se trae una copia de su líder)."""
+
+    def post(self, request, pk):
+        deck = _deck(pk)
+        if deck.status != Location.Status.PARKED:
+            return Response({"detail": "El mazo ya está en uso"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"deck": deck.name, "leader": services.back_in_use(deck)})

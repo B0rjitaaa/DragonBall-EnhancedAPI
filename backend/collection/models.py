@@ -2,6 +2,7 @@
 import uuid
 
 from django.db import models
+from django.utils import timezone
 
 from cards.models import Card
 
@@ -17,10 +18,17 @@ class Location(models.Model):
         STORAGE = "storage", "Almacén"
         OTHER = "other", "Otro"
 
+    class Status(models.TextChoices):
+        # Solo cuenta en los mazos: "en el histórico" = ya no lo usas (sus copias pasan a "Sin ubicar").
+        ACTIVE = "active", "En uso"
+        PARKED = "parked", "En el histórico"
+
     # Identificador estable para enlaces (/coleccion/mazo/<uid>), que no cambia al renombrar.
     uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     name = models.CharField(max_length=80, unique=True)
     kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.OTHER)
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.ACTIVE)
+    parked_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
     # "Sin ubicar": destino por defecto de lo escaneado y de lo que queda al
     # borrar una ubicación. Siempre existe y no se puede borrar.
@@ -45,6 +53,22 @@ class Location(models.Model):
             is_default=True, defaults={"name": DEFAULT_LOCATION_NAME, "kind": cls.Kind.OTHER}
         )
         return location
+
+
+class StatusChange(models.Model):
+    """Registro de uso de un mazo: cada vez que pasa al histórico o vuelve a usarse."""
+
+    location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="status_changes")
+    status = models.CharField(max_length=8, choices=Location.Status.choices)
+    at = models.DateTimeField(default=timezone.now)
+    # Al pasar al histórico: cuántas copias salieron del mazo hacia "Sin ubicar".
+    copies = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-at", "-id"]
+
+    def __str__(self):
+        return f"{self.location} → {self.status} ({self.at:%Y-%m-%d})"
 
 
 class CollectionEntry(models.Model):

@@ -5,7 +5,7 @@ from django.db import transaction
 from django.db.models import Max
 
 from cards.models import Card
-from collection.models import CollectionEntry, Location
+from collection.models import CollectionEntry, Location, StatusChange
 
 from .models import DeckVersion, DeckVersionCard, Match, SideCard
 
@@ -229,3 +229,71 @@ def restore_version(version: DeckVersion, default_target: Location, targets: dic
         "moved_in": sum(r["quantity"] for r in plan["incoming"]) - sum(missing.values()),
         "missing": missing,
     }
+
+
+def history_preview(deck: Location) -> list[dict]:
+    """Las copias que hay ahora en el mazo, como irían a «Sin ubicar» al pasarlo al histórico."""
+    rows = (
+        CollectionEntry.objects.filter(location=deck)
+        .select_related("card")
+        .order_by("card__card_number", "card_id", "fake")
+    )
+    return [
+        {
+            "bandai_id": e.card_id, "card_number": e.card.card_number, "name": e.card.name,
+            "card_type": e.card.card_type, "image": e.card.image_url, "quantity": e.quantity, "fake": e.fake,
+        }
+        for e in rows
+    ]
+
+
+def move_to_history(deck: Location) -> list[dict]:
+    """Pasa el mazo al histórico: guarda su lista como versión (para no perder qué llevaba) y
+    lleva todas sus copias a «Sin ubicar». Devuelve las copias movidas."""
+    from django.utils import timezone
+
+    from collection.services import move_copies
+
+    with transaction.atomic():
+        Location.objects.select_for_update().filter(pk=deck.pk).first()
+        moved = history_preview(deck)
+        if moved:
+            save_version(deck, name="Al pasar al histórico", automatic=True)
+        target = Location.default()
+        for entry in CollectionEntry.objects.filter(location=deck).select_related("card"):
+            move_copies(entry.card, deck, target, entry.quantity, source_fake=entry.fake)
+        # El side describe la caja, que ahora está vacía (la versión guardada lo conserva).
+        SideCard.objects.filter(deck=deck).delete()
+        deck.status = Location.Status.PARKED
+        deck.parked_at = timezone.now()
+        deck.save(update_fields=["status", "parked_at"])
+        StatusChange.objects.create(location=deck, status=deck.status, at=deck.parked_at,
+                                    copies=sum(c["quantity"] for c in moved))
+    return moved
+
+
+def back_in_use(deck: Location) -> dict | None:
+    """Vuelve a usar un mazo del histórico y trae a su caja una copia de su líder (el de su última
+    lista), para que el mazo tenga cara; el resto se recupera restaurando esa versión.
+    Devuelve la copia que entra ({card…, from, fake}) o None si no hay líder o no tienes ninguna."""
+    from django.utils import timezone
+
+    from collection.services import move_copies
+
+    with transaction.atomic():
+        Location.objects.select_for_update().filter(pk=deck.pk).first()
+        deck.status = Location.Status.ACTIVE
+        deck.parked_at = None
+        deck.save(update_fields=["status", "parked_at"])
+        StatusChange.objects.create(location=deck, status=deck.status, at=timezone.now())
+        version = latest_version(deck)
+        leader = version and version.cards.filter(card__card_type="LEADER").select_related("card").first()
+        if not leader or CollectionEntry.objects.filter(location=deck, card=leader.card).exists():
+            return None
+        sources = CollectionEntry.objects.filter(card=leader.card).exclude(location=deck).select_related("location")
+        source = min(sources, key=lambda e: (e.fake, _source_rank(e.location)), default=None)
+        if source is None:
+            return None
+        move_copies(leader.card, source.location, deck, 1, source_fake=source.fake)
+    card = leader.card
+    return {"card_number": card.card_number, "name": card.name, "from": source.location.name, "fake": source.fake}

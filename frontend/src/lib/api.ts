@@ -1,5 +1,5 @@
 import type {
-  CardDetail, ChangesResponse, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  CardDetail, ChangesResponse, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, SearchResponse,
 } from './types'
 
@@ -126,6 +126,14 @@ export const api = {
     request<Location>('/my-collection/locations/', post({ name, kind, position })),
   updateLocation: (id: number, changes: Partial<Pick<Location, 'name' | 'kind' | 'notes' | 'position'>>) =>
     request<Location>(`/my-collection/locations/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  /** Mazos al histórico: qué copias saldrían (GET) y pasarlo, con sus copias a «Sin ubicar» (POST). */
+  deckHistoryPreview: (id: number) => request<{ deck: string; cards: HistoryCard[] }>(`/my-collection/decks/${id}/to-history/`),
+  moveDeckToHistory: (id: number) =>
+    request<{ deck: string; target: string; cards: HistoryCard[] }>(`/my-collection/decks/${id}/to-history/`, { method: 'POST' }),
+  /** Un mazo del histórico vuelve a usarse; se trae una copia de su líder (null si no tienes ninguna). */
+  deckBackInUse: (id: number) =>
+    request<{ deck: string; leader: { card_number: string; name: string; from: string; fake: boolean } | null }>(
+      `/my-collection/decks/${id}/back-in-use/`, { method: 'POST' }),
   deleteLocation: (id: number) => request<void>(`/my-collection/locations/${id}/`, { method: 'DELETE' }),
   /** Mazos: lista actual, versiones guardadas y partidas. */
   deck: (id: number) => request<DeckDetail>(`/my-collection/decks/${id}/`),

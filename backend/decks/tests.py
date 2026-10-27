@@ -202,3 +202,92 @@ class EditedListTests(TestCase):
         m = self.client.post(f"/api/my-collection/decks/{self.deck.id}/matches/",
                              {"played_on": "2026-10-26", "result": "win"}, format="json").data
         self.assertEqual(m["version"], v2["id"])
+
+
+class DeckHistoryTests(TestCase):
+    """Pasar un mazo al histórico: guarda su lista, saca sus copias a «Sin ubicar» y lo marca."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.deck = Location.objects.create(name="Mazo Cell", kind="deck")
+        self.leader = Card.objects.create(id=1, card_number="EX20-01", name="Cell", card_type="LEADER", colors=["Green"])
+        self.a = Card.objects.create(id=2, card_number="EX20-02", name="Cell Jr.", card_type="BATTLE",
+                                     legality="banned")
+        CollectionEntry.objects.create(card=self.leader, location=self.deck, quantity=1)
+        CollectionEntry.objects.create(card=self.a, location=self.deck, quantity=3, notes="caja roja")
+        CollectionEntry.objects.create(card=self.a, location=self.deck, quantity=1, fake=True)
+        self.url = f"/api/my-collection/decks/{self.deck.id}/to-history/"
+
+    def listing(self):
+        return {loc["name"]: loc for loc in self.client.get("/api/my-collection/locations/").data}
+
+    def test_preview_does_not_move_anything(self):
+        r = self.client.get(self.url)
+        self.assertEqual([(c["card_number"], c["quantity"], c["fake"]) for c in r.data["cards"]],
+                         [("EX20-01", 1, False), ("EX20-02", 3, False), ("EX20-02", 1, True)])
+        self.assertEqual(CollectionEntry.objects.filter(location=self.deck).count(), 3)
+
+    def test_move_to_history(self):
+        r = self.client.post(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(sum(c["quantity"] for c in r.data["cards"]), 5)
+        self.assertFalse(CollectionEntry.objects.filter(location=self.deck).exists())
+        unplaced = Location.default()
+        moved = {(e.card_id, e.fake): (e.quantity, e.notes) for e in CollectionEntry.objects.filter(location=unplaced)}
+        self.assertEqual(moved, {(1, False): (1, ""), (2, False): (3, "caja roja"), (2, True): (1, "")})
+        self.deck.refresh_from_db()
+        self.assertEqual(self.deck.status, "parked")
+        self.assertIsNotNone(self.deck.parked_at)
+        version = self.deck.deck_versions.get()
+        self.assertTrue(version.automatic)
+        # En la lista sigue con su líder y el tamaño de su última lista, aunque la caja esté vacía.
+        deck = self.listing()["Mazo Cell"]
+        self.assertEqual((deck["copies"], deck["last_list"], deck["leader"]["id"]), (0, 5, 1))
+        self.assertEqual(self.client.post(self.url).status_code, 400)  # ya está en el histórico
+
+    def back_url(self):
+        return f"/api/my-collection/decks/{self.deck.id}/back-in-use/"
+
+    def test_status_only_changes_through_its_actions(self):
+        for value in ("parked", "active"):  # PATCH no cambia el estado en ninguna dirección
+            r = self.client.patch(f"/api/my-collection/locations/{self.deck.id}/", {"status": value}, format="json")
+            self.assertEqual(r.status_code, 400)
+            self.client.post(self.url)
+        self.assertEqual(self.client.post(self.back_url()).status_code, 200)
+        self.assertEqual(self.client.post(self.back_url()).status_code, 400)  # ya está en uso
+
+    def test_back_in_use_brings_its_leader(self):
+        self.client.post(self.url)
+        # Una copia auténtica del líder en un archivador va antes que una falsa en «Sin ubicar».
+        binder = Location.objects.create(name="Archivador", kind="binder")
+        CollectionEntry.objects.filter(card=self.leader).update(location=binder)
+        CollectionEntry.objects.create(card=self.leader, location=Location.default(), quantity=1, fake=True)
+        r = self.client.post(self.back_url())
+        self.assertEqual((r.data["leader"]["card_number"], r.data["leader"]["from"], r.data["leader"]["fake"]),
+                         ("EX20-01", "Archivador", False))
+        self.deck.refresh_from_db()
+        self.assertEqual((self.deck.status, self.deck.parked_at), ("active", None))
+        in_deck = {(e.card_id, e.fake): e.quantity for e in CollectionEntry.objects.filter(location=self.deck)}
+        self.assertEqual(in_deck, {(1, False): 1})  # solo el líder; lo demás, restaurando la versión
+
+    def test_back_in_use_without_leader_copies(self):
+        self.client.post(self.url)
+        CollectionEntry.objects.filter(card=self.leader).delete()
+        r = self.client.post(self.back_url())
+        self.assertIsNone(r.data["leader"])
+        # Aun sin tenerlo, el mazo enseña el líder de su última lista.
+        self.assertEqual(self.listing()["Mazo Cell"]["leader"]["id"], 1)
+
+    def test_status_log(self):
+        self.assertEqual(self.listing()["Mazo Cell"]["status_log"], [])
+        self.client.post(self.url)
+        self.client.post(self.back_url())
+        self.client.post(self.url)  # solo vuelve a salir el líder
+        log = self.listing()["Mazo Cell"]["status_log"]
+        self.assertEqual([(e["status"], e["copies"]) for e in log], [("parked", 1), ("active", 0), ("parked", 5)])
+
+    def test_deck_issues_and_leader_colors(self):
+        deck = self.listing()["Mazo Cell"]
+        self.assertEqual(deck["issues"], {"banned": ["EX20-02"], "limited": []})  # las falsas no cuentan
+        self.assertEqual(deck["leader"]["colors"], ["Green"])
+        self.assertEqual(deck["status"], "active")
