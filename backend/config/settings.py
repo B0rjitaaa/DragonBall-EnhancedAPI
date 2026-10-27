@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "collection",
     "decks",
     "scanner",
+    "errorlog",
 ]
 
 MIDDLEWARE = [
@@ -119,7 +120,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"]
     + (["rest_framework.renderers.BrowsableAPIRenderer"] if DEBUG else []),
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"anon": env("API_ANON_RATE", "1000/min")},
+    "DEFAULT_THROTTLE_RATES": {"anon": env("API_ANON_RATE", "1000/min"), "web-errors": "30/min"},
 }
 
 SPECTACULAR_SETTINGS = {
@@ -184,6 +185,10 @@ CELERY_BEAT_SCHEDULE["check-health-alerts"] = {
     "schedule": 300,
     "options": {"expires": 240},
 }
+CELERY_BEAT_SCHEDULE["purge-resolved-errors"] = {
+    "task": "errorlog.tasks.purge_resolved_errors",
+    "schedule": crontab(hour=5, minute=30),
+}
 CELERY_BEAT_SCHEDULE["scanner-cleanup-old-scans"] = {
     "task": "scanner.tasks.cleanup_old_scans",
     "schedule": crontab(hour=5, minute=0, day_of_week="mon"),
@@ -227,6 +232,10 @@ TELEGRAM_CHAT_ID = env("TELEGRAM_CHAT_ID", "")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+        # Los errores, además, a la BD: se ven en /admin → Errores (ver errorlog/).
+        "database": {"class": "errorlog.handler.DatabaseHandler", "level": "ERROR"},
+    },
+    "root": {"handlers": ["console", "database"], "level": env("LOG_LEVEL", "INFO")},
 }
