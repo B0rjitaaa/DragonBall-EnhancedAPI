@@ -1,0 +1,9 @@
+[Unit]
+Description=Copia de seguridad de DragonBall-EnhancedAPI (catálogo, colección, mazos y escáner)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pc-mint
+ExecStart=/home/pc-mint/Development/DragonBall-EnhancedAPI/scripts/backup.sh

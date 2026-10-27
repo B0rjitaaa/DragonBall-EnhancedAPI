@@ -10,10 +10,14 @@
 
 services:
   backend:
-    # Copias de seguridad del equipo (solo lectura): /api/health/ lee su último estado.
+    # Copias de seguridad del equipo (solo lectura): /api/health/ lee su último estado y
+    # el admin las lista y deja descargarlas.
     # BACKUP_DIR_HOST en el .env del servidor; sin él se monta ./data y no se comprueba nada.
+    # Y su carpeta request/ con escritura: «Hacer copia ahora» del admin deja ahí la petición
+    # (la recoge dbs-backup-request.path en el servidor; ver scripts/systemd/).
     volumes:
       - ${BACKUP_DIR_HOST:-./data}:/backups:ro
+      - ${BACKUP_DIR_HOST:-./data}/request:/backup-request
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000

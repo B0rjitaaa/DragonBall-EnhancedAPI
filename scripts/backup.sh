@@ -3,7 +3,8 @@
 # colección, mazos y escáner) y de sus volúmenes de datos (fotos de los escaneos),
 # con verificación, rotación y copia opcional a otro equipo.
 #
-# Uso:    scripts/backup.sh          (a diario lo lanza dbs-backup.timer)
+# Uso:    scripts/backup.sh          (a diario lo lanza dbs-backup.timer; desde el admin,
+#         «Hacer copia ahora» deja $BACKUP_DIR/request/now y dbs-backup-request.path la lanza)
 # Config: variables de entorno o ~/.config/dbs-backup.env
 #   BACKUP_DIR       carpeta de las copias              (~/backups/dbs)
 #   BACKUP_PROJECTS  clones a respaldar, separados por espacios
@@ -35,6 +36,18 @@ TARGET="$BACKUP_DIR/daily/$STAMP"
 mkdir -p "$TARGET"
 chmod 700 "$BACKUP_DIR"
 
+# Pedida desde el admin: se quita la petición (si no, dbs-backup-request.path la volvería a lanzar).
+# La carpeta la monta el backend con escritura (docker-compose.prod.yml).
+TRIGGER="programada"
+mkdir -p "$BACKUP_DIR/request"
+if [ -e "$BACKUP_DIR/request/now" ]; then
+    TRIGGER="pedida desde el admin"
+    rm -f "$BACKUP_DIR/request/now"
+fi
+# Mientras dura, el admin la enseña como «en curso».
+RUNNING_FILE="$BACKUP_DIR/running.json"
+printf '{"started_at": "%s", "trigger": "%s"}\n' "$(date -Iseconds)" "$TRIGGER" > "$RUNNING_FILE"
+
 # Estado de la última copia, para /api/health/ (el backend monta esta carpeta en solo lectura).
 STATUS_FILE="$BACKUP_DIR/last_status.json"
 REMOTE_STATUS="off"
@@ -42,12 +55,13 @@ STEP="inicio"
 write_status() {  # write_status <ok|error> <mensaje>
     local q="'" msg="${2//\\//}"   # el mensaje va dentro de un JSON: sin \ ni comillas dobles
     msg="${msg//\"/$q}"
-    printf '{"status": "%s", "finished_at": "%s", "target": "%s", "size": "%s", "remote": "%s", "message": "%s"}\n' \
-        "$1" "$(date -Iseconds)" "$TARGET" "$(du -sh "$TARGET" 2>/dev/null | cut -f1)" "$REMOTE_STATUS" "$msg" \
+    printf '{"status": "%s", "finished_at": "%s", "target": "%s", "size": "%s", "remote": "%s", "message": "%s", "trigger": "%s"}\n' \
+        "$1" "$(date -Iseconds)" "$TARGET" "$(du -sh "$TARGET" 2>/dev/null | cut -f1)" "$REMOTE_STATUS" "$msg" "$TRIGGER" \
         > "$STATUS_FILE.tmp" && mv "$STATUS_FILE.tmp" "$STATUS_FILE"
 }
 on_exit() {
     local code=$?
+    rm -f "$RUNNING_FILE"
     if [ "$code" -ne 0 ]; then
         write_status error "falló en: $STEP (código $code)"
         log "copia FALLIDA en: $STEP (código $code)"
@@ -99,7 +113,7 @@ prune "$KEEP_WEEKLY" "$BACKUP_DIR/weekly"
 # (y /api/health/ lo avisa) en vez de dar toda la copia por fallida.
 if [ -n "$BACKUP_REMOTE" ]; then
     STEP="copia remota"
-    if rsync -aH --delete -e "ssh -i $BACKUP_SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
+    if rsync -aH --delete --exclude /running.json --exclude /request/ -e "ssh -i $BACKUP_SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
         "$BACKUP_DIR/" "$BACKUP_REMOTE"; then
         REMOTE_STATUS="ok"
         log "copia remota a $BACKUP_REMOTE"

@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "decks",
     "scanner",
     "errorlog",
+    "backups",
 ]
 
 MIDDLEWARE = [
@@ -223,6 +224,9 @@ BANLIST_URL = env("BANLIST_URL", "https://www.dbs-cardgame.com/us-en/rule/banned
 # Estado de la última copia de seguridad (lo escribe scripts/backup.sh en el equipo; en
 # producción se monta en el backend en solo lectura). Vacío: no se comprueba.
 BACKUP_STATUS_FILE = env("BACKUP_STATUS_FILE", "")
+# Carpeta de las copias (montada en solo lectura) y la de las peticiones de «Hacer copia ahora».
+BACKUP_DIR = env("BACKUP_DIR", str(Path(BACKUP_STATUS_FILE).parent) if BACKUP_STATUS_FILE else "")
+BACKUP_REQUEST_DIR = env("BACKUP_REQUEST_DIR", "/backup-request")
 ERRATA_URL = env("ERRATA_URL", "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php")
 CARD_FAQ_URL = env("CARD_FAQ_URL", "https://www.dbs-cardgame.com/us-en/rule/card_faq.php")
 # Avisos por Telegram (cards/alerts.py) cuando algo de /api/health/ falla. Vacíos: sin avisos.

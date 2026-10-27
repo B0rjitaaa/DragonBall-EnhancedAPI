@@ -1,0 +1,11 @@
+# «Hacer copia ahora» en el admin deja ~/backups/dbs/request/now: esto lanza la copia
+# (backup.sh borra la petición al empezar; si ya hay una en curso, no se lanza otra).
+[Unit]
+Description=Copia de seguridad pedida desde el admin
+
+[Path]
+PathExists=/home/pc-mint/backups/dbs/request/now
+Unit=dbs-backup.service
+
+[Install]
+WantedBy=multi-user.target
