@@ -56,9 +56,9 @@ class ListChangesTests(TestCase):
         self.assertEqual(changes.record_banlist_changes(old, new), 3)
         got = {(c.card_number, c.kind, c.before, c.after, c.card_id) for c in CardChange.objects.all()}
         self.assertEqual(got, {
-            ("BT1-030", "limited", "Prohibida", "Limitada", 10),
-            ("BT10-002", "banned", "Legal", "Prohibida", 11),
-            ("P-001", "legal", "Limitada", "Legal", 12),
+            ("BT1-030", "limited", "Banned", "Limited", 10),
+            ("BT10-002", "banned", "Legal", "Banned", 11),
+            ("P-001", "legal", "Limited", "Legal", 12),
         })
 
     def test_errata(self):
@@ -84,14 +84,14 @@ class ChangesApiTests(TestCase):
         old = timezone.now() - timedelta(days=5)
         CardChange.objects.create(kind="new", card_id=10, card_number="BT1-030", card_name="Son Goku", created_at=old)
         CardChange.objects.create(kind="banned", card_id=10, card_number="BT1-030", card_name="Son Goku",
-                                  before="Legal", after="Prohibida")
+                                  before="Legal", after="Banned")
         self.client = APIClient()
 
     def test_list_and_filter(self):
         data = self.client.get("/api/changes/").json()
         self.assertEqual(data["count"], 2)
         self.assertEqual(data["results"][0]["kind"], "banned")  # lo más reciente primero
-        self.assertEqual(data["results"][0]["kind_label"], "Prohibida")
+        self.assertEqual(data["results"][0]["kind_label"], "Banned")
         self.assertEqual({k["kind"]: k["count"] for k in data["kinds"]}["new"], 1)
         only_new = self.client.get("/api/changes/?kind=new").json()
         self.assertEqual([r["kind"] for r in only_new["results"]], ["new"])

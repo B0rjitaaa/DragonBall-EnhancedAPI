@@ -767,7 +767,7 @@ export function MatchesPanel({
               const details = [
                 m.opponent_name,
                 m.score,
-                m.went_first == null ? '' : m.went_first ? 'empecé yo' : 'empezó el rival',
+                m.went_first == null ? '' : m.went_first ? 'empecé yo' : 'empezó el Opponent',
                 m.event,
               ].filter(Boolean)
               return (
@@ -777,7 +777,7 @@ export function MatchesPanel({
                   </span>
                   {card ? <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="match-noimg" />}
                   <span className="match-main">
-                    <strong>vs {m.opponent_leader_name || 'líder sin indicar'}</strong>
+                    <strong>vs {m.opponent_leader_name || 'Leader sin indicar'}</strong>
                     <small>
                       {fmtDate(m.played_on)}
                       {m.version_number != null && ` · v${m.version_number}`}
@@ -914,7 +914,7 @@ function MatchForm({
   return (
     <form className="match-form" onSubmit={submit}>
       <div className="match-form-leader">
-        <span className="match-label">Líder rival</span>
+        <span className="match-label">Opponent Leader</span>
         {m.opponent_leader_name ? (
           <span className="match-picked">
             {leader && <img src={cardThumb(leader)} alt="" referrerPolicy="no-referrer" />}
@@ -959,7 +959,7 @@ function MatchForm({
         <span className="seg">
           {([
             [true, 'Yo'],
-            [false, 'El rival'],
+            [false, 'Opponent'],
             [null, '—'],
           ] as const).map(([v, label]) => (
             <button type="button" key={label} className={m.went_first === v ? 'on' : ''} onClick={() => set({ went_first: v })}>
@@ -1042,7 +1042,7 @@ function LeaderPicker({
 
   return (
     <div className="leader-picker">
-      <input className="input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Busca el líder: nombre o número (BT1-001)…" />
+      <input className="input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Busca el Leader: nombre o número (BT1-001)…" />
       {quick.length > 0 && !q && (
         <div className="leader-quick">
           {quick.map((r) => {

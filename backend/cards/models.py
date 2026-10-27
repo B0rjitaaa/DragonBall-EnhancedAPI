@@ -10,8 +10,8 @@ def _array(max_length: int = 64) -> ArrayField:
 
 class Legality(models.TextChoices):
     LEGAL = "legal", "Legal"
-    LIMITED = "limited", "Limitada"
-    BANNED = "banned", "Prohibida"
+    LIMITED = "limited", "Limited"
+    BANNED = "banned", "Banned"
 
 
 class Card(models.Model):
@@ -147,8 +147,8 @@ class CardChange(models.Model):
         TEXT = "text", "Cambio de texto"
         IMAGE = "image", "Imagen nueva"
         STATS = "stats", "Cambio de atributos"
-        BANNED = "banned", "Prohibida"
-        LIMITED = "limited", "Limitada"
+        BANNED = "banned", "Banned"
+        LIMITED = "limited", "Limited"
         LEGAL = "legal", "Vuelve a ser legal"
         ERRATA = "errata", "Errata oficial"
         RULING = "ruling", "Nueva pregunta (Q&A)"
@@ -176,7 +176,7 @@ class BanListEntry(models.Model):
     """Una carta de la lista oficial Banned/Limited (dbs-cardgame.com)."""
 
     card_number = models.CharField(max_length=32, primary_key=True)
-    status = models.CharField(max_length=8, choices=[(Legality.LIMITED, "Limitada"), (Legality.BANNED, "Prohibida")])
+    status = models.CharField(max_length=8, choices=[(Legality.LIMITED, "Limited"), (Legality.BANNED, "Banned")])
     card_name = models.CharField(max_length=255, blank=True)
     limit = models.PositiveSmallIntegerField(default=0, help_text="Copias permitidas (limitadas)")
     since = models.CharField(max_length=255, blank=True, help_text="Desde cuándo (Norteamérica/Europa)")

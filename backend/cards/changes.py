@@ -32,7 +32,7 @@ CARD_FIELDS = {
     "z_energy_cost": (Kind.STATS, "z-energy cost"),
 }
 LEGALITY_KIND = {Legality.BANNED: Kind.BANNED, Legality.LIMITED: Kind.LIMITED, Legality.LEGAL: Kind.LEGAL}
-LEGALITY_LABEL = {Legality.BANNED: "Prohibida", Legality.LIMITED: "Limitada", Legality.LEGAL: "Legal"}
+LEGALITY_LABEL = {Legality.BANNED: "Banned", Legality.LIMITED: "Limited", Legality.LEGAL: "Legal"}
 
 
 def _text(value) -> str:

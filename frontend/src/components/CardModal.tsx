@@ -73,7 +73,7 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
               <h2>{back ? card.back_name : card.name}</h2>
               {card.legality !== 'legal' && (
                 <div className={`legal-banner ${card.legality}`}>
-                  <strong>{card.legality === 'banned' ? '⛔ Prohibida en torneos oficiales' : '⚠️ Limitada: máximo 1 copia'}</strong>
+                  <strong>{card.legality === 'banned' ? '⛔ Banned en torneos oficiales' : '⚠️ Limited: máximo 1 copia'}</strong>
                   {card.legality === 'banned'
                     ? ' — no puede incluirse en el mazo ni en el side deck.'
                     : ' entre mazo y side deck.'}

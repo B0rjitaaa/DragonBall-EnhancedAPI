@@ -25,10 +25,10 @@ const ORDERINGS: [string, string][] = [
   ['-newest', 'Más antiguas'],
   ['newest', 'Más recientes'],
   ['name', 'Nombre A-Z'],
-  ['energy', 'Energía ↑'],
-  ['-energy', 'Energía ↓'],
-  ['power', 'Poder ↑'],
-  ['-power', 'Poder ↓'],
+  ['energy', 'Energy ↑'],
+  ['-energy', 'Energy ↓'],
+  ['power', 'Power ↑'],
+  ['-power', 'Power ↓'],
 ]
 
 function useDebounced<T>(value: T, ms = 300): T {

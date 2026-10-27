@@ -254,7 +254,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
   const { issues, flagged } = useMemo(() => {
     const issues: Issue[] = []
     const flagged = new Map<number, string>()
-    if (!leader) issues.push({ level: 'error', text: 'Falta la carta Líder' })
+    if (!leader) issues.push({ level: 'error', text: 'Falta la carta Leader' })
     if (stats.total < MAIN_MIN) {
       const n = MAIN_MIN - stats.total
       issues.push({ level: 'error', text: `Faltan ${n} ${n === 1 ? 'carta' : 'cartas'} para llegar a ${MAIN_MIN}` })
@@ -278,11 +278,11 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
     }
     for (const c of [...main, ...zDeck]) {
       if (c.legality === 'banned') {
-        issues.push({ level: 'error', text: `${c.card_number} ${c.name} está prohibida` })
-        flagged.set(c.id, 'Prohibida')
+        issues.push({ level: 'error', text: `${c.card_number} ${c.name} está Banned` })
+        flagged.set(c.id, 'Banned')
       } else if (c.legality === 'limited' && (byNumber.get(c.card_number)?.n ?? 0) > 1) {
-        issues.push({ level: 'error', text: `${c.card_number} ${c.name} está limitada a 1 copia` })
-        flagged.set(c.id, 'Limitada a 1')
+        issues.push({ level: 'error', text: `${c.card_number} ${c.name} es Limited: máximo 1 copia` })
+        flagged.set(c.id, 'Limited')
       }
     }
     for (const rule of SKILL_LIMITS) {
@@ -302,7 +302,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
         }
       }
     }
-    if (leaders.length > 1) issues.push({ level: 'warn', text: `Hay ${leaders.length} cartas Líder en el mazo` })
+    if (leaders.length > 1) issues.push({ level: 'warn', text: `Hay ${leaders.length} cartas Leader en el mazo` })
     return { issues, flagged }
   }, [main, zDeck, leader, leaders.length, stats.total])
 
@@ -348,11 +348,11 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
               onClick={() => leader.back_image_url && setShowFront(!showFront)}
               title={leader.back_image_url ? 'Pulsa para girar la carta' : leader.name}
             >
-              <img src={leaderImage} alt={`Líder: ${leader.name}`} referrerPolicy="no-referrer" />
-              {leader.back_image_url && <span className="deck-flip">{showFront ? 'Cara normal' : 'Despertado'} ⟲</span>}
+              <img src={leaderImage} alt={`Leader: ${leader.name}`} referrerPolicy="no-referrer" />
+              {leader.back_image_url && <span className="deck-flip">{showFront ? 'Front' : 'Awaken'} ⟲</span>}
             </button>
           ) : (
-            <div className="deck-leader-card empty">Sin líder</div>
+            <div className="deck-leader-card empty">Sin Leader</div>
           )}
           {leader && (
             <span className="deck-leader-links">
@@ -363,7 +363,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
                 <button
                   className="link small danger"
                   onClick={() => setQty(leader.id, 'deck', 0)}
-                  title="Quitar el líder de la lista (añade otro con «Añadir carta»)"
+                  title="Quitar el Leader de la lista (añade otro con «Añadir carta»)"
                 >
                   Quitar
                 </button>
@@ -378,13 +378,13 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
           {leader && <p className="deck-leader-name">{showFront || !leader.back_name ? leader.name : leader.back_name}</p>}
           <div className="deck-counts">
             <span className={`deck-count ${stats.total >= MAIN_MIN && stats.total <= MAIN_MAX ? 'ok' : 'bad'}`}>
-              <strong>{stats.total}</strong>/{MAIN_MAX} mazo principal
+              <strong>{stats.total}</strong>/{MAIN_MAX} Main Deck
             </span>
             <span className="deck-count">
               <strong>{zTotal}</strong> Z Deck
             </span>
             <span className="deck-count">
-              <strong>{stats.avg.toFixed(1)}</strong> coste medio
+              <strong>{stats.avg.toFixed(1)}</strong> Av. Energy
             </span>
             {sideTotal > 0 && (
               <span className="deck-count">
@@ -423,14 +423,14 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
         )}
 
         <div className="deck-stats">
-          <figure className="deck-curve" aria-label="Curva de energía del mazo principal">
-            <figcaption>Curva de energía</figcaption>
+          <figure className="deck-curve" aria-label="Curva de Energy del Main Deck">
+            <figcaption>Curva de Energy</figcaption>
             <div className="deck-bars">
               {stats.bars.map((b) => (
                 <button
                   key={b.cost}
                   className={`deck-bar ${onClass(filter.cost.includes(b.cost))}`}
-                  title={`Coste ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cartas · pulsa para filtrar`}
+                  title={`Energy ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cartas · pulsa para filtrar`}
                   aria-pressed={filter.cost.includes(b.cost)}
                   onClick={() => toggle('cost', b.cost)}
                 >
@@ -455,8 +455,8 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
                 </button>
               ))}
             </div>
-            <p className="deck-mix-title">Colores</p>
-            <div className="deck-colorbar" aria-label="Reparto por colores">
+            <p className="deck-mix-title">Colors</p>
+            <div className="deck-colorbar" aria-label="Reparto por Colors">
               {[...stats.colors]
                 .sort((a, b) => COLOR_ORDER.indexOf(a[0]) - COLOR_ORDER.indexOf(b[0]))
                 .map(([col, n]) => (
@@ -520,7 +520,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
       )}
 
       <DeckSection
-        title="Mazo principal"
+        title="Main Deck"
         count={stats.total}
         shown={filtering ? countOf(shown(main)) : undefined}
         cards={shown(main)}

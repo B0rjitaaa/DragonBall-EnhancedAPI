@@ -16,11 +16,11 @@ export default function CardDetail({ card, showAddButton = true }: { card: Card;
   const stats: [string, string][] = [
     ["Número", card.card_number],
     ["Set", [card.set_code, card.set_name].filter(Boolean).join(" · ")],
-    ["Rareza", card.rarity],
-    ["Tipo", card.card_type],
+    ["Rarity", card.rarity],
+    ["Type", card.card_type],
     ["Color", card.color],
-    ["Coste", card.cost],
-    ["Poder", card.power],
+    ["Energy", card.cost],
+    ["Power", card.power],
   ];
 
   return (
