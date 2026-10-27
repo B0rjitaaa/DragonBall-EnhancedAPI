@@ -97,6 +97,6 @@
   {% empty %}
     <p>No hay copias guardadas.</p>
   {% endfor %}
-  <p class="help">Solo se descargan las bases de datos (<code>.dump</code>); las fotos de los escaneos (<code>.tgz</code>) son demasiado grandes y se quedan en el servidor y en la Raspberry.</p>
+  <p class="help">Se descargan las bases de datos (<code>.dump</code>). El <code>.tgz</code> lleva las imágenes propias de impresiones; las fotos de los escaneos no se copian (se borran al pasar un día).</p>
 {% endif %}
 {% endblock %}

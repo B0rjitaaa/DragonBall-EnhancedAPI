@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copia de seguridad de la base de datos de DragonBall-EnhancedAPI (catálogo,
-# colección, mazos y escáner) y de sus volúmenes de datos (fotos de los escaneos),
+# colección, mazos y escáner) y de sus volúmenes de datos (imágenes propias de impresiones),
 # con verificación, rotación y copia opcional a otro equipo.
 #
 # Uso:    scripts/backup.sh          (a diario lo lanza dbs-backup.timer; desde el admin,
@@ -82,13 +82,15 @@ for dir in $BACKUP_PROJECTS; do
     docker compose exec -T db pg_restore -l < "$TARGET/$name.dump" > /dev/null
     log "$name: base de datos $(du -h "$TARGET/$name.dump" | cut -f1)"
 
-    # Volúmenes de datos (p. ej. fotos de los escaneos). La BD y Redis no: la BD
+    # Volúmenes de datos (p. ej. imágenes propias de impresiones). La BD y Redis no: la BD
     # ya va en el volcado y Redis solo tiene datos temporales.
     project="$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')"
     for vol in $(docker compose config --volumes); do
         case "$vol" in pgdata|redisdata) continue ;; esac
         STEP="volumen $vol de $name"
-        docker run --rm -v "${project}_${vol}:/data:ro" alpine:3.20 tar czf - -C /data . > "$TARGET/$name-$vol.tgz"
+        # Sin las fotos de los escaneos (scans/): duran un día y solo sirven para revisar un
+        # escaneo reciente. Sí van las imágenes propias de impresiones (printings/), que no están en otro sitio.
+        docker run --rm -v "${project}_${vol}:/data:ro" alpine:3.20 tar czf - -C /data --exclude=./scans . > "$TARGET/$name-$vol.tgz"
         tar tzf "$TARGET/$name-$vol.tgz" > /dev/null
         log "$name: volumen $vol $(du -h "$TARGET/$name-$vol.tgz" | cut -f1)"
     done

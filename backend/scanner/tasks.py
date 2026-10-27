@@ -79,16 +79,47 @@ def keep_warm():
 
 @shared_task
 def cleanup_old_scans():
-    """Borra las imágenes de escaneos antiguos (el registro se conserva)."""
-    cutoff = timezone.now() - timedelta(days=settings.SCAN_RETENTION_DAYS)
+    """Borra las fotos de los escaneos (el registro se conserva): las de más de SCAN_RETENTION_HOURS
+    y, si aun así ocupan más de SCAN_PHOTOS_MAX_MB, las más antiguas hasta bajar a SCAN_PHOTOS_TARGET_MB.
+    No van en la copia de seguridad: solo sirven para revisar un escaneo reciente."""
+    cutoff = timezone.now() - timedelta(hours=settings.SCAN_RETENTION_HOURS)
     removed = 0
-    for scan in Scan.objects.filter(created_at__lt=cutoff).exclude(image=""):
-        for field in (scan.image, scan.cropped_image):
-            if field:
-                field.delete(save=False)
-        scan.save(update_fields=["image", "cropped_image"])
+    with_photo = Scan.objects.exclude(image="", cropped_image="").order_by("-created_at")
+    sizes = [(scan, _photo_bytes(scan)) for scan in with_photo]
+    # Lo que ocupan las que no tocan por antigüedad: es lo que cuenta para el límite de tamaño.
+    total = sum(size for scan, size in sizes if scan.created_at >= cutoff)
+    limit, target = settings.SCAN_PHOTOS_MAX_MB * 2**20, settings.SCAN_PHOTOS_TARGET_MB * 2**20
+    kept, full = 0, False
+    for scan, size in sizes:  # de la más reciente a la más antigua
+        keep = scan.created_at >= cutoff and not full
+        if keep and total > limit:
+            # Por encima del límite: se conservan las más recientes mientras quepan en el objetivo.
+            full = kept + size > target
+            keep = not full
+        if keep:
+            kept += size
+            continue
+        _delete_photos(scan)
         removed += 1
     return removed
+
+
+def _photo_bytes(scan) -> int:
+    total = 0
+    for field in (scan.image, scan.cropped_image):
+        if field:
+            try:
+                total += field.size
+            except OSError:  # el fichero ya no está
+                pass
+    return total
+
+
+def _delete_photos(scan) -> None:
+    for field in (scan.image, scan.cropped_image):
+        if field:
+            field.delete(save=False)
+    scan.save(update_fields=["image", "cropped_image"])
 
 
 @shared_task

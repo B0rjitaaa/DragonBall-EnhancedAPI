@@ -507,3 +507,51 @@ class SiblingPrintingTests(BurstFixture, TestCase):
         self.assertTrue(scan["needs_review"])
         self.assertFalse(scan["added_to_collection"])
         self.assertEqual(self._quantity(base) + self._quantity(promo), 0)
+
+
+@override_settings(MEDIA_ROOT=MEDIA, SCAN_RETENTION_HOURS=24, SCAN_PHOTOS_MAX_MB=2, SCAN_PHOTOS_TARGET_MB=1)
+class CleanupScanPhotosTests(TestCase):
+    """Fotos de los escaneos: se borran al pasar un día o, si ocupan demasiado, las más antiguas."""
+
+    def scan(self, hours_ago, kb):
+        from datetime import timedelta
+
+        from django.core.files.base import ContentFile
+        from django.utils import timezone
+
+        scan = Scan.objects.create()
+        scan.image.save(f"s{scan.pk}.jpg", ContentFile(b"x" * kb * 1024), save=False)
+        scan.cropped_image.save(f"c{scan.pk}.jpg", ContentFile(b"y"), save=False)
+        scan.save()
+        Scan.objects.filter(pk=scan.pk).update(created_at=timezone.now() - timedelta(hours=hours_ago))
+        return scan
+
+    def with_photo(self):
+        return sorted(Scan.objects.exclude(image="").values_list("pk", flat=True))
+
+    def test_older_than_a_day(self):
+        from scanner.tasks import cleanup_old_scans
+
+        old, new = self.scan(25, 10), self.scan(2, 10)
+        path = old.image.path
+        self.assertEqual(cleanup_old_scans(), 1)
+        self.assertEqual(self.with_photo(), [new.pk])
+        self.assertTrue(Scan.objects.filter(pk=old.pk).exists())  # el registro se conserva
+        import os
+
+        self.assertFalse(os.path.exists(path))
+
+    def test_over_the_size_limit_keeps_the_newest_up_to_the_target(self):
+        from scanner.tasks import cleanup_old_scans
+
+        scans = [self.scan(hours, 600) for hours in (5, 4, 3, 2)]  # 2,4 MB > 2 MB
+        self.assertEqual(cleanup_old_scans(), 3)  # en 1 MB solo cabe la más reciente
+        self.assertEqual(self.with_photo(), [scans[-1].pk])
+
+    def test_under_the_limit_keeps_all_recent(self):
+        from scanner.tasks import cleanup_old_scans
+
+        self.scan(30, 1500)  # vieja y grande: no cuenta para el límite
+        recent = [self.scan(h, 600) for h in (3, 2)]
+        self.assertEqual(cleanup_old_scans(), 1)
+        self.assertEqual(self.with_photo(), [s.pk for s in recent])

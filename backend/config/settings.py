@@ -192,7 +192,7 @@ CELERY_BEAT_SCHEDULE["purge-resolved-errors"] = {
 }
 CELERY_BEAT_SCHEDULE["scanner-cleanup-old-scans"] = {
     "task": "scanner.tasks.cleanup_old_scans",
-    "schedule": crontab(hour=5, minute=0, day_of_week="mon"),
+    "schedule": crontab(minute=10),  # cada hora
 }
 
 # --- Escáner -------------------------------------------------------------------
@@ -210,7 +210,11 @@ MATCH_MIN_CONFIDENCE = float(env("MATCH_MIN_CONFIDENCE", "0.45"))
 # Modo ráfaga: confianza mínima para añadir la carta a la colección sin confirmar.
 # 0,65 tras la calibración del 19/10/2026: aciertos 70–100 %, zona vacía 33–41 %.
 AUTO_ADD_MIN_CONFIDENCE = float(env("AUTO_ADD_MIN_CONFIDENCE", "0.65"))
-SCAN_RETENTION_DAYS = int(env("SCAN_RETENTION_DAYS", "30"))
+# Fotos de los escaneos (scanner.tasks.cleanup_old_scans, cada hora): se borran al pasar
+# SCAN_RETENTION_HOURS y, si ocupan más de SCAN_PHOTOS_MAX_MB, hasta SCAN_PHOTOS_TARGET_MB.
+SCAN_RETENTION_HOURS = int(env("SCAN_RETENTION_HOURS", "24"))
+SCAN_PHOTOS_MAX_MB = int(env("SCAN_PHOTOS_MAX_MB", "2048"))
+SCAN_PHOTOS_TARGET_MB = int(env("SCAN_PHOTOS_TARGET_MB", "1536"))
 # Servicio `camera` (webcam del archivador), el único que abre /dev/video0.
 CAMERA_URL = env("CAMERA_URL", "")
 
