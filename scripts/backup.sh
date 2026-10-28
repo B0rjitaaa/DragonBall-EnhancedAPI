@@ -16,7 +16,7 @@
 #
 # Restaurar: pg_restore --clean -U <usuario> -d <bd> < copia.dump (dentro del contenedor db),
 # y los volúmenes con: docker run --rm -v <proyecto>_<volumen>:/data -i alpine tar xzf - -C /data < copia.tgz
-set -euo pipefail
+set -Eeuo pipefail
 
 CONF="${DBS_BACKUP_CONF:-$HOME/.config/dbs-backup.env}"
 # shellcheck disable=SC1090
@@ -53,19 +53,31 @@ STATUS_FILE="$BACKUP_DIR/last_status.json"
 REMOTE_STATUS="off"
 STEP="inicio"
 write_status() {  # write_status <ok|error> <mensaje>
-    local q="'" msg="${2//\\//}"   # el mensaje va dentro de un JSON: sin \ ni comillas dobles
+    local q="'" msg="${2//\\//}"   # el mensaje va dentro de un JSON: sin \, comillas dobles ni saltos de línea
     msg="${msg//\"/$q}"
+    msg="$(printf '%s' "$msg" | tr '\n\t\r' '   ' | tr -d '\000-\037')"
     printf '{"status": "%s", "finished_at": "%s", "target": "%s", "size": "%s", "remote": "%s", "message": "%s", "trigger": "%s"}\n' \
         "$1" "$(date -Iseconds)" "$TARGET" "$(du -sh "$TARGET" 2>/dev/null | cut -f1)" "$REMOTE_STATUS" "$msg" "$TRIGGER" \
         > "$STATUS_FILE.tmp" && mv "$STATUS_FILE.tmp" "$STATUS_FILE"
 }
+# El error de verdad, para el estado (y el aviso por Telegram): el comando que falló y lo
+# último que escribió en la salida de errores.
+ERR_LOG="$(mktemp)"
+exec 2> >(tee -a "$ERR_LOG" >&2)
+FAILED_CMD=""
+trap 'FAILED_CMD="línea $LINENO: $BASH_COMMAND"' ERR
 on_exit() {
-    local code=$?
+    local code=$? detail=""
     rm -f "$RUNNING_FILE"
     if [ "$code" -ne 0 ]; then
-        write_status error "falló en: $STEP (código $code)"
-        log "copia FALLIDA en: $STEP (código $code)"
+        [ -n "$FAILED_CMD" ] && detail=" · ${FAILED_CMD:0:200}"
+        local errors
+        errors="$(tail -n 3 "$ERR_LOG" 2>/dev/null | tr '\n' ' ' | cut -c1-300 || true)"
+        [ -n "${errors// /}" ] && detail="$detail · $errors"
+        write_status error "falló en: $STEP (código $code)$detail"
+        log "copia FALLIDA en: $STEP (código $code)$detail"
     fi
+    rm -f "$ERR_LOG"
 }
 trap on_exit EXIT
 
@@ -97,16 +109,19 @@ for dir in $BACKUP_PROJECTS; do
 done
 
 # Copia semanal (domingos), con enlaces duros: no ocupa espacio extra.
+STEP="copia semanal"
 if [ "$(date +%u)" = "7" ]; then
     mkdir -p "$BACKUP_DIR/weekly"
     cp -al "$TARGET" "$BACKUP_DIR/weekly/$STAMP"
 fi
 
-# Rotación
+# Rotación. Con find, no con ls: un ls sobre una carpeta vacía sale con error y, con
+# pipefail, daba la copia por fallida (pasó el 28/10/2026 con weekly/ vacía).
+STEP="rotación"
 prune() {
     local keep="$1" folder="$2"
     [ -d "$folder" ] || return 0
-    ls -1d "$folder"/*/ 2>/dev/null | sort | head -n "-$keep" | xargs -r rm -rf
+    find "$folder" -mindepth 1 -maxdepth 1 -type d | sort | head -n "-$keep" | xargs -r rm -rf
 }
 prune "$KEEP_DAILY" "$BACKUP_DIR/daily"
 prune "$KEEP_WEEKLY" "$BACKUP_DIR/weekly"

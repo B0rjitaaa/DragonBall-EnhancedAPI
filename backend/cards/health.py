@@ -83,7 +83,7 @@ def _backup():
     if not path:
         return None, "no configurada en este equipo"
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             status = json.load(fh)
     except FileNotFoundError:
         return False, "no hay registro de ninguna copia"

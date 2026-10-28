@@ -51,7 +51,7 @@ def backup_dir() -> Path | None:
 
 def _read_json(path: Path) -> dict | None:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8", errors="replace"))
     except (OSError, ValueError):
         return None
 
