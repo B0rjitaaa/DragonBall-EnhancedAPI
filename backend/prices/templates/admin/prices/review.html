@@ -1,0 +1,187 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+  .rv-tabs { display: flex; gap: .5rem; margin: 0 0 1rem; }
+  .rv-tabs a { padding: .4rem .9rem; border: 1px solid var(--hairline-color); border-radius: 999px; text-decoration: none; }
+  .rv-tabs a.on { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+  .rv-help { max-width: 60rem; color: var(--body-quiet-color); margin: 0 0 1rem; }
+  .rv-card { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 1rem; padding: .9rem 0; border-top: 1px solid var(--hairline-color); max-width: 70rem; }
+  .rv-card img { width: 110px; border-radius: 6px; display: block; }
+  .rv-card h3 { margin: 0 0 .2rem; font-size: 1rem; background: none; color: var(--body-fg); padding: 0; text-transform: none; letter-spacing: 0; }
+  .rv-meta { color: var(--body-quiet-color); margin: 0 0 .5rem; }
+  .rv-cands { display: grid; gap: .2rem; margin: 0 0 .6rem; }
+  .rv-cands label { display: flex; gap: .5rem; align-items: baseline; padding: .25rem .4rem; border-radius: 4px; cursor: pointer; }
+  .rv-cands label:hover { background: var(--darkened-bg); }
+  .rv-price { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 5.5rem; text-align: right; }
+  .rv-set { color: var(--body-quiet-color); }
+  .rv-same { color: #2e9e57; font-weight: 600; }
+  .rv-fake .rv-price { color: #e5484d; }
+  .rv-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+  fieldset.rv-card { margin: 0; border: 0; border-top: 1px solid var(--hairline-color); min-width: 0; }
+  .rv-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; gap: .8rem; align-items: center; justify-content: flex-end;
+                margin-top: 1rem; padding: .7rem 1rem; max-width: 70rem; background: var(--body-bg);
+                border: 1px solid var(--hairline-color); border-radius: 8px; box-shadow: 0 -6px 18px rgba(0,0,0,.25); }
+  #rv-count { margin-right: auto; color: var(--body-quiet-color); }
+  .rv-group { padding: .9rem 0; border-top: 1px solid var(--hairline-color); max-width: 70rem; }
+  .rv-group table { width: 100%; }
+  .rv-group td { vertical-align: middle; }
+  .rv-group img { width: 60px; border-radius: 4px; display: block; }
+  .rv-pages { margin: 1rem 0; display: flex; gap: .8rem; align-items: center; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Inicio</a> › <a href="{% url 'admin:app_list' app_label='prices' %}">Precios (Cardmarket)</a> › Revisar emparejamientos
+</div>
+{% endblock %}
+
+{% block content %}
+<nav class="rv-tabs">
+  <a href="?tab=sin" class="{% if tab == 'sin' %}on{% endif %}">Tus cartas sin emparejar ({{ unmatched_count }})</a>
+  <a href="?tab=raros" class="{% if tab == 'raros' %}on{% endif %}">Precios dudosos ({{ suspect_count }})</a>
+  <a href="?tab=dudosos" class="{% if tab == 'dudosos' %}on{% endif %}">Emparejados por orden ({{ doubtful_count }})</a>
+</nav>
+
+{% if tab == 'sin' or tab == 'raros' %}
+  {% if tab == 'raros' %}
+  <p class="rv-help">
+    Cartas cuyo único dato en Cardmarket es un anuncio (sin ventas) muy caro para su rareza: puede ser un precio
+    de relleno o el producto equivocado. <strong>No cuentan en el valor</strong> hasta que elijas: el mismo
+    producto («precio actual») si el precio es bueno, otro producto, «No está en Cardmarket» o un precio a mano.
+  </p>
+  {% else %}
+  <p class="rv-help">
+    Cartas de tu colección que no se han podido emparejar solas. En cada una, elige su producto en Cardmarket (↗ abre
+    la carta para comprobar la imagen), «No está en Cardmarket» o, si ninguna opción es la buena, el precio a mano.
+    Marca las que quieras y guárdalas todas a la vez con el botón de abajo; las que no marques se quedan como están.
+    Lo guardado queda fijo (la descarga diaria no lo cambia) y vale también para sus reimpresiones idénticas.
+  </p>
+  {% endif %}
+  <form id="rv-form" method="post" action="{% url 'admin:prices_pricereview_choose' %}">
+    {% csrf_token %}
+    <input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="page" value="{{ page }}">
+    {% for row in rows %}
+      <fieldset class="rv-card">
+        {% if row.thumb %}<img src="{{ row.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% else %}<span></span>{% endif %}
+        <div>
+          <h3>{{ row.card.card_number }} · {{ row.card.rarity_code }} · {{ row.card.name }}</h3>
+          <p class="rv-meta">{{ row.card.card_type }} · {{ row.card.card_set }}</p>
+          <div class="rv-cands">
+            {% for c in row.candidates %}
+              <label>
+                <input type="radio" name="choice_{{ row.card.id }}" value="{{ c.product.id }}">
+                <span class="rv-price">{% if c.product.price is not None %}{{ c.product.price }} €{% else %}sin precio{% endif %}</span>
+                <span>{{ c.product.name }}{% if c.product.id == row.current %} <strong class="rv-same">· precio actual</strong>{% endif %}</span>
+                <span class="rv-set">· {% if c.same_set %}<span class="rv-same">su set</span>{% else %}{{ c.product.expansion.card_set|default:"expansión sin emparejar" }}{% endif %}</span>
+                <a href="{{ c.url }}" target="_blank" rel="noreferrer" title="Abrir en Cardmarket">↗</a>
+              </label>
+            {% empty %}
+              <p class="rv-meta">No hay ningún producto en Cardmarket con este nombre.</p>
+            {% endfor %}
+            <label>
+              <input type="radio" name="choice_{{ row.card.id }}" value="none">
+              <span class="rv-price">—</span><span>No está en Cardmarket</span>
+            </label>
+            <label class="rv-fake">
+              <input type="radio" name="choice_{{ row.card.id }}" value="fake">
+              <span class="rv-price">falsa</span><span>Mis copias son falsas <span class="rv-set">· pasan a falsas y no cuentan en el valor</span></span>
+            </label>
+            <label>
+              <input type="radio" name="choice_{{ row.card.id }}" value="price" class="rv-price-radio">
+              <span class="rv-price">a mano</span>
+              <input type="text" name="price_{{ row.card.id }}" inputmode="decimal" placeholder="p. ej. 3,50" size="10"
+                     aria-label="Precio a mano en euros" class="rv-price-input"> €
+            </label>
+          </div>
+        </div>
+      </fieldset>
+    {% empty %}
+      <p>✅ {% if tab == 'raros' %}No hay precios dudosos.{% else %}Todas tus cartas están emparejadas (o revisadas).{% endif %}</p>
+    {% endfor %}
+    {% if rows %}
+      <div class="rv-savebar">
+        <span id="rv-count">Ninguna carta marcada</span>
+        <button type="button" class="button" id="rv-clear">Desmarcar todo</button>
+        <input type="submit" class="default" id="rv-save" value="Guardar los cambios" disabled>
+      </div>
+    {% endif %}
+  </form>
+  <script>
+    (function () {
+      var form = document.getElementById('rv-form');
+      if (!form) return;
+      var count = document.getElementById('rv-count'), save = document.getElementById('rv-save');
+      function update() {
+        var n = new Set(Array.from(form.querySelectorAll('input[type=radio]:checked')).map(function (r) { return r.name; })).size;
+        count.textContent = n ? n + (n === 1 ? ' carta marcada' : ' cartas marcadas') : 'Ninguna carta marcada';
+        save.disabled = !n;
+        save.value = n ? 'Guardar los cambios (' + n + ')' : 'Guardar los cambios';
+      }
+      // Escribir un precio marca «a mano» en esa carta.
+      form.addEventListener('input', function (e) {
+        if (e.target.classList.contains('rv-price-input')) {
+          var radio = e.target.closest('label').querySelector('.rv-price-radio');
+          radio.checked = e.target.value.trim() !== '';
+        }
+        update();
+      });
+      form.addEventListener('change', update);
+      document.getElementById('rv-clear').addEventListener('click', function () {
+        form.querySelectorAll('input[type=radio]:checked').forEach(function (r) { r.checked = false; });
+        form.querySelectorAll('.rv-price-input').forEach(function (i) { i.value = ''; });
+        update();
+      });
+      // Avisar antes de salir de la página con cambios sin guardar.
+      window.addEventListener('beforeunload', function (e) {
+        if (!save.disabled && !form.dataset.sending) { e.preventDefault(); e.returnValue = ''; }
+      });
+      form.addEventListener('submit', function () { form.dataset.sending = '1'; });
+    })();
+  </script>
+  {% if pages > 1 %}
+    <div class="rv-pages">
+      {% if page > 1 %}<a href="?tab={{ tab }}&page={{ page|add:'-1' }}">← Anterior</a>{% endif %}
+      <span>Página {{ page }} de {{ pages }}</span>
+      {% if page < pages %}<a href="?tab={{ tab }}&page={{ page|add:'1' }}">Siguiente →</a>{% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  <p class="rv-help">
+    Impresiones de una misma carta (normal, SPR, SCR, GDR…) emparejadas por orden, donde una rareza mayor sale más
+    barata que una menor: puede que estén cruzadas. Comprueba con ↗ y confirma o elige el producto de cada una.
+  </p>
+  {% for group in groups %}
+    <form class="rv-group" method="post" action="{% url 'admin:prices_pricereview_group' %}">
+      {% csrf_token %}
+      <input type="hidden" name="tab" value="dudosos">
+      <table>
+        {% for item in group.links %}
+          <tr>
+            <td>{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</td>
+            <td><strong>{{ item.link.card.card_number }} · {{ item.link.card.rarity_code }}</strong><br>{{ item.link.card.name }}</td>
+            <td>
+              <input type="hidden" name="cards" value="{{ item.link.card.id }}">
+              <select name="product_{{ item.link.card.id }}">
+                {% for p in group.products %}
+                  <option value="{{ p.id }}" {% if p.id == item.link.product_id %}selected{% endif %}>
+                    {% if p.price is not None %}{{ p.price }} €{% else %}sin precio{% endif %} · producto {{ p.id }}
+                  </option>
+                {% endfor %}
+              </select>
+              <a href="{{ item.url }}" target="_blank" rel="noreferrer" title="Abrir el producto actual en Cardmarket">↗</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+      <div class="rv-actions">
+        <button type="submit" name="action" value="confirm" class="button">Están bien así</button>
+        <input type="submit" class="default" value="Guardar cambios">
+      </div>
+    </form>
+  {% empty %}
+    <p>✅ No hay emparejamientos dudosos.</p>
+  {% endfor %}
+{% endif %}
+{% endblock %}

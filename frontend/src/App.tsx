@@ -13,6 +13,7 @@ import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
 } from './lib/query'
 import { valueLabel } from './lib/labels'
+import { formatEur } from './lib/prices'
 import { SkillIndex } from './lib/skills'
 import type { Facet, FacetState, FieldDef, Group, Location, OwnedSummary, SearchResponse } from './lib/types'
 
@@ -290,15 +291,24 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       const shown = r.locations
         .filter((l) => (location == null || l.id === location) && (showFakes || !l.fake))
         .reduce((n, l) => n + l.quantity, 0)
+      // Copias auténticas que cuentan para el valor (con el filtro de ubicación).
+      const authentic = (locs: OwnedSummary['locations']) =>
+        locs.filter((l) => !l.fake && (location == null || l.id === location)).reduce((n, l) => n + l.quantity, 0)
       setData((prev) => {
         if (!prev) return prev
-        const before = prev.results.find((c) => c.id === id)?.quantity ?? 0
+        const card = prev.results.find((c) => c.id === id)
+        const before = card?.quantity ?? 0
+        const delta = card?.price ? (authentic(r.locations) - authentic(card.locations ?? [])) * card.price.eur : 0
+        const value = prev.value && card?.price
+          ? { ...prev.value, value: prev.value.value + delta, value_low: prev.value.value_low + (card.price.is_low ? delta : 0) }
+          : prev.value
         // En Mi colección una carta sin copias sale de la lista; en el buscador se queda.
         const removed = inCollection && shown === 0
         return {
           ...prev,
           count: removed ? prev.count - 1 : prev.count,
           total_copies: inCollection ? (prev.total_copies ?? 0) + (shown - before) : prev.total_copies,
+          value,
           results: removed
             ? prev.results.filter((c) => c.id !== id)
             : prev.results.map((c) =>
@@ -529,6 +539,22 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                     <>
                       {' '}· <strong>{data.total_copies.toLocaleString('es-ES')}</strong> copias
                     </>
+                  )}
+                  {inCollection && data.value && data.value.copies_priced > 0 && (
+                    <span
+                      className="collection-value"
+                      title={[
+                        'Valor en Cardmarket de las copias auténticas que se ven (las falsas no cuentan).',
+                        data.value.value_low > 0 &&
+                          `Incluye ${formatEur(data.value.value_low)} de precios mínimos: cartas sin ventas recientes, valoradas por su anuncio más barato.`,
+                        data.value.copies_unpriced > 0 && `${data.value.copies_unpriced.toLocaleString('es-ES')} copias sin precio.`,
+                      ].filter(Boolean).join('\n')}
+                    >
+                      {' '}· valor <strong>{formatEur(data.value.value)}</strong>
+                      {data.value.value_low > 0 && (
+                        <small className="muted"> (incluye {formatEur(data.value.value_low)} de precios mínimos)</small>
+                      )}
+                    </span>
                   )}
                 </>
               ) : (

@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from collection.models import Location, StatusChange
 from collection.serializers import LocationSerializer
 from collection.services import delete_location
+from prices.services import value_of, values_by_location
 
 from collection.models import CollectionEntry
 
@@ -113,7 +114,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         if self.action == "retrieve":
-            return Card.objects.all()
+            return Card.objects.select_related("cardmarket__product")
         params = self.request.query_params
         qs = build_queryset(params.get("q"), parse_query_param(params.get("query")), params_to_tree(params))
         return apply_ordering(qs, params.get("ordering"))
@@ -174,7 +175,8 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
 
         size, number = data["page_size"], data["page"]
         total = qs.count()
-        items = CardListSerializer(qs[(number - 1) * size: number * size], many=True).data
+        page = qs.select_related("cardmarket__product")[(number - 1) * size: number * size]
+        items = CardListSerializer(page, many=True).data
         response = {
             "count": total,
             "page": number,
@@ -186,6 +188,8 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
             details = scope.details([c["id"] for c in items])
             response["results"] = [{**c, **details.get(c["id"], {})} for c in items]
             response["total_copies"] = scope.total_copies(qs)
+            # Valor de lo que se ve (con los filtros): solo copias auténticas.
+            response["value"] = value_of(scope.entries.filter(card_id__in=qs.order_by().values("id")))
             # Las copias apuntan al catálogo (clave ajena): ya no puede haber cartas que falten.
             response["missing"] = []
         else:
@@ -400,7 +404,9 @@ class MyCollectionView(APIView):
 
     def get(self, request):
         scope = Scope(with_fakes=True)
-        cards = CardListSerializer(Card.objects.filter(id__in=scope.card_ids()), many=True).data
+        cards = CardListSerializer(
+            Card.objects.filter(id__in=scope.card_ids()).select_related("cardmarket__product"), many=True
+        ).data
         details = scope.details([c["id"] for c in cards])
         return Response({
             "total_cards": len(cards),
@@ -588,9 +594,10 @@ class LocationsView(APIView):
         has_decks = any(loc["kind"] == "deck" for loc in locations)
         leaders, issues = (deck_leaders(), deck_issues()) if has_decks else ({}, {})
         listed, logs = (history_list_sizes(), status_logs()) if has_decks else ({}, {})
+        values = values_by_location()
         return Response([
             {**loc, "leader": leaders.get(loc["id"]), "issues": issues.get(loc["id"]), "last_list": listed.get(loc["id"]),
-             "status_log": logs.get(loc["id"], [])}
+             "status_log": logs.get(loc["id"], []), "value": values.get(loc["id"], 0)}
             for loc in locations
         ])
 

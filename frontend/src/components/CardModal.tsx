@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
+import { PRICE_LOW_HINT, formatEur, priceLabel } from '../lib/prices'
 import { CATEGORY_LABEL, type SkillIndex } from '../lib/skills'
-import type { CardDetail, SkillCategory } from '../lib/types'
+import type { CardDetail, CardPrice, SkillCategory } from '../lib/types'
 import CardText from './CardText'
 import Tooltip from './Tooltip'
 
@@ -71,6 +72,7 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
                 {card.card_number} · {card.card_set}
               </p>
               <h2>{back ? card.back_name : card.name}</h2>
+              {card.price && <PriceBox price={card.price} />}
               {card.legality !== 'legal' && (
                 <div className={`legal-banner ${card.legality}`}>
                   <strong>{card.legality === 'banned' ? '⛔ Banned en torneos oficiales' : '⚠️ Limited: máximo 1 copia'}</strong>
@@ -178,6 +180,34 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Precio de mercado en Europa (Cardmarket), de dónde sale y las ofertas en España y en Europa. */
+function PriceBox({ price }: { price: CardPrice }) {
+  const details = [
+    price.low != null && `desde ${formatEur(price.low)} en Europa`,
+    price.trend != null && `Trend ${formatEur(price.trend)}`,
+    price.avg30 != null && `media 30 días ${formatEur(price.avg30)}`,
+  ].filter(Boolean)
+  return (
+    <div className={`price-box ${price.is_low || price.suspect ? 'is-low' : ''}`}>
+      <span className="price-main">{priceLabel(price)}</span>
+      <span className="price-what small">
+        {price.manual
+          ? 'precio puesto a mano'
+          : price.suspect
+            ? 'precio dudoso: un solo anuncio, sin ventas (no cuenta en el valor)'
+            : price.is_low ? 'anuncio más barato en Europa (sin ventas)' : 'precio de mercado en Europa'}
+      </span>
+      {!price.manual && (
+        <span className="price-details muted small">{price.is_low ? PRICE_LOW_HINT : details.join(' · ')}</span>
+      )}
+      <span className="price-links small">
+        <a href={price.url_es} target="_blank" rel="noreferrer">Ofertas en España ↗</a>
+        <a href={price.url} target="_blank" rel="noreferrer">Ofertas en Europa ↗</a>
+      </span>
     </div>
   )
 }

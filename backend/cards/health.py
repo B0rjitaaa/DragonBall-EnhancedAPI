@@ -2,8 +2,8 @@
 
 - Críticas (si falla alguna, el estado es "down" y la respuesta 503): base de datos, Redis,
   el worker de Celery y el del escáner.
-- Avisos (estado "degraded", respuesta 200): syncs con Bandai y las listas oficiales que
-  llevan demasiado sin actualizarse, y la copia de seguridad diaria (fallida, antigua o
+- Avisos (estado "degraded", respuesta 200): syncs con Bandai, las listas oficiales y los
+  precios de Cardmarket que llevan demasiado sin actualizarse, y la copia de seguridad diaria (fallida, antigua o
   sin réplica a la Raspberry).
 - Opcional (se informa pero no cuenta): la cámara de la estación fija.
 """
@@ -71,6 +71,12 @@ def _cards_sync():
     return ok, detail
 
 
+def _prices_model():
+    from prices.models import CardmarketProduct
+
+    return CardmarketProduct
+
+
 def _official(model, max_age):
     fetched = model.objects.aggregate(last=Max("fetched_at"))["last"]
     ok = fetched is not None and timezone.now() - fetched <= max_age
@@ -123,6 +129,7 @@ CHECKS = [
     ("banlist", "Banlist oficial", "warning", lambda: _official(BanListEntry, SYNC_MAX_AGE)),
     ("errata", "Erratas oficiales", "warning", lambda: _official(CardErrata, WEEKLY_MAX_AGE)),
     ("rulings", "Card Q&A oficial", "warning", lambda: _official(CardRuling, WEEKLY_MAX_AGE)),
+    ("prices", "Precios de Cardmarket", "warning", lambda: _official(_prices_model(), SYNC_MAX_AGE)),
     ("backup", "Copia de seguridad", "warning", _backup),
     ("camera", "Cámara de la estación fija", "optional", _camera),
 ]

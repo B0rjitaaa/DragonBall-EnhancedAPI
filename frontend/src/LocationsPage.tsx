@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { KIND_LABELS } from './components/OwnedPanel'
 import { api } from './lib/api'
 import { colorClass } from './lib/colors'
+import { formatEur } from './lib/prices'
 import { locationPath } from './lib/query'
 import type { HistoryCard, Location, LocationKind } from './lib/types'
 
@@ -418,6 +419,7 @@ function DeckTile({
         {deck.leader && <small className="muted locdeck-leader-name">{deck.leader.name}</small>}
         <p className="locdeck-stats">
           <strong>{deck.copies}</strong> copias · {deck.cards} cartas
+          {!!deck.value && <> · <span title="Valor en Cardmarket (sin las falsas)">{formatEur(deck.value)}</span></>}
           {deck.fakes > 0 && <> · <a className="fake-link" href={`${collectionUrl(deck)}?fakes=1`}>{deck.fakes === 1 ? '1 falsa' : `${deck.fakes} falsas`}</a></>}
         </p>
         {warnings.length > 0 && (
@@ -451,6 +453,7 @@ function ListSection({
         </span>
         <span className="loc-row-stats">
           <strong>{l.copies}</strong> copias · {l.cards} cartas
+          {!!l.value && <> · <span title="Valor en Cardmarket (sin las falsas)">{formatEur(l.value)}</span></>}
           {l.fakes > 0 && <em className="fake-text"> · {l.fakes === 1 ? '1 falsa' : `${l.fakes} falsas`}</em>}
         </span>
         <span className="loc-bar" aria-hidden="true">

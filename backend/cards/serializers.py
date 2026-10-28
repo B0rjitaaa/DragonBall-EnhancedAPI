@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
 from .models import BanListEntry, Card, CardChange, CardErrata, CardRuling, KeywordSkill, SyncRun
+from prices.services import card_price
+
 from .thumbs import thumb_url
 
 
@@ -8,17 +10,22 @@ class CardListSerializer(serializers.ModelSerializer):
     has_back = serializers.BooleanField(read_only=True)
     # Miniatura para cuadrículas y listas (ver cards/thumbs.py); la imagen completa sigue en image_url.
     thumb_url = serializers.SerializerMethodField()
+    # Precio de Cardmarket en € (ver prices/); mejor con select_related("cardmarket__product").
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model = Card
         fields = [
             "id", "card_number", "name", "image_url", "thumb_url", "card_type", "colors", "rarity", "rarity_code",
             "energy", "power", "set_code", "card_set", "has_back", "back_name", "back_image_url",
-            "legality", "legality_since", "keyword_skills", "has_errata", "rulings_count",
+            "legality", "legality_since", "keyword_skills", "has_errata", "rulings_count", "price",
         ]
 
     def get_thumb_url(self, card) -> str:
         return thumb_url(card.id, card.image_url)
+
+    def get_price(self, card) -> dict | None:
+        return card_price(card)
 
 
 class CardChangeSerializer(serializers.ModelSerializer):
@@ -51,6 +58,7 @@ class CardDetailSerializer(serializers.ModelSerializer):
     has_back = serializers.BooleanField(read_only=True)
     errata = serializers.SerializerMethodField()
     rulings = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model = Card
@@ -61,6 +69,9 @@ class CardDetailSerializer(serializers.ModelSerializer):
             return None
         entry = CardErrata.objects.filter(card_number=card.card_number).first()
         return CardErrataSerializer(entry).data if entry else None
+
+    def get_price(self, card) -> dict | None:
+        return card_price(card)
 
     def get_rulings(self, card) -> list:
         if not card.rulings_count:

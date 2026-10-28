@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "scanner",
     "errorlog",
     "backups",
+    "prices",
 ]
 
 MIDDLEWARE = [
@@ -186,6 +187,10 @@ CELERY_BEAT_SCHEDULE["check-health-alerts"] = {
     "schedule": 300,
     "options": {"expires": 240},
 }
+CELERY_BEAT_SCHEDULE["sync-prices-daily"] = {
+    "task": "prices.tasks.sync_prices",
+    "schedule": crontab(hour=5, minute=15),  # Cardmarket publica la guía hacia las 03:00
+}
 CELERY_BEAT_SCHEDULE["purge-resolved-errors"] = {
     "task": "errorlog.tasks.purge_resolved_errors",
     "schedule": crontab(hour=5, minute=30),
@@ -231,6 +236,8 @@ BACKUP_STATUS_FILE = env("BACKUP_STATUS_FILE", "")
 # Carpeta de las copias (montada en solo lectura) y la de las peticiones de «Hacer copia ahora».
 BACKUP_DIR = env("BACKUP_DIR", str(Path(BACKUP_STATUS_FILE).parent) if BACKUP_STATUS_FILE else "")
 BACKUP_REQUEST_DIR = env("BACKUP_REQUEST_DIR", "/backup-request")
+# Precios: catálogo y guía pública de Cardmarket (prices/). Dragon Ball Super es el juego 13.
+CARDMARKET_GAME_ID = int(env("CARDMARKET_GAME_ID", "13"))
 ERRATA_URL = env("ERRATA_URL", "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php")
 CARD_FAQ_URL = env("CARD_FAQ_URL", "https://www.dbs-cardgame.com/us-en/rule/card_faq.php")
 # Avisos por Telegram (cards/alerts.py) cuando algo de /api/health/ falla. Vacíos: sin avisos.

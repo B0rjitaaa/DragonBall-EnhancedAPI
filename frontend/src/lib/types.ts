@@ -44,6 +44,34 @@ export type QueryNode = Condition | Group
 
 export const isGroup = (n: QueryNode): n is Group => 'children' in n
 
+/** Precio de Cardmarket en € (ver backend/prices). */
+export interface CardPrice {
+  /** Precio de la carta: trend (corregido si se dispara), la media de 30 días o, sin ventas, el anuncio más barato. */
+  eur: number
+  /** Es solo el anuncio más barato (carta sin ventas recientes): menos fiable. */
+  is_low: boolean
+  /** Precio puesto a mano en la revisión (ningún producto de Cardmarket era el bueno). */
+  manual: boolean
+  /** Precio dudoso (solo un anuncio, muy caro para su rareza): no cuenta en el valor hasta revisarlo. */
+  suspect: boolean
+  trend: number | null
+  avg30: number | null
+  low: number | null
+  /** La carta en Cardmarket, con las ofertas de toda Europa (de donde sale el precio). */
+  url: string
+  /** La misma, solo con vendedores de España (suelen ser menos y más caros). */
+  url_es: string
+}
+
+/** Valor de las copias auténticas que se ven en Mi colección. */
+export interface CollectionValue {
+  value: number
+  /** Parte del valor que son precios mínimos (cartas sin ventas). */
+  value_low: number
+  copies_priced: number
+  copies_unpriced: number
+}
+
 export interface CardSummary {
   id: number
   card_number: string
@@ -69,6 +97,8 @@ export interface CardSummary {
   has_errata: boolean
   /** Número de preguntas/respuestas oficiales (Card Q&A). */
   rulings_count: number
+  /** Precio en Cardmarket, o null si no está emparejada o no tiene datos. */
+  price?: CardPrice | null
   /** Solo en Mi colección: copias (las de la ubicación filtrada, si hay filtro) y su reparto. */
   quantity?: number
   /** Con filtro de ubicación: copias en total, en todas las ubicaciones. */
@@ -113,6 +143,8 @@ export interface Location {
   issues?: { banned: string[]; limited: string[] } | null
   /** Solo en mazos del histórico: copias de su última lista guardada. */
   last_list?: number | null
+  /** Valor en € de sus copias auténticas (Cardmarket). */
+  value?: number
   /** Solo en mazos: cada vez que pasó al histórico o volvió a usarse, del más reciente al más antiguo. */
   status_log?: StatusChange[]
 }
@@ -248,6 +280,8 @@ export interface SearchResponse {
   results: CardSummary[]
   /** Solo en Mi colección */
   total_copies?: number
+  /** Solo en Mi colección: valor de las copias auténticas que se ven (con los filtros). */
+  value?: CollectionValue
   missing?: string[]
 }
 

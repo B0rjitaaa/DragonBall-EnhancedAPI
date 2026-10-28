@@ -27,6 +27,9 @@ class HealthFixture:
         CardRuling.objects.all().delete()
         CardErrata.objects.create(card_number="BT1-001", after="x")
         CardRuling.objects.create(card_number="BT1-001", order=1, question="q", answer="a")
+        from prices.models import CardmarketExpansion, CardmarketProduct
+
+        CardmarketProduct.objects.create(id=1, name="x", expansion=CardmarketExpansion.objects.create(id=1), fetched_at=now)
         self.client = APIClient()
 
     def get(self, workers=BOTH_WORKERS):

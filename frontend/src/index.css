@@ -226,6 +226,12 @@ body.no-scroll { overflow: hidden; }
 .tile-body { padding: 0.5rem 0.6rem 0.6rem; }
 .tile-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-meta { display: flex; justify-content: space-between; gap: 0.4rem; font-size: 0.8rem; margin-top: 0.1rem; }
+/* Todas las tarjetas iguales: cada línea en una sola línea, con «…» si no cabe (el texto
+   completo está en el detalle de la carta), y la tarjeta ocupa todo el alto de su fila. */
+.tile-meta > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile-meta > .dots { flex-shrink: 0; }
+.grid > li > .tile { flex: 1; display: flex; flex-direction: column; }
+.tile-img { flex-shrink: 0; }
 .dots { display: inline-flex; gap: 3px; align-items: center; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--muted); }
 .dot.c-red { background: var(--c-red); }
@@ -455,7 +461,7 @@ details.rulings .count { background: var(--bg-3); border-radius: 999px; padding:
 }
 
 /* Mi colección: − ×N + bajo cada carta y en la ficha */
-.grid li { display: flex; flex-direction: column; }
+.grid li { display: flex; flex-direction: column; min-width: 0; }
 .qty-controls {
   display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
   margin-top: 0.35rem; padding: 0.25rem;
@@ -1150,3 +1156,16 @@ button.deck-chip:hover { border-color: var(--accent); }
 .log-list time { display: grid; font-variant-numeric: tabular-nums; }
 .log-list time small, .log-list span small { color: var(--muted); font-size: 0.78rem; }
 .log-list span { display: grid; }
+
+/* Precios (Cardmarket): en el detalle de la carta, con enlaces a las ofertas en España y en Europa */
+.price-box {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.15rem 0.8rem; align-items: baseline;
+  margin: 0.2rem 0 0.6rem; padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-3);
+}
+.price-main { grid-row: span 2; font-size: 1.4rem; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.price-box.is-low .price-main { color: var(--text); }
+.price-what { font-weight: 600; }
+.price-details { grid-column: 2; }
+.price-links { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin-top: 0.35rem; }
+.price-links a { color: var(--accent); }
+.collection-value small { font-weight: 400; }
