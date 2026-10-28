@@ -178,7 +178,8 @@
 {% else %}
   <p class="rv-help">
     Impresiones de una misma carta (normal, SPR, SCR, GDR…) emparejadas por orden, donde una rareza mayor sale más
-    barata que una menor: puede que estén cruzadas. Comprueba con ↗ y confirma o elige el producto de cada una.
+    barata que una menor: puede que estén cruzadas; y cartas de su set normal con varios productos en Cardmarket
+    (normal, foil, alt-art…), a las que se les ha dado el más barato. Comprueba con ↗ y confirma o elige el producto.
   </p>
   {% for group in groups %}
     <form class="rv-group" method="post" action="{% url 'admin:prices_pricereview_group' %}">

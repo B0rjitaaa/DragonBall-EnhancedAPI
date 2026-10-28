@@ -126,6 +126,9 @@ def doubtful() -> list[list[CardmarketLink]]:
     owned = set(_owned_cards().values_list("id", flat=True))
     links = CardmarketLink.objects.filter(method=CardmarketLink.Method.ORDERED) \
         .select_related("card", "product", "product__expansion")
+    # La más barata de varias (su set de origen frente a normal, foil, alt-art…): siempre a confirmar.
+    cheapest = [[link] for link in CardmarketLink.objects.filter(method=CardmarketLink.Method.CHEAPEST, card_id__in=owned)
+                .select_related("card", "product", "product__expansion")]
     groups = defaultdict(list)
     for link in links:
         groups[(link.product.expansion_id, parse_name(link.product.name))].append(link)
@@ -138,7 +141,15 @@ def doubtful() -> list[list[CardmarketLink]]:
         by_rarity = [price for _, price in sorted(ranked, key=lambda x: x[0])]
         if len({r for r, _ in ranked}) > 1 and by_rarity != sorted(by_rarity):
             out.append(sorted(group, key=lambda link: (RARITY_RANK.get(link.card.rarity_code, 99), link.card_id)))
-    return sorted(out, key=lambda g: (g[0].card.set_code, g[0].card.card_number))
+    return sorted(out + cheapest, key=lambda g: (g[0].card.set_code, g[0].card.card_number))
+
+
+def group_products(group: list[CardmarketLink]) -> list[CardmarketProduct]:
+    """Los productos entre los que elegir en un grupo: los de su expansión con el mismo nombre."""
+    product = group[0].product
+    front = parse_name(product.name).front
+    return sorted((p for p in CardmarketProduct.objects.filter(expansion_id=product.expansion_id)
+                   if parse_name(p.name).front == front), key=lambda p: (p.price is None, p.price or 0, p.id))
 
 
 def _same_print(card: Card) -> list[int]:

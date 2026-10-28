@@ -378,3 +378,19 @@ class RadarTests(TestCase):
         self.assertEqual([(r["id"], round(r["change"], 2)) for r in data["fallers"]], [(2, -0.5)])
         self.assertEqual([r["id"] for r in data["expensive"]][:2], [4, 1])
         self.assertEqual(APIClient().get("/api/prices/radar/?days=7&scope=all").json()["scope"], "all")
+
+
+class RadarFallbackTests(TestCase):
+    def test_without_own_history_compares_with_cardmarket_averages(self):
+        from rest_framework.test import APIClient
+        from prices.models import CardPrice
+
+        c = card(1, "BT1-001", "Son Goku")
+        product = CardmarketProduct.objects.create(id=1, name="Son Goku", expansion=CardmarketExpansion.objects.create(id=1),
+                                                   price=Decimal("14"), trend=Decimal("14"), avg7=Decimal("10"), avg30=Decimal("7"))
+        CardmarketLink.objects.create(card=c, product=product, method="auto")
+        CardPrice.objects.create(card=c, eur=Decimal("14"), source="cardmarket", counts=True)
+        data = APIClient().get("/api/prices/radar/?days=30&scope=all").json()
+        self.assertEqual(data["basis"], "cardmarket")
+        self.assertEqual([(r["id"], r["before"], round(r["change"], 2)) for r in data["risers"]], [(1, 7.0, 1.0)])
+        self.assertEqual(APIClient().get("/api/prices/radar/?days=7&scope=all").json()["risers"][0]["before"], 10.0)

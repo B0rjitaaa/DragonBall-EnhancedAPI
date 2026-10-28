@@ -134,7 +134,7 @@ class PriceReviewAdmin(admin.ModelAdmin):
             "groups": [{
                 "links": [{"link": link, "thumb": thumb_url(link.card.id, link.card.image_url) if link.card.image_url else "",
                            "url": PRODUCT_URL.format(id=link.product_id)} for link in group],
-                "products": sorted({link.product for link in group}, key=lambda p: p.id),
+                "products": review.group_products(group),
             } for group in groups] if tab == "dudosos" else [],
         }
         return TemplateResponse(request, "admin/prices/review.html", context)

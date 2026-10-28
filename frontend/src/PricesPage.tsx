@@ -81,10 +81,11 @@ export default function PricesPage() {
         </section>
       )}
 
-      {data && young && (
+      {data && (young || data.basis === 'cardmarket') && (
         <p className="prices-note">
-          El historial de precios empezó el {dateFormat.format(new Date(data.since!))}: las subidas y bajadas irán
-          apareciendo a medida que haya días con los que comparar.
+          {data.since ? `El historial de precios empezó el ${dateFormat.format(new Date(data.since))}. ` : ''}
+          Hasta tener {days} días de historial propio, las subidas y bajadas comparan el precio de hoy con su{' '}
+          <strong>media de ventas de los últimos {days === 7 ? 7 : 30} días en Cardmarket</strong>.
         </p>
       )}
 

@@ -99,6 +99,8 @@ export interface RadarCard extends CardSummary {
 }
 
 export interface RadarResponse {
+  /** Con qué se compara: el historial propio o, hasta tenerlo, las medias de ventas de Cardmarket. */
+  basis: 'history' | 'cardmarket'
   /** Solo en «Mi colección»: el valor cada día del periodo y su variación. */
   value: { series: PricePoint[]; now: number; change: number | null } | null
   days: number

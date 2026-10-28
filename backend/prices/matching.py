@@ -16,7 +16,7 @@ no se tocan; se eligen en la página de revisión (review.py).
 from __future__ import annotations
 
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 from django.db import transaction
@@ -102,6 +102,25 @@ def map_expansions(cards_by_set: dict[str, list[Card]]) -> int:
     return sum(1 for e in updated if e.card_set)
 
 
+PROMO_SETS = ("promotion", "tournament", "judge", "event pack", "winner", "championship", "regional", "card game fest",
+              "celebration", "anniversary", "premium", "gift collection", "level 2", "top ", "selection pack")
+
+
+def is_promo(card: Card) -> bool:
+    """Impresión promocional o de evento (no la de su sobre normal): set P o un set de promos/torneos."""
+    name = card.card_set.lower()
+    return card.set_code == "P" or any(word in name for word in PROMO_SETS)
+
+
+def home_sets(cards) -> dict[str, str]:
+    """El set de origen de cada código (BT11 → «Vermilion Bloodline [DBS-B11]»): el card_set con más cartas
+    de ese código. Las reimpresiones (Starter Deck 23, promos…) están en otros sets."""
+    counts: dict[str, Counter] = defaultdict(Counter)
+    for card in cards:
+        counts[card.set_code][card.card_set] += 1
+    return {code: c.most_common(1)[0][0] for code, c in counts.items()}
+
+
 def _pair(variants: list[list[Card]], products: list[CardmarketProduct]):
     """Empareja impresiones y productos. Con rarezas conocidas y distintas, la menos rara con el producto
     más barato (los que no tienen ventas, al final: suelen ser los alt-art); si no, por orden de alta."""
@@ -138,6 +157,10 @@ def match_all() -> dict:
         cards_by_set[card.card_set].append(card)
         cards_by_code[card.set_code].append(card)
     mapped = map_expansions(cards_by_set)
+    home = home_sets(card for cards in cards_by_set.values() for card in cards)
+
+    def is_home(card: Card) -> bool:
+        return home.get(card.set_code) == card.card_set
     # Un set nuestro puede venir partido en varios card_set: si la carta no está en el de la
     # expansión, se busca en todo su set_code (BT19…).
     code_of = {s: cs[0].set_code for s, cs in cards_by_set.items() if cs}
@@ -164,9 +187,21 @@ def match_all() -> dict:
         # (BT20-149 SCR V.1 y V.2), que van una a una por orden. Con rarezas mezcladas, no se deduce.
         variants: dict[tuple, list[Card]] = defaultdict(list)
         for card in cards:
-            variants[(card.card_number, card.rarity_code)].append(card)
+            # En sets de promos no hay reimpresiones idénticas: cada impresión es otra promo.
+            variants[(card.card_number, card.rarity_code) if not is_promo(card) else (card.id,)].append(card)
         if len(variants) == 1 and len(products) == len(cards) > 1:
             variants = {(card.id,): [card] for card in cards}
+        if len(variants) == 1 and len(products) > 1 and all(is_home(c) and not is_promo(c) for c in cards):
+            # Una impresión de su set de origen frente a varios productos (la normal, su foil, su alt-art…):
+            # la normal es la más barata con ventas (SD17-02: 1,03 €, no 13 €). Se revisa en «por orden».
+            sold = [p for p in products if p.price is not None and not p.price_is_low]
+            if sold:
+                cheapest = min(sold, key=lambda p: p.price)
+                for card in cards:
+                    if card.id not in links or expansion.score > links[card.id][0]:
+                        links[card.id] = (expansion.score, CardmarketLink(
+                            card=card, product=cheapest, method=CardmarketLink.Method.CHEAPEST))
+            continue
         if not variants or len(products) != len(variants):
             continue
         method = CardmarketLink.Method.AUTO if len(products) == 1 else CardmarketLink.Method.ORDERED
@@ -197,12 +232,18 @@ def match_all() -> dict:
 
     # Promos y reimpresiones (Judge Pack, Card Game Fest, Starter Deck…): sin producto propio, toman el de su
     # versión normal ya emparejada (mismo número y rareza), como se venía eligiendo a mano en la revisión.
-    regular = {(link.card.card_number, link.card.rarity_code): link.product for _, link in links.values()}
+    # Solo desde la impresión de su set de origen hacia las demás (promos, reimpresiones en otros sets),
+    # nunca al revés: la de origen sin emparejar no toma el precio de una promo (SD17-02 a 70 €).
+    # En las promos (set P) no hay versión normal. Y solo si Cardmarket tiene un único producto con ese
+    # nombre: si tiene más (alt-art del Special Anniversary, promos con producto propio…), a revisar.
+    regular = {(link.card.card_number, link.card.rarity_code): link.product
+               for _, link in links.values() if is_home(link.card) and not is_promo(link.card)}
     for link in manual.exclude(product=None).select_related("card", "product"):
-        regular.setdefault((link.card.card_number, link.card.rarity_code), link.product)
+        if is_home(link.card) and not is_promo(link.card):
+            regular.setdefault((link.card.card_number, link.card.rarity_code), link.product)
     for cards in cards_by_set.values():
         for card in cards:
-            if card.id in links or card.id in manual_cards:
+            if card.id in links or card.id in manual_cards or is_home(card) or len(products_by_name.get(norm(card.name), [])) > 1:
                 continue
             product = regular.get((card.card_number, card.rarity_code))
             if product is not None:

@@ -24,7 +24,7 @@ from django.utils import timezone
 
 from cards.models import Card
 
-from .matching import norm_number
+from .matching import home_sets, is_promo, norm_number
 from .models import ExchangeRate, TcgLink, TcgProduct
 
 BASE = "https://tcgcsv.com"
@@ -158,8 +158,10 @@ def match_all() -> int:
         origin = [p for p in candidates if p.group_id in home.get(prefix, ()) and "pre-release" not in p.group_name.lower()]
         return min(origin, key=lambda p: (p.group_id, p.id)) if origin else None
 
+    cards_all = list(Card.objects.only("id", "card_number", "rarity", "set_code", "card_set"))
+    origin_set = home_sets(cards_all)
     prints = defaultdict(list)
-    for card in Card.objects.only("id", "card_number", "rarity"):
+    for card in cards_all:
         prints[(norm_number(card.card_number), _rarity(card.rarity))].append(card)
 
     links = []
@@ -168,14 +170,21 @@ def match_all() -> int:
         base = pick(found["base"], _prefix(number)) if found else None
         if base is None:
             continue
-        cards.sort(key=lambda c: c.id)
-        links.append(TcgLink(card=cards[0], product=base))
+        # Primero las de su set de origen; las promos (otro set) no son la carta normal: sin producto.
+        origin = sorted((c for c in cards if origin_set.get(c.set_code) == c.card_set), key=lambda c: c.id) \
+            or sorted((c for c in cards if not is_promo(c)), key=lambda c: c.id)
+        if not origin:
+            continue
+        links.append(TcgLink(card=origin[0], product=base))
         alt = pick(found["alt"], _prefix(number)) if found["alt"] else None
-        if len(cards) == 2 and alt is not None:
-            links.append(TcgLink(card=cards[1], product=alt))
-        elif len(cards) > 1 and not found["alt"]:
-            # Reimpresiones idénticas (sin arte alternativo en TCGplayer): el mismo producto.
-            links.extend(TcgLink(card=c, product=base) for c in cards[1:])
+        if len(origin) == 2 and alt is not None:
+            links.append(TcgLink(card=origin[1], product=alt))
+        elif len(origin) > 1 and not found["alt"]:
+            # Reimpresiones idénticas en su set (sin arte alternativo en TCGplayer): el mismo producto.
+            links.extend(TcgLink(card=c, product=base) for c in origin[1:])
+        # Reimpresiones en otros sets que no son promos (Starter Deck, Expansion Set…): la misma carta.
+        links.extend(TcgLink(card=c, product=base) for c in cards
+                     if c not in origin and not is_promo(c) and origin_set.get(c.set_code) != c.card_set)
     with transaction.atomic():
         TcgLink.objects.all().delete()
         TcgLink.objects.bulk_create(links)

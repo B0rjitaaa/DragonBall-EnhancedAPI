@@ -18,6 +18,7 @@ TOP = 15
 # Para subidas y bajadas, solo cartas que valen algo (de 0,02 € a 0,04 € es un +100 % sin interés).
 MIN_EUR = Decimal("1")
 PERIODS = (7, 30, 90)
+NOISE = 5
 
 
 def collection_value_series(days: int) -> dict:
@@ -60,11 +61,24 @@ class RadarView(APIView):
         if scope == "collection":
             prices = prices.filter(card__collection_entries__fake=False).distinct()
         current = dict(prices.values_list("card_id", "eur"))
-        before = price_on(list(current), date.today() - timedelta(days=days))
+        first = PricePoint.objects.aggregate(first=Min("date"))["first"]
+        # Sin historial propio de N días todavía: el precio de hoy frente a su media de ventas reales en
+        # Cardmarket (7 días, o 30 para 30 y 90 días), en las cartas cuyo precio sale de Cardmarket.
+        if first is None or (date.today() - first).days < days:
+            basis = "cardmarket"
+            avg = "avg7" if days == 7 else "avg30"
+            before = {card_id: value for card_id, value in prices.filter(source=CardPrice.Source.CARDMARKET)
+                      .values_list("card_id", f"card__cardmarket__product__{avg}") if value}
+        else:
+            basis = "history"
+            before = price_on(list(current), date.today() - timedelta(days=days))
         moves = [
             (card_id, eur, before[card_id], (eur - before[card_id]) / before[card_id])
             for card_id, eur in current.items()
             if before.get(card_id) and eur != before[card_id] and max(eur, before[card_id]) >= MIN_EUR
+            # Con las medias de Cardmarket, más de 5 veces de diferencia es una venta suelta que infla la
+            # media (la carta no se ha hundido un 100 %), no un movimiento real.
+            and (basis == "history" or max(eur, before[card_id]) <= NOISE * min(eur, before[card_id]))
         ]
         risers = sorted((m for m in moves if m[3] > 0), key=lambda m: -m[3])[:TOP]
         fallers = sorted((m for m in moves if m[3] < 0), key=lambda m: m[3])[:TOP]
@@ -80,6 +94,8 @@ class RadarView(APIView):
 
         span = PricePoint.objects.aggregate(first=Min("date"), last=Max("date"))
         return Response({
+            # De dónde sale la comparación: el historial propio o las medias de ventas de Cardmarket.
+            "basis": basis,
             "value": collection_value_series(days) if scope == "collection" else None,
             "days": days,
             "scope": scope,

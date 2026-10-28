@@ -65,6 +65,7 @@ class CardmarketLink(models.Model):
         AUTO = "auto", "Automático (única)"
         ORDERED = "ordered", "Automático (por orden)"
         REPRINT = "reprint", "Automático (como su versión normal)"
+        CHEAPEST = "cheapest", "Automático (la más barata de varias)"
         MANUAL = "manual", "Elegido a mano"
         NONE = "none", "No está en Cardmarket"
         PRICE = "price", "Precio puesto a mano"
