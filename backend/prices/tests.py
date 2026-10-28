@@ -34,13 +34,13 @@ class ParseTests(TestCase):
 
     def test_reference_price(self):
         price = cardmarket.reference_price
-        # El menor de trend, la mediana de las medias y 5 veces el anuncio más barato.
+        # El menor de trend, la mediana de las medias y 3 veces el anuncio más barato.
         self.assertEqual(price({"trend": 11.6, "avg1": 10, "avg7": 14, "avg30": 16.5, "low": 11.89}), (Decimal("11.60"), False))
         # SS Son Goten P-428: una venta suelta de ~500 € infla trend y medias; se compra a 0,10 €.
         goten = {"trend": 51.23, "avg1": 0.59, "avg7": 77.51, "avg30": 25.09, "low": 0.10}
-        self.assertEqual(price(goten), (Decimal("0.50"), False))
+        self.assertEqual(price(goten), (Decimal("0.30"), False))
         # Senzu Bean común: trend disparado.
-        self.assertEqual(price({"trend": 15.31, "avg1": 0.38, "avg7": 0.15, "avg30": 6.26, "low": 0.02}), (Decimal("0.10"), False))
+        self.assertEqual(price({"trend": 15.31, "avg1": 0.38, "avg7": 0.15, "avg30": 6.26, "low": 0.02}), (Decimal("0.06"), False))
         self.assertEqual(price({"trend": 0, "avg30": 16.5}), (Decimal("16.50"), False))  # sin trend ni anuncios
         self.assertEqual(price({"trend": 0, "low": 78}), (Decimal("78.00"), True))  # sin ventas: el anuncio, marcado
         self.assertEqual(price({}), (None, False))
@@ -239,3 +239,50 @@ class PairingAndSuspectTests(TestCase):
         CollectionEntry.objects.create(card=cards[0], location=here, quantity=1)
         value = value_of(CollectionEntry.objects.all())
         self.assertEqual((value["value"], value["copies_unpriced"]), (0.05, 1))  # el dudoso no cuenta
+
+
+class ListingOnlyTests(TestCase):
+    """Cartas sin ventas (solo un anuncio): no suman en el valor, salvo confirmadas; y cambio de edición."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from django.test import Client
+
+        from collection.models import CollectionEntry, Location
+
+        self.box = Location.objects.create(name="Archivador", kind="binder")
+        self.scr = card(1, "BT21-147", "Shenron, the Eternal Dragon", "SCR")
+        self.gdr = card(2, "BT21-147", "Shenron, the Eternal Dragon", "GDR")
+        rows = [product(10, "Shenron, the Eternal Dragon", trend=30),
+                ({"idProduct": 11, "name": "Shenron, the Eternal Dragon", "idExpansion": 100, "idMetacard": 1,
+                  "dateAdded": None}, {"idProduct": 11, "low": 2499})]
+        cardmarket.store([p for p, _ in rows], [g for _, g in rows])
+        matching.match_all()
+        CollectionEntry.objects.create(card=self.gdr, location=self.box, quantity=1, notes="pág. 4")
+        self.client = Client()
+        self.client.force_login(User.objects.create_superuser("admin", "a@a.es", "x"))
+
+    def value(self):
+        from collection.models import CollectionEntry
+        from prices.services import value_of
+
+        return value_of(CollectionEntry.objects.all())
+
+    def test_listing_only_is_apart(self):
+        v = self.value()
+        self.assertEqual((v["value"], v["value_listing"], v["copies_listing"]), (0, 2499.0, 1))
+        self.assertIn("Cartas caras sin ventas (1)", self.client.get("/admin/prices/pricereview/").content.decode())
+
+    def test_confirmed_listing_counts(self):
+        self.client.post("/admin/prices/pricereview/choose/", {f"choice_{self.gdr.id}": "11", "tab": "sinventas"})
+        self.assertEqual(self.value()["value"], 2499.0)
+
+    def test_i_have_another_edition(self):
+        from collection.models import CollectionEntry
+
+        r = self.client.post("/admin/prices/pricereview/choose/", {f"choice_{self.gdr.id}": f"print:{self.scr.id}"})
+        self.assertEqual(r.status_code, 302)
+        rows = list(CollectionEntry.objects.values_list("card_id", "location_id", "quantity", "notes"))
+        self.assertEqual(rows, [(self.scr.id, self.box.id, 1, "pág. 4")])
+        v = self.value()
+        self.assertEqual((v["value"], v["value_listing"]), (30.0, 0))

@@ -17,6 +17,11 @@
   .rv-set { color: var(--body-quiet-color); }
   .rv-same { color: #2e9e57; font-weight: 600; }
   .rv-fake .rv-price { color: #e5484d; }
+  .rv-prints { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-start; margin: .4rem 0; padding: .5rem; border: 1px dashed var(--hairline-color); border-radius: 6px; }
+  .rv-prints > .rv-meta { width: 100%; margin: 0; }
+  .rv-print { display: flex; gap: .5rem; align-items: flex-start; padding: .3rem; border-radius: 6px; cursor: pointer; max-width: 15rem; }
+  .rv-print:hover { background: var(--darkened-bg); }
+  .rv-print img { width: 70px; border-radius: 4px; }
   .rv-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
   fieldset.rv-card { margin: 0; border: 0; border-top: 1px solid var(--hairline-color); min-width: 0; }
   .rv-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; gap: .8rem; align-items: center; justify-content: flex-end;
@@ -41,11 +46,20 @@
 <nav class="rv-tabs">
   <a href="?tab=sin" class="{% if tab == 'sin' %}on{% endif %}">Tus cartas sin emparejar ({{ unmatched_count }})</a>
   <a href="?tab=raros" class="{% if tab == 'raros' %}on{% endif %}">Precios dudosos ({{ suspect_count }})</a>
+  <a href="?tab=sinventas" class="{% if tab == 'sinventas' %}on{% endif %}">Cartas caras sin ventas ({{ listing_count }})</a>
   <a href="?tab=dudosos" class="{% if tab == 'dudosos' %}on{% endif %}">Emparejados por orden ({{ doubtful_count }})</a>
 </nav>
 
-{% if tab == 'sin' or tab == 'raros' %}
-  {% if tab == 'raros' %}
+{% if tab == 'sin' or tab == 'raros' or tab == 'sinventas' %}
+  {% if tab == 'sinventas' %}
+  <p class="rv-help">
+    Cartas tuyas de al menos 10 € cuyo único dato en Cardmarket es lo que pide un vendedor: nunca se han vendido.
+    <strong>No cuentan en el valor</strong>. Muchas son ediciones raras (GDR, arte alternativo) que el escáner pudo
+    confundir con la normal: mira la carta física. Si es otra edición, elígela en «Tengo otra edición» y tus copias
+    pasan a ella (misma ubicación y notas). Si es esta y el precio te vale, elige su producto («precio actual») y
+    contará en el valor; o ponle un precio a mano.
+  </p>
+  {% elif tab == 'raros' %}
   <p class="rv-help">
     Cartas cuyo único dato en Cardmarket es un anuncio (sin ventas) muy caro para su rareza: puede ser un precio
     de relleno o el producto equivocado. <strong>No cuentan en el valor</strong> hasta que elijas: el mismo
@@ -84,6 +98,20 @@
               <input type="radio" name="choice_{{ row.card.id }}" value="none">
               <span class="rv-price">—</span><span>No está en Cardmarket</span>
             </label>
+            {% if row.prints %}
+              <div class="rv-prints">
+                <span class="rv-meta">Tengo otra edición:</span>
+                {% for pr in row.prints %}
+                  <label class="rv-print">
+                    <input type="radio" name="choice_{{ row.card.id }}" value="print:{{ pr.card.id }}">
+                    {% if pr.thumb %}<img src="{{ pr.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+                    <span><strong>{{ pr.card.card_number }} · {{ pr.card.rarity_code }}</strong><br>
+                      <span class="rv-set">{{ pr.card.card_set|truncatechars:40 }}</span><br>
+                      {% if pr.price and pr.price.price is not None %}{{ pr.price.price }} €{% if pr.price.price_is_low %} (sin ventas){% endif %}{% else %}sin precio{% endif %}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            {% endif %}
             <label class="rv-fake">
               <input type="radio" name="choice_{{ row.card.id }}" value="fake">
               <span class="rv-price">falsa</span><span>Mis copias son falsas <span class="rv-set">· pasan a falsas y no cuentan en el valor</span></span>

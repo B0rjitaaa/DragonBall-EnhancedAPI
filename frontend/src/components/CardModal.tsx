@@ -199,7 +199,9 @@ function PriceBox({ price }: { price: CardPrice }) {
           ? 'precio puesto a mano'
           : price.suspect
             ? 'precio dudoso: un solo anuncio, sin ventas (no cuenta en el valor)'
-            : price.is_low ? 'anuncio más barato en Europa (sin ventas)' : 'precio de mercado en Europa'}
+            : price.is_low
+              ? price.counts ? 'anuncio más barato en Europa (sin ventas, confirmado)' : 'solo lo que pide un vendedor: sin ventas (no cuenta en el valor)'
+              : 'precio de mercado en Europa'}
       </span>
       {!price.manual && (
         <span className="price-details muted small">{price.is_low ? PRICE_LOW_HINT : details.join(' · ')}</span>

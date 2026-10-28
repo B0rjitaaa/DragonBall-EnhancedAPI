@@ -54,6 +54,8 @@ export interface CardPrice {
   manual: boolean
   /** Precio dudoso (solo un anuncio, muy caro para su rareza): no cuenta en el valor hasta revisarlo. */
   suspect: boolean
+  /** Cuenta en el valor de la colección (con ventas, a mano o confirmado en la revisión). */
+  counts: boolean
   trend: number | null
   avg30: number | null
   low: number | null
@@ -65,10 +67,12 @@ export interface CardPrice {
 
 /** Valor de las copias auténticas que se ven en Mi colección. */
 export interface CollectionValue {
+  /** Lo que tiene ventas en Cardmarket (o precio confirmado o a mano). */
   value: number
-  /** Parte del valor que son precios mínimos (cartas sin ventas). */
-  value_low: number
+  /** Aparte, sin sumar: cartas sin ventas, por lo que pide un vendedor. */
+  value_listing: number
   copies_priced: number
+  copies_listing: number
   copies_unpriced: number
 }
 

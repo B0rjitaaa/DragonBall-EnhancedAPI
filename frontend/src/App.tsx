@@ -299,8 +299,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         const card = prev.results.find((c) => c.id === id)
         const before = card?.quantity ?? 0
         const delta = card?.price ? (authentic(r.locations) - authentic(card.locations ?? [])) * card.price.eur : 0
-        const value = prev.value && card?.price
-          ? { ...prev.value, value: prev.value.value + delta, value_low: prev.value.value_low + (card.price.is_low ? delta : 0) }
+        const value = prev.value && card?.price && !card.price.suspect
+          ? card.price.counts
+            ? { ...prev.value, value: prev.value.value + delta }
+            : { ...prev.value, value_listing: prev.value.value_listing + delta }
           : prev.value
         // En Mi colección una carta sin copias sale de la lista; en el buscador se queda.
         const removed = inCollection && shown === 0
@@ -544,15 +546,15 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                     <span
                       className="collection-value"
                       title={[
-                        'Valor en Cardmarket de las copias auténticas que se ven (las falsas no cuentan).',
-                        data.value.value_low > 0 &&
-                          `Incluye ${formatEur(data.value.value_low)} de precios mínimos: cartas sin ventas recientes, valoradas por su anuncio más barato.`,
+                        'Valor en Cardmarket de las copias auténticas que se ven (las falsas no cuentan), con lo que se vende de verdad.',
+                        data.value.value_listing > 0 &&
+                          `Aparte, sin sumar: ${formatEur(data.value.value_listing)} en ${data.value.copies_listing.toLocaleString('es-ES')} copias sin ventas, por lo que pide un vendedor (revísalas en el admin).`,
                         data.value.copies_unpriced > 0 && `${data.value.copies_unpriced.toLocaleString('es-ES')} copias sin precio.`,
                       ].filter(Boolean).join('\n')}
                     >
                       {' '}· valor <strong>{formatEur(data.value.value)}</strong>
-                      {data.value.value_low > 0 && (
-                        <small className="muted"> (incluye {formatEur(data.value.value_low)} de precios mínimos)</small>
+                      {data.value.value_listing > 0 && (
+                        <small className="muted"> (+ {formatEur(data.value.value_listing)} en cartas sin ventas)</small>
                       )}
                     </span>
                   )}

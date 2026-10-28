@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 BASE = "https://downloads.s3.cardmarket.com/productCatalog"
 PRICE_FIELDS = ("trend", "avg", "low", "avg1", "avg7", "avg30")
-LOW_CAP = 5  # el precio nunca pasa de 5 veces el anuncio más barato
+LOW_CAP = 3  # el precio nunca pasa de 3 veces el anuncio más barato
 
 
 def is_fusion_world(name: str) -> bool:

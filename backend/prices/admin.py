@@ -66,15 +66,23 @@ class PriceReviewAdmin(admin.ModelAdmin):
         offset = (page - 1) * PAGE_SIZE
         unmatched_total, unmatched_pending = review.unmatched(PAGE_SIZE if tab == "sin" else 0, offset)
         suspect_total, suspect_pending = review.suspects(PAGE_SIZE if tab == "raros" else 0, offset)
-        total, pending = (suspect_total, suspect_pending) if tab == "raros" else (unmatched_total, unmatched_pending)
+        listing_total, listing_pending = review.listing_only(PAGE_SIZE if tab == "sinventas" else 0, offset)
+        total, pending = {"raros": (suspect_total, suspect_pending),
+                          "sinventas": (listing_total, listing_pending)}.get(tab, (unmatched_total, unmatched_pending))
         groups = review.doubtful()
         rows = [{
             "card": p.card,
             "thumb": thumb_url(p.card.id, p.card.image_url) if p.card.image_url else "",
-            "current": getattr(getattr(p.card, "cardmarket", None), "product_id", None) if tab == "raros" else None,
+            "current": getattr(getattr(p.card, "cardmarket", None), "product_id", None) if tab != "sin" else None,
             "candidates": [{"product": c.product, "same_set": c.same_set, "url": PRODUCT_URL.format(id=c.product.id)}
                            for c in p.candidates],
-        } for p in pending] if tab in ("sin", "raros") else []
+            # «Tengo otra edición»: las demás impresiones de la carta, con su foto y su precio.
+            "prints": [{
+                "card": other,
+                "thumb": thumb_url(other.id, other.image_url) if other.image_url else "",
+                "price": getattr(getattr(other, "cardmarket", None), "product", None),
+            } for other in review.other_prints(p.card)] if tab == "sinventas" else [],
+        } for p in pending] if tab in ("sin", "raros", "sinventas") else []
         context = {
             **self.admin_site.each_context(request),
             "title": "Revisar emparejamientos con Cardmarket",
@@ -87,6 +95,7 @@ class PriceReviewAdmin(admin.ModelAdmin):
             "doubtful_count": len(groups),
             "unmatched_count": unmatched_total,
             "suspect_count": suspect_total,
+            "listing_count": listing_total,
             "groups": [{
                 "links": [{"link": link, "thumb": thumb_url(link.card.id, link.card.image_url) if link.card.image_url else "",
                            "url": PRODUCT_URL.format(id=link.product_id)} for link in group],
@@ -122,6 +131,14 @@ class PriceReviewAdmin(admin.ModelAdmin):
             elif choice == "fake":
                 n = review.mark_fake(card)
                 fakes.append(f"{label} ({n} {'copia' if n == 1 else 'copias'})")
+                continue
+            elif choice.startswith("print:"):
+                target = Card.objects.filter(pk=choice.split(":", 1)[1]).first()
+                if target is None:
+                    wrong.append(label)
+                    continue
+                n = review.change_print(card, target)
+                saved.append(f"{label} → {target.card_number} {target.rarity_code} ({n} {'copia' if n == 1 else 'copias'})")
                 continue
             elif choice == "none":
                 review.choose(card, None)

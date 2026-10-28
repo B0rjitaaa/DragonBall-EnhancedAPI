@@ -41,20 +41,29 @@ def card_price(card) -> dict | None:
         return None
     if link.manual_price is not None:
         search = SEARCH_URL.format(q=quote_plus(card.name))
-        return {"eur": float(link.manual_price), "is_low": False, "manual": True, "suspect": False, "trend": None, "avg30": None,
+        return {"eur": float(link.manual_price), "is_low": False, "manual": True, "suspect": False, "counts": True,
+                "trend": None, "avg30": None,
                 "low": None, "url": search, "url_es": search + SPAIN}
     info = price_info(link.product)
     if info is not None:
         info["suspect"] = link.suspect
+        # Cuenta en el valor: con ventas, o solo anuncio pero confirmado en la revisión.
+        info["counts"] = not link.suspect and (not info["is_low"] or link.method == link.Method.MANUAL)
     return info
 
 
 # Precio de una fila de copias: el puesto a mano o, si no, el de su producto de Cardmarket.
 PRICE = Coalesce("card__cardmarket__manual_price", "card__cardmarket__product__price")
-# Los precios dudosos (ver matching._mark_suspects) no cuentan hasta revisarlos.
+# Cuenta en el valor: el precio puesto a mano, o el de Cardmarket si tiene ventas. Los dudosos (ver
+# matching._mark_suspects) no cuentan, y los de solo anuncio (sin ventas: lo que pide un vendedor)
+# tampoco, salvo que el usuario los haya confirmado en la revisión; se muestran aparte.
 HAS_PRICE = Q(card__cardmarket__manual_price__isnull=False) | Q(
     card__cardmarket__product__price__isnull=False, card__cardmarket__suspect=False
-)
+) & (Q(card__cardmarket__product__price_is_low=False) | Q(card__cardmarket__method="manual"))
+LISTING_ONLY = Q(
+    card__cardmarket__manual_price__isnull=True, card__cardmarket__suspect=False,
+    card__cardmarket__product__price_is_low=True, card__cardmarket__product__price__isnull=False,
+) & ~Q(card__cardmarket__method="manual")
 MONEY = DecimalField(max_digits=12, decimal_places=2)
 
 
@@ -63,17 +72,17 @@ def _sum_value(entries: QuerySet):
 
 
 def value_of(entries: QuerySet) -> dict:
-    """Valor de unas filas de copias: las falsas no cuentan, y las que no tienen precio se cuentan aparte."""
+    """Valor de unas filas de copias (sin las falsas): lo que tiene ventas o precio confirmado. Las cartas
+    sin ventas (solo un anuncio) van aparte en `value_listing`, y las que no tienen precio se cuentan."""
     authentic = entries.filter(fake=False)
     priced = authentic.filter(HAS_PRICE)
-    value = _sum_value(priced)
-    # Parte del valor que es solo el anuncio más barato (cartas sin ventas): se indica aparte.
-    low = _sum_value(priced.filter(card__cardmarket__manual_price__isnull=True,
-                                   card__cardmarket__product__price_is_low=True))
+    listing = authentic.filter(LISTING_ONLY)
     copies = authentic.aggregate(n=Sum("quantity"))["n"] or 0
     with_price = priced.aggregate(n=Sum("quantity"))["n"] or 0
-    return {"value": float(value), "value_low": float(low), "copies_priced": with_price,
-            "copies_unpriced": copies - with_price}
+    listing_copies = listing.aggregate(n=Sum("quantity"))["n"] or 0
+    return {"value": float(_sum_value(priced)), "value_listing": float(_sum_value(listing)),
+            "copies_priced": with_price, "copies_listing": listing_copies,
+            "copies_unpriced": copies - with_price - listing_copies}
 
 
 def values_by_location() -> dict[int, float]:

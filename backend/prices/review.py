@@ -4,6 +4,8 @@
 - Los emparejamientos «por orden» dudosos: varias impresiones de una carta (normal, SPR,
   GDR…) donde una rareza mayor sale más barata que una menor.
 - Los precios dudosos: solo un anuncio, muy caro para su rareza (no cuentan en el valor).
+- Las cartas caras sin ventas: solo un anuncio, sin confirmar (no cuentan en el valor); a menudo,
+  una edición rara (GDR) que el escáner confundió con la normal.
 Solo cartas que tienes: el resto del catálogo no hace falta para el valor de la colección.
 """
 from __future__ import annotations
@@ -19,6 +21,8 @@ from .matching import RARITY_RANK, norm, parse_name
 from .models import CardmarketLink, CardmarketProduct
 
 MAX_CANDIDATES = 12
+# «Cartas caras sin ventas»: solo las de al menos este precio pedido (las baratas no cambian el valor).
+LISTING_MIN_PRICE = 10
 
 
 @dataclass
@@ -79,6 +83,44 @@ def suspects(limit: int, offset: int = 0) -> tuple[int, list[Pending]]:
         return total, []
     by_name = _products_by_name()
     return total, [Pending(card, candidates(card, by_name)) for card in qs[offset:offset + limit]]
+
+
+def listing_only(limit: int, offset: int = 0, min_price=LISTING_MIN_PRICE) -> tuple[int, list[Pending]]:
+    """Tus cartas caras sin ventas (solo un anuncio, sin confirmar): no cuentan en el valor. Suelen ser
+    ediciones raras (GDR, alt-art) que el escáner pudo confundir con la normal."""
+    qs = _owned_cards().filter(
+        cardmarket__product__price_is_low=True, cardmarket__product__price__gte=min_price, cardmarket__suspect=False,
+        cardmarket__manual_price__isnull=True,
+    ).exclude(cardmarket__method=CardmarketLink.Method.MANUAL).select_related("cardmarket__product") \
+        .order_by("-cardmarket__product__price", "card_number")
+    total = qs.count()
+    if not limit:
+        return total, []
+    by_name = _products_by_name()
+    return total, [Pending(card, candidates(card, by_name)) for card in qs[offset:offset + limit]]
+
+
+def other_prints(card: Card) -> list[Card]:
+    """Las demás impresiones de la carta (mismo número): para «tengo otra edición»."""
+    return list(Card.objects.filter(card_number=card.card_number).exclude(id=card.id)
+                .select_related("cardmarket__product").order_by("id"))
+
+
+def change_print(card: Card, target: Card) -> int:
+    """Tus copias de `card` son en realidad de otra edición (`target`): pasan a ella en su misma ubicación,
+    con sus notas y si son falsas; sus escaneos apuntan a la nueva. Devuelve cuántas copias."""
+    from collection.models import CollectionEntry
+    from collection.services import _take, add_copies
+    from scanner.models import Scan
+
+    moved = 0
+    with transaction.atomic():
+        for entry in CollectionEntry.objects.select_for_update().filter(card=card).select_related("location"):
+            new = add_copies(target, entry.location, entry.quantity, entry.notes, fake=entry.fake)
+            Scan.objects.filter(collection_entry=entry).update(collection_entry=new, matched_card=target)
+            moved += entry.quantity
+            _take(entry, entry.quantity)
+    return moved
 
 
 def doubtful() -> list[list[CardmarketLink]]:
