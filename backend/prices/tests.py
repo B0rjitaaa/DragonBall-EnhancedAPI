@@ -394,3 +394,23 @@ class RadarFallbackTests(TestCase):
         self.assertEqual(data["basis"], "cardmarket")
         self.assertEqual([(r["id"], r["before"], round(r["change"], 2)) for r in data["risers"]], [(1, 7.0, 1.0)])
         self.assertEqual(APIClient().get("/api/prices/radar/?days=7&scope=all").json()["risers"][0]["before"], 10.0)
+
+
+class PromoAndCustomPrintTests(TestCase):
+    def test_same_rarity_promos_are_not_guessed(self):
+        a = card(1, "BT18-005", "Rush Attack SSB Vegeta", "SR", set_code="BT18", card_set="Promotion Cards")
+        b = card(2, "BT18-005", "Rush Attack SSB Vegeta", "SR", set_code="BT18", card_set="Promotion Cards")
+        rows = [product(10, "Rush Attack SSB Vegeta", exp=300, trend=109), product(11, "Rush Attack SSB Vegeta", exp=300, trend=1)]
+        cardmarket.store([p for p, _ in rows], [g for _, g in rows])
+        matching.match_all()
+        self.assertFalse(CardmarketLink.objects.filter(card__in=[a, b]).exists())  # a revisión
+
+    def test_custom_print_gets_its_exact_tcgplayer_product(self):
+        from prices import tcgplayer
+        from prices.models import TcgLink, TcgProduct
+
+        custom = card(900527306, "BT18-005", "Rush Attack SSB Vegeta", "SR", set_code="BT18", card_set="Judge Pack Vol.14")
+        TcgProduct.objects.create(id=527306, group_id=1, name="Rush Attack SSB Vegeta (Judge Pack Vol.14) (Event)",
+                                  number="BT18-005", rarity="Promo", variant="Event", market_usd=Decimal("2.99"))
+        tcgplayer.match_all()
+        self.assertEqual(TcgLink.objects.get(card=custom).product_id, 527306)

@@ -23,6 +23,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from cards.models import Card
+from cards.printings import CUSTOM_ID_START
 
 from .matching import home_sets, is_promo, norm_number
 from .models import ExchangeRate, TcgLink, TcgProduct
@@ -185,6 +186,13 @@ def match_all() -> int:
         # Reimpresiones en otros sets que no son promos (Starter Deck, Expansion Set…): la misma carta.
         links.extend(TcgLink(card=c, product=base) for c in cards
                      if c not in origin and not is_promo(c) and origin_set.get(c.set_code) != c.card_set)
+    # Impresiones propias creadas desde TCGplayer (cards/printings.py): su id es CUSTOM_ID_START + el
+    # productId de TCGplayer, así que su producto es exacto y manda sobre lo deducido.
+    known = set(TcgProduct.objects.values_list("id", flat=True))
+    exact = {c.id: c.id - CUSTOM_ID_START for c in cards_all
+             if c.id >= CUSTOM_ID_START and c.id - CUSTOM_ID_START in known}
+    links = [link for link in links if link.card_id not in exact]
+    links += [TcgLink(card_id=card_id, product_id=product_id) for card_id, product_id in exact.items()]
     with transaction.atomic():
         TcgLink.objects.all().delete()
         TcgLink.objects.bulk_create(links)

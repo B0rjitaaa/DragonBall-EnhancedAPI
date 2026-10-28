@@ -204,6 +204,11 @@ def match_all() -> dict:
             continue
         if not variants or len(products) != len(variants):
             continue
+        # Varias promos de la misma rareza: no hay forma de saber cuál es cuál (BT18-005: una a 109 €
+        # y otra a 1 €): a revisión, mejor que adivinar por orden de alta.
+        if len(variants) > 1 and any(is_promo(c) for c in cards) and \
+                len({v[0].rarity_code for v in variants.values()}) < len(variants):
+            continue
         method = CardmarketLink.Method.AUTO if len(products) == 1 else CardmarketLink.Method.ORDERED
         for variant, product in _pair(list(variants.values()), products):
             for card in variant:
