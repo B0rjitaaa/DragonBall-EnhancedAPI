@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from cards.models import Card
 
-from . import cardmarket, matching
+from . import cardmarket, matching, pricing
 from .models import CardmarketExpansion, CardmarketLink, CardmarketProduct
 from .tasks import sync_prices
 
@@ -95,7 +95,10 @@ class MatchingTests(TestCase):
     def test_sync_task(self):
         payloads = [{"products": [product(20, "Super Mira, Diabolical Fusion")[0]]},
                     {"priceGuides": [product(20, "x", trend=9.5)[1]]}]
-        with mock.patch("prices.cardmarket._get", side_effect=payloads):
+        with mock.patch("prices.cardmarket._get", side_effect=payloads), \
+                mock.patch("prices.tasks.tcgplayer.fetch_rate", return_value=mock.Mock(usd_per_eur=Decimal("1.10"))), \
+                mock.patch("prices.tasks.tcgplayer.sync", return_value=None), \
+                mock.patch("prices.tasks.tcgplayer.match_all", return_value=0):
             result = sync_prices()
         self.assertEqual(result["products"], 1)
         self.assertEqual(CardmarketProduct.objects.get(id=20).price, Decimal("9.50"))
@@ -233,6 +236,7 @@ class PairingAndSuspectTests(TestCase):
                      {"idProduct": 400, "low": 9999}))  # solo un anuncio de relleno
         cardmarket.store([p for p, _ in rows], [g for _, g in rows])
         matching.match_all()
+        pricing.refresh()
         self.assertTrue(CardmarketLink.objects.get(card=odd).suspect)
         self.assertFalse(CardmarketLink.objects.get(card=cards[0]).suspect)
         CollectionEntry.objects.create(card=odd, location=here, quantity=1)
@@ -258,6 +262,7 @@ class ListingOnlyTests(TestCase):
                   "dateAdded": None}, {"idProduct": 11, "low": 2499})]
         cardmarket.store([p for p, _ in rows], [g for _, g in rows])
         matching.match_all()
+        pricing.refresh()
         CollectionEntry.objects.create(card=self.gdr, location=self.box, quantity=1, notes="pág. 4")
         self.client = Client()
         self.client.force_login(User.objects.create_superuser("admin", "a@a.es", "x"))
@@ -286,3 +291,90 @@ class ListingOnlyTests(TestCase):
         self.assertEqual(rows, [(self.scr.id, self.box.id, 1, "pág. 4")])
         v = self.value()
         self.assertEqual((v["value"], v["value_listing"]), (30.0, 0))
+
+
+class CombineTests(TestCase):
+    """Precio final de una carta con Cardmarket, TCGplayer y lo puesto a mano (pricing.combine)."""
+
+    def link(self, price=None, is_low=False, method="auto", suspect=False, manual_price=None):
+        product = CardmarketProduct(id=1, name="x", price=Decimal(price) if price else None, price_is_low=is_low)
+        return CardmarketLink(product=product, method=method, suspect=suspect,
+                              manual_price=Decimal(manual_price) if manual_price else None)
+
+    def test_rules(self):
+        c = lambda *a, **k: pricing.combine(*a, **k)
+        D = Decimal
+        self.assertEqual(c(self.link(manual_price="3"), D("100")), (D("3"), "manual", True))
+        self.assertEqual(c(self.link("10"), D("8")), (D("10"), "cardmarket", True))  # Cardmarket manda
+        self.assertEqual(c(self.link("10"), D("2.25")), (D("2.25"), "tcgplayer", True))  # TCGplayer < la mitad
+        self.assertEqual(c(self.link("6", is_low=True), D("78")), (D("6"), "cardmarket", True))  # se compra por 6 €
+        self.assertEqual(c(self.link("9999", is_low=True, suspect=True), D("20")), (D("20"), "tcgplayer", True))
+        self.assertEqual(c(self.link("2499", is_low=True), None), (D("2499"), "cardmarket", False))  # solo anuncio
+        self.assertEqual(c(None, D("4")), (D("4"), "tcgplayer", True))  # solo en TCGplayer
+        self.assertIsNone(c(None, None))
+
+    def test_history_only_on_change(self):
+        from datetime import date
+        from prices.models import CardPrice, PricePoint
+
+        c1 = card(1, "BT1-001", "Son Goku")
+        CardmarketLink.objects.create(card=c1, product=CardmarketProduct.objects.create(
+            id=1, name="Son Goku", expansion=CardmarketExpansion.objects.create(id=1), price=Decimal("2")),
+            method="auto")
+        pricing.refresh(today=date(2026, 10, 1))
+        pricing.refresh(today=date(2026, 10, 2))  # mismo precio: no se apunta
+        CardmarketProduct.objects.filter(id=1).update(price=Decimal("3"))
+        pricing.refresh(today=date(2026, 10, 9))
+        self.assertEqual(list(PricePoint.objects.values_list("date", "eur")),
+                         [(date(2026, 10, 1), Decimal("2")), (date(2026, 10, 9), Decimal("3"))])
+        self.assertEqual(CardPrice.objects.get(card=c1).eur, Decimal("3"))
+        self.assertAlmostEqual(pricing.change(c1.id, 7, today=date(2026, 10, 9)), 0.5)
+
+
+class TcgMatchTests(TestCase):
+    def test_origin_set_and_alternate_art(self):
+        from prices import tcgplayer
+        from prices.models import TcgLink, TcgProduct
+
+        v1 = card(1, "BT20-149", "Android 21", "SCR")
+        v2 = card(2, "BT20-149", "Android 21", "SCR")
+        Card.objects.filter(id__in=[1, 2]).update(rarity="Secret Rare")
+        common = card(3, "BT1-053", "Senzu Bean", "C")
+        Card.objects.filter(id=3).update(rarity="Common")
+        rows = [  # (id, grupo, nombre, número, rareza, variante)
+            (10, 1, "Power Absorbed", "Android 21", "BT20-149", "Secret Rare", ""),
+            (11, 1, "Power Absorbed", "Android 21 (Alternate Art)", "BT20-149", "Secret Rare", "Alternate Art"),
+            (20, 2, "Galactic Battle", "Senzu Bean (2017)", "BT1-053", "Common", "2017"),
+            (21, 3, "Mythic Booster", "Senzu Bean", "BT1-053", "Common", ""),  # reimpresión en otra caja
+            (22, 2, "Galactic Battle", "Whis", "BT1-054", "Common", ""),
+            (23, 3, "Mythic Booster", "Vegeta", "BT5-001", "Common", ""),
+        ]
+        for pid, gid, gname, name, number, rarity, variant in rows:
+            TcgProduct.objects.create(id=pid, group_id=gid, group_name=gname, name=name, number=number,
+                                      rarity=rarity, variant=variant, market_usd=Decimal("1"))
+        tcgplayer.match_all()
+        links = dict(TcgLink.objects.values_list("card_id", "product_id"))
+        self.assertEqual(links, {v1.id: 10, v2.id: 11, common.id: 20})
+
+
+class RadarTests(TestCase):
+    def test_risers_fallers_and_expensive(self):
+        from datetime import date, timedelta
+        from rest_framework.test import APIClient
+        from collection.models import CollectionEntry, Location
+        from prices.models import CardPrice, PricePoint
+
+        here = Location.objects.create(name="Caja", kind="storage")
+        today = date.today()
+        for i, (old, new) in enumerate([(10, 20), (10, 5), (0.02, 0.04), (50, 50)], start=1):
+            c = card(i, f"BT1-00{i}", f"Carta {i}")
+            CollectionEntry.objects.create(card=c, location=here, quantity=1)
+            CardPrice.objects.create(card=c, eur=Decimal(str(new)), source="cardmarket", counts=True)
+            PricePoint.objects.create(card=c, date=today - timedelta(days=20), eur=Decimal(str(old)))
+            PricePoint.objects.create(card=c, date=today, eur=Decimal(str(new)))
+        # Hace 7 días aún tenían el precio antiguo (cambió hoy): la subida entra en la ventana de 7 días.
+        data = APIClient().get("/api/prices/radar/?days=7").json()
+        self.assertEqual([(r["id"], round(r["change"], 2)) for r in data["risers"]], [(1, 1.0)])  # la de 0,04 € no
+        self.assertEqual([(r["id"], round(r["change"], 2)) for r in data["fallers"]], [(2, -0.5)])
+        self.assertEqual([r["id"] for r in data["expensive"]][:2], [4, 1])
+        self.assertEqual(APIClient().get("/api/prices/radar/?days=7&scope=all").json()["scope"], "all")

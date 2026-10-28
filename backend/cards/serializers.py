@@ -6,6 +6,32 @@ from prices.services import card_price
 from .thumbs import thumb_url
 
 
+def print_ref(card_number: str, index: int) -> str:
+    """Enlace legible de una impresión: el número para la primera (por orden de alta) y -2, -3… para las
+    demás. Las impresiones nuevas van al final: los enlaces ya compartidos no cambian."""
+    return card_number if index == 0 else f"{card_number}-{index + 1}"
+
+
+def card_ref(card: Card) -> str:
+    position = Card.objects.filter(card_number=card.card_number, id__lt=card.id).count()
+    return print_ref(card.card_number, position)
+
+
+def card_from_ref(ref: str) -> Card | None:
+    """La carta de un enlace: un id de Bandai, un número (su primera impresión) o número-N (la N-ésima)."""
+    if ref.isdigit():
+        return Card.objects.filter(id=int(ref)).first()
+    prints = list(Card.objects.filter(card_number__iexact=ref).order_by("id")[:1])
+    if prints:
+        return prints[0]
+    number, _, index = ref.rpartition("-")
+    if number and index.isdigit() and int(index) >= 2:
+        prints = list(Card.objects.filter(card_number__iexact=number).order_by("id"))
+        if int(index) <= len(prints):
+            return prints[int(index) - 1]
+    return None
+
+
 class CardListSerializer(serializers.ModelSerializer):
     has_back = serializers.BooleanField(read_only=True)
     # Miniatura para cuadrículas y listas (ver cards/thumbs.py); la imagen completa sigue en image_url.
@@ -59,6 +85,11 @@ class CardDetailSerializer(serializers.ModelSerializer):
     errata = serializers.SerializerMethodField()
     rulings = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
+    # Historial de su precio (solo los cambios), para la gráfica del detalle.
+    price_history = serializers.SerializerMethodField(method_name="get_history")
+    # Enlace legible (?card=BT20-149, ?card=BT20-149-2…) y las demás impresiones de su número.
+    ref = serializers.SerializerMethodField()
+    prints = serializers.SerializerMethodField()
 
     class Meta:
         model = Card
@@ -71,7 +102,22 @@ class CardDetailSerializer(serializers.ModelSerializer):
         return CardErrataSerializer(entry).data if entry else None
 
     def get_price(self, card) -> dict | None:
-        return card_price(card)
+        return card_price(card, changes=True)
+
+    def get_history(self, card) -> list:
+        from prices.models import PricePoint
+
+        return [{"date": d.isoformat(), "eur": float(e)}
+                for d, e in PricePoint.objects.filter(card=card).order_by("date").values_list("date", "eur")]
+
+    def get_ref(self, card) -> str:
+        return card_ref(card)
+
+    def get_prints(self, card) -> list:
+        prints = Card.objects.filter(card_number=card.card_number).order_by("id") \
+            .values("id", "rarity_code", "card_set", "image_url")
+        return [{**p, "ref": print_ref(card.card_number, i), "thumb_url": thumb_url(p["id"], p["image_url"])}
+                for i, p in enumerate(prints)] if len(prints) > 1 else []
 
     def get_rulings(self, card) -> list:
         if not card.rulings_count:

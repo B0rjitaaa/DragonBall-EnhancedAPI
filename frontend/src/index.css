@@ -1169,3 +1169,81 @@ button.deck-chip:hover { border-color: var(--accent); }
 .price-links { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin-top: 0.35rem; }
 .price-links a { color: var(--accent); }
 .collection-value small { font-weight: 400; }
+.price-changes { grid-column: 1 / -1; display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.price-change.up { color: #4ade80; }
+.price-change.down { color: #f87171; }
+.price-change.flat { color: var(--muted); }
+/* Evolución del precio, bajo la foto de la carta en el detalle */
+.price-chart {
+  width: 100%; display: grid; gap: 0.4rem; padding: 0.7rem 0.8rem; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg-3); color: var(--accent);
+}
+.price-chart header { display: flex; justify-content: space-between; align-items: baseline; color: var(--text); }
+.price-chart p { margin: 0; }
+.price-chart .seg { justify-self: start; }
+.price-chart svg { width: 100%; height: auto; display: block; cursor: crosshair; }
+.price-chart .axis { font-size: 10px; fill: var(--muted); }
+.price-chart .tip { font-size: 11px; font-weight: 700; fill: var(--text); }
+.price-chart .cursor { stroke: var(--muted); stroke-dasharray: 3 3; }
+
+/* Página de precios */
+.prices-page { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+.prices-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
+.prices-head h1 { margin: 0 0 0.25rem; font-size: 1.5rem; }
+.prices-head p { margin: 0; max-width: 40rem; }
+.prices-controls { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.segmented button { border: 0; background: var(--bg-2); color: var(--text); padding: 0.4rem 0.85rem; font: inherit; cursor: pointer; }
+.segmented button + button { border-left: 1px solid var(--line); }
+.segmented button.on { background: var(--accent); color: #1a1205; font-weight: 600; }
+.prices-note { padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-3); }
+
+.value-hero {
+  display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); gap: 1.2rem; align-items: center;
+  padding: 1rem 1.2rem; margin-bottom: 1.5rem; border: 1px solid var(--line); border-radius: 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--bg-2)), var(--bg-2));
+}
+.value-figures { display: grid; gap: 0.2rem; }
+.value-now { font-size: 2.3rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.value-change { font-weight: 700; }
+.value-change.up, .price-badge.up { color: #4ade80; }
+.value-change.down, .price-badge.down { color: #f87171; }
+.value-chart { margin: 0; color: var(--accent); min-width: 0; }
+.value-chart svg { width: 100%; height: 130px; display: block; }
+.value-chart figcaption { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.2rem; }
+@media (max-width: 700px) { .value-hero { grid-template-columns: 1fr; } }
+
+.prices-section { margin-bottom: 1.6rem; }
+.prices-section h2 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.price-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.8rem; }
+.price-tile {
+  width: 100%; height: 100%; display: flex; flex-direction: column; gap: 0.15rem; padding: 0 0 0.5rem; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--bg-2); color: var(--text); text-align: left; font: inherit; cursor: pointer; overflow: hidden;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.price-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
+.price-tile-img { position: relative; aspect-ratio: 63 / 88; background: var(--bg-3); }
+.price-tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.price-badge {
+  position: absolute; top: 6px; left: 6px; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: 0.75rem; font-weight: 800;
+  background: rgba(0, 0, 0, 0.75);
+}
+.price-tile-name { padding: 0.35rem 0.55rem 0; font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.price-tile-meta { padding: 0 0.55rem; font-size: 0.75rem; }
+.price-tile-price { padding: 0 0.55rem; font-variant-numeric: tabular-nums; }
+.price-tile-price strong { color: var(--accent); }
+.price-tile-price small { font-size: 0.72rem; white-space: nowrap; }
+.detail-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.3rem 1rem; align-items: baseline; }
+.copy-link { white-space: nowrap; }
+.copy-link-input { width: 100%; font-size: 0.8rem; }
+
+/* Detalle de carta: las impresiones de su número */
+.card-prints { width: 100%; display: grid; gap: 0.4rem; }
+.card-prints > div { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.card-prints button {
+  display: grid; gap: 0.15rem; justify-items: center; width: 3.6rem; padding: 0.2rem; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--bg-2); color: var(--text); font: inherit; font-size: 0.7rem; cursor: pointer;
+}
+.card-prints button.on { border-color: var(--accent); background: var(--bg-3); cursor: default; }
+.card-prints button:hover:not(.on) { border-color: var(--muted); }
+.card-prints img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 3px; }

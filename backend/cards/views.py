@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from collection.models import Location, StatusChange
 from collection.serializers import LocationSerializer
 from collection.services import delete_location
-from prices.services import value_of, values_by_location
+from prices.services import PRICE_RELATED, value_of, values_by_location
 
 from collection.models import CollectionEntry
 
@@ -38,6 +38,7 @@ from .models import BanListEntry, Card, CardChange, KeywordSkill, SyncRun
 from .parsing import parse_search_terms
 from .query import FIELDS, QueryError, fields_schema, params_to_tree, tree_to_q
 from .serializers import (
+    card_from_ref, card_ref,
     BanListEntrySerializer, CardDetailSerializer, KeywordSkillSerializer, CardListSerializer, SearchRequestSerializer,
     CardChangeSerializer, SyncRunSerializer,
 )
@@ -114,7 +115,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         if self.action == "retrieve":
-            return Card.objects.select_related("cardmarket__product")
+            return Card.objects.select_related(*PRICE_RELATED)
         params = self.request.query_params
         qs = build_queryset(params.get("q"), parse_query_param(params.get("query")), params_to_tree(params))
         return apply_ordering(qs, params.get("ordering"))
@@ -151,6 +152,14 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         })
 
     @extend_schema(request=SearchRequestSerializer, responses=CardListSerializer(many=True))
+    @action(detail=False, url_path=r"ref/(?P<ref>[^/]+)")
+    def ref(self, request, ref=None):
+        """GET /api/cards/ref/BT20-149-2/ → el id de esa impresión (para los enlaces ?card=)."""
+        card = card_from_ref(ref)
+        if card is None:
+            return Response({"detail": "No hay ninguna carta con ese número"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"id": card.id, "ref": card_ref(card)})
+
     @action(detail=False, methods=["post"])
     def search(self, request):
         body = SearchRequestSerializer(data=request.data)
@@ -175,7 +184,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
 
         size, number = data["page_size"], data["page"]
         total = qs.count()
-        page = qs.select_related("cardmarket__product")[(number - 1) * size: number * size]
+        page = qs.select_related(*PRICE_RELATED)[(number - 1) * size: number * size]
         items = CardListSerializer(page, many=True).data
         response = {
             "count": total,
@@ -405,7 +414,7 @@ class MyCollectionView(APIView):
     def get(self, request):
         scope = Scope(with_fakes=True)
         cards = CardListSerializer(
-            Card.objects.filter(id__in=scope.card_ids()).select_related("cardmarket__product"), many=True
+            Card.objects.filter(id__in=scope.card_ids()).select_related(*PRICE_RELATED), many=True
         ).data
         details = scope.details([c["id"] for c in cards])
         return Response({

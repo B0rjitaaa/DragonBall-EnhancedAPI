@@ -1,3 +1,4 @@
+import { CARD_PARAM } from './cardLink'
 import type { Condition, FacetState, FieldDef, Group, QueryNode } from './types'
 import { isGroup } from './types'
 
@@ -197,6 +198,9 @@ export function writeUrlState(state: UrlState, loc?: { uid: string; kind: string
     params.set('advanced', JSON.stringify(state.advanced))
     if (!state.advancedOn) params.set('advanced_on', '0')
   }
+  // La carta abierta (enlace ?card=) no es parte de la búsqueda: se conserva.
+  const card = new URLSearchParams(window.location.search).get(CARD_PARAM)
+  if (card) params.set(CARD_PARAM, card)
   const inCollection = window.location.pathname.startsWith('/collection')
   const path = !inCollection ? window.location.pathname : loc ? locationPath(loc) : '/collection'
   const search = params.toString()

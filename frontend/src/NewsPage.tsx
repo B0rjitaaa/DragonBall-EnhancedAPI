@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import CardModal from './components/CardModal'
 import Pagination from './components/Pagination'
+import { useOpenCard } from './lib/cardLink'
 import { api } from './lib/api'
 import { markNewsSeen, newsSeenAt } from './lib/news'
 import { SkillIndex } from './lib/skills'
@@ -45,7 +46,7 @@ export default function NewsPage() {
   const [error, setError] = useState<string | null>(null)
   const [kinds, setKinds] = useState<string[]>([])
   const [page, setPage] = useState(1)
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [openId, setOpenId] = useOpenCard()
   const [skills, setSkills] = useState<SkillIndex>(SkillIndex.empty)
   // Lo anterior a tu última visita no se marca como nuevo. Se lee una vez, al entrar.
   const [seenBefore] = useState(newsSeenAt)
@@ -163,6 +164,7 @@ export default function NewsPage() {
         <CardModal
           key={openId}
           id={openId}
+          onOpenPrint={setOpenId}
           skills={skills}
           onClose={() => setOpenId(null)}
           onFilter={(field, value) => {

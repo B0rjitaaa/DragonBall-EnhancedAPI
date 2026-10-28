@@ -97,3 +97,93 @@ class PriceReview(models.Model):
         managed = False
         verbose_name = "revisión de emparejamientos"
         verbose_name_plural = "revisar emparejamientos"
+
+
+class TcgProduct(models.Model):
+    """Una carta de TCGplayer (vía tcgcsv.com) con su precio de mercado del día, en dólares."""
+
+    id = models.PositiveIntegerField(primary_key=True, help_text="productId de TCGplayer")
+    group_id = models.PositiveIntegerField(db_index=True)
+    group_name = models.CharField(max_length=255, blank=True)
+    name = models.CharField(max_length=255)
+    # Número normalizado (BT20-149) y rareza tal como la escribe TCGplayer ("Secret Rare").
+    number = models.CharField(max_length=32, db_index=True, blank=True)
+    rarity = models.CharField(max_length=64, blank=True)
+    # Lo que va entre paréntesis al final del nombre: "Alternate Art", "SPR", "Silver Foil"…
+    variant = models.CharField(max_length=64, blank=True)
+    # Precio de mercado (de ventas reales), el más bajo anunciado y la versión (Normal o Foil).
+    market_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    low_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    sub_type = models.CharField(max_length=16, blank=True)
+    fetched_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "producto de TCGplayer"
+        verbose_name_plural = "productos de TCGplayer"
+
+    def __str__(self):
+        return f"{self.name} ({self.id})"
+
+
+class TcgLink(models.Model):
+    """A qué producto de TCGplayer corresponde una impresión nuestra."""
+
+    card = models.OneToOneField(Card, primary_key=True, on_delete=models.CASCADE, related_name="tcgplayer")
+    product = models.ForeignKey(TcgProduct, on_delete=models.CASCADE, related_name="links")
+
+    class Meta:
+        verbose_name = "enlace con TCGplayer"
+        verbose_name_plural = "enlaces con TCGplayer"
+
+
+class ExchangeRate(models.Model):
+    """Cambio del dólar a euros del Banco Central Europeo (1 € = usd_per_eur $)."""
+
+    date = models.DateField(primary_key=True)
+    usd_per_eur = models.DecimalField(max_digits=10, decimal_places=4)
+
+    class Meta:
+        ordering = ["-date"]
+        verbose_name = "cambio dólar/euro"
+        verbose_name_plural = "cambios dólar/euro"
+
+    @classmethod
+    def latest(cls):
+        return cls.objects.first()
+
+
+class CardPrice(models.Model):
+    """El precio de cada carta, ya combinado (ver pricing.py): el que se muestra y cuenta en el valor."""
+
+    class Source(models.TextChoices):
+        CARDMARKET = "cardmarket", "Cardmarket"
+        TCGPLAYER = "tcgplayer", "TCGplayer"
+        MANUAL = "manual", "Puesto a mano"
+
+    card = models.OneToOneField(Card, primary_key=True, on_delete=models.CASCADE, related_name="price")
+    eur = models.DecimalField(max_digits=10, decimal_places=2, db_index=True)
+    source = models.CharField(max_length=12, choices=Source.choices)
+    # Cuenta en el valor de la colección (con ventas, a mano o confirmado).
+    counts = models.BooleanField(default=True)
+    # Lo que dice cada fuente (en €), para enseñarlo en el detalle.
+    cardmarket_eur = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    tcgplayer_eur = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "precio de carta"
+        verbose_name_plural = "precios de cartas"
+
+
+class PricePoint(models.Model):
+    """Historial: el precio de una carta desde una fecha (solo se guarda cuando cambia)."""
+
+    card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="price_history")
+    date = models.DateField(db_index=True)
+    eur = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        ordering = ["card", "date"]
+        constraints = [models.UniqueConstraint(fields=["card", "date"], name="unique_price_point")]
+        verbose_name = "precio histórico"
+        verbose_name_plural = "historial de precios"

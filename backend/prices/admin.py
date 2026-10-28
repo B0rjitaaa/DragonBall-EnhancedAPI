@@ -11,7 +11,10 @@ from cards.models import Card
 from cards.thumbs import thumb_url
 
 from . import review
-from .models import CardmarketExpansion, CardmarketLink, CardmarketProduct, PriceReview
+from .models import (
+    CardmarketExpansion, CardmarketLink, CardmarketProduct, CardPrice, ExchangeRate, PricePoint, PriceReview, TcgLink,
+    TcgProduct,
+)
 from .services import PRODUCT_URL
 
 PAGE_SIZE = 25
@@ -38,6 +41,38 @@ class CardmarketLinkAdmin(admin.ModelAdmin):
     list_filter = ["method"]
     search_fields = ["card__card_number", "card__name", "product__name"]
     raw_id_fields = ["card", "product"]
+
+
+@admin.register(TcgProduct)
+class TcgProductAdmin(admin.ModelAdmin):
+    list_display = ["id", "name", "number", "rarity", "variant", "group_name", "market_usd", "low_usd", "sub_type"]
+    search_fields = ["name", "number"]
+
+
+@admin.register(TcgLink)
+class TcgLinkAdmin(admin.ModelAdmin):
+    list_display = ["card", "product"]
+    search_fields = ["card__card_number", "card__name", "product__name"]
+    raw_id_fields = ["card", "product"]
+
+
+@admin.register(CardPrice)
+class CardPriceAdmin(admin.ModelAdmin):
+    list_display = ["card", "eur", "source", "counts", "cardmarket_eur", "tcgplayer_eur", "updated_at"]
+    list_filter = ["source", "counts"]
+    search_fields = ["card__card_number", "card__name"]
+    raw_id_fields = ["card"]
+
+
+@admin.register(PricePoint)
+class PricePointAdmin(admin.ModelAdmin):
+    list_display = ["card", "date", "eur"]
+    date_hierarchy = "date"
+    search_fields = ["card__card_number", "card__name"]
+    raw_id_fields = ["card"]
+
+
+admin.site.register(ExchangeRate)
 
 
 @admin.register(PriceReview)
@@ -80,7 +115,7 @@ class PriceReviewAdmin(admin.ModelAdmin):
             "prints": [{
                 "card": other,
                 "thumb": thumb_url(other.id, other.image_url) if other.image_url else "",
-                "price": getattr(getattr(other, "cardmarket", None), "product", None),
+                "price": getattr(other, "price", None) if hasattr(other, "price") else None,
             } for other in review.other_prints(p.card)] if tab == "sinventas" else [],
         } for p in pending] if tab in ("sin", "raros", "sinventas") else []
         context = {

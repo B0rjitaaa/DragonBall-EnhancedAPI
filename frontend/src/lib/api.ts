@@ -1,6 +1,6 @@
 import type {
   CardDetail, ChangesResponse, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
-  KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, SearchResponse,
+  KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, SearchResponse,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
@@ -134,6 +134,11 @@ export const api = {
   deckBackInUse: (id: number) =>
     request<{ deck: string; leader: { card_number: string; name: string; from: string; fake: boolean } | null }>(
       `/my-collection/decks/${id}/back-in-use/`, { method: 'POST' }),
+  /** El id de una carta a partir de su enlace (BT20-149, BT20-149-2 o el id de Bandai). */
+  cardRef: (ref: string) => request<{ id: number; ref: string }>(`/cards/ref/${encodeURIComponent(ref)}/`),
+  /** Radar de precios: lo que más sube y baja y lo más caro, en N días. */
+  priceRadar: (days: number, scope: 'collection' | 'all') =>
+    request<RadarResponse>(`/prices/radar/?days=${days}&scope=${scope}`),
   deleteLocation: (id: number) => request<void>(`/my-collection/locations/${id}/`, { method: 'DELETE' }),
   /** Mazos: lista actual, versiones guardadas y partidas. */
   deck: (id: number) => request<DeckDetail>(`/my-collection/decks/${id}/`),

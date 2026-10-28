@@ -8,5 +8,3 @@ export const formatEur = (n: number) => (Math.abs(n) >= 1000 ? EUR_ROUND : EUR).
 
 /** Precio de una carta para mostrar: «desde» si es solo el anuncio más barato. */
 export const priceLabel = (p: CardPrice) => `${p.is_low ? 'desde ' : ''}${formatEur(p.eur)}`
-
-export const PRICE_LOW_HINT = 'Sin ventas recientes en Cardmarket: es el precio del anuncio más barato.'

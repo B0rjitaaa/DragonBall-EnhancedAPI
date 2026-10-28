@@ -17,6 +17,7 @@ from django.db import transaction
 
 from cards.models import Card
 
+from . import pricing
 from .matching import RARITY_RANK, norm, parse_name
 from .models import CardmarketLink, CardmarketProduct
 
@@ -88,11 +89,8 @@ def suspects(limit: int, offset: int = 0) -> tuple[int, list[Pending]]:
 def listing_only(limit: int, offset: int = 0, min_price=LISTING_MIN_PRICE) -> tuple[int, list[Pending]]:
     """Tus cartas caras sin ventas (solo un anuncio, sin confirmar): no cuentan en el valor. Suelen ser
     ediciones raras (GDR, alt-art) que el escáner pudo confundir con la normal."""
-    qs = _owned_cards().filter(
-        cardmarket__product__price_is_low=True, cardmarket__product__price__gte=min_price, cardmarket__suspect=False,
-        cardmarket__manual_price__isnull=True,
-    ).exclude(cardmarket__method=CardmarketLink.Method.MANUAL).select_related("cardmarket__product") \
-        .order_by("-cardmarket__product__price", "card_number")
+    qs = _owned_cards().filter(price__counts=False, price__eur__gte=min_price, cardmarket__suspect=False) \
+        .select_related("cardmarket__product").order_by("-price__eur", "card_number")
     total = qs.count()
     if not limit:
         return total, []
@@ -103,7 +101,7 @@ def listing_only(limit: int, offset: int = 0, min_price=LISTING_MIN_PRICE) -> tu
 def other_prints(card: Card) -> list[Card]:
     """Las demás impresiones de la carta (mismo número): para «tengo otra edición»."""
     return list(Card.objects.filter(card_number=card.card_number).exclude(id=card.id)
-                .select_related("cardmarket__product").order_by("id"))
+                .select_related("price").order_by("id"))
 
 
 def change_print(card: Card, target: Card) -> int:
@@ -159,6 +157,7 @@ def choose(card: Card, product: CardmarketProduct | None) -> int:
             CardmarketLink.objects.update_or_create(
                 card_id=card_id, defaults={"product": product, "method": method, "manual_price": None, "suspect": False}
             )
+    pricing.refresh(ids)
     return len(ids)
 
 
@@ -171,6 +170,7 @@ def set_price(card: Card, price) -> int:
                 card_id=card_id,
                 defaults={"product": None, "method": CardmarketLink.Method.PRICE, "manual_price": price, "suspect": False},
             )
+    pricing.refresh(ids)
     return len(ids)
 
 
@@ -190,5 +190,7 @@ def mark_fake(card: Card) -> int:
 
 def confirm(card_ids: list[int]) -> int:
     """Da por buenos unos emparejamientos automáticos: pasan a «elegido a mano»."""
-    return CardmarketLink.objects.filter(card_id__in=card_ids).exclude(product=None) \
+    n = CardmarketLink.objects.filter(card_id__in=card_ids).exclude(product=None) \
         .update(method=CardmarketLink.Method.MANUAL)
+    pricing.refresh(card_ids)
+    return n

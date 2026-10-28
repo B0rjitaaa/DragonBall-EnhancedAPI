@@ -5,6 +5,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from errorlog.views import WebErrorView
+from prices.views import RadarView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -12,6 +13,7 @@ urlpatterns = [
     path("api/my-collection/", include("decks.urls")),
     path("api/scanner/", include("scanner.urls")),
     path("api/errors/", WebErrorView.as_view(), name="web-errors"),
+    path("api/prices/radar/", RadarView.as_view(), name="prices-radar"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]

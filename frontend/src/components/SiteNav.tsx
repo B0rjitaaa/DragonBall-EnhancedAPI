@@ -28,6 +28,9 @@ export default function SiteNav({ active }: { active: Page }) {
       <a href="/locations" className={active === 'locations' ? 'active' : ''}>
         Ubicaciones
       </a>
+      <a href="/prices" className={active === 'prices' ? 'active' : ''}>
+        Precios
+      </a>
       <a href="/news" className={active === 'news' ? 'active' : ''}>
         Novedades
         {unseen > 0 && active !== 'news' && (

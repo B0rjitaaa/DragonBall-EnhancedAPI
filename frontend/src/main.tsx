@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import LocationsPage from './LocationsPage.tsx'
 import NewsPage from './NewsPage.tsx'
+import PricesPage from './PricesPage.tsx'
 import NotFoundPage from './NotFoundPage.tsx'
 import HealthBanner from './components/HealthBanner.tsx'
 import SiteNav from './components/SiteNav.tsx'
@@ -27,6 +28,8 @@ createRoot(document.getElementById('root')!).render(
       <LocationsPage />
     ) : page === 'news' ? (
       <NewsPage />
+    ) : page === 'prices' ? (
+      <PricesPage />
     ) : page === 'notfound' ? (
       <NotFoundPage />
     ) : page === 'scan' ? (

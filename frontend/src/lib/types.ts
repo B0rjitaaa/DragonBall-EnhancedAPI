@@ -56,6 +56,16 @@ export interface CardPrice {
   suspect: boolean
   /** Cuenta en el valor de la colección (con ventas, a mano o confirmado en la revisión). */
   counts: boolean
+  /** De dónde sale el precio. */
+  source: 'cardmarket' | 'tcgplayer' | 'manual'
+  /** Lo que dice cada fuente, en € (TCGplayer, pasado de dólares). */
+  cardmarket_eur: number | null
+  tcgplayer_eur: number | null
+  /** La carta en TCGplayer (si está emparejada). */
+  tcg_url: string | null
+  /** Solo en el detalle: variación (tanto por uno) a 7 y 30 días. */
+  change_7?: number | null
+  change_30?: number | null
   trend: number | null
   avg30: number | null
   low: number | null
@@ -74,6 +84,31 @@ export interface CollectionValue {
   copies_priced: number
   copies_listing: number
   copies_unpriced: number
+}
+
+/** Un cambio de precio de una carta (el historial solo guarda los cambios). */
+export interface PricePoint {
+  date: string
+  eur: number
+}
+
+/** Una carta del radar de precios, con su precio de hace N días y la variación. */
+export interface RadarCard extends CardSummary {
+  before: number | null
+  change: number | null
+}
+
+export interface RadarResponse {
+  /** Solo en «Mi colección»: el valor cada día del periodo y su variación. */
+  value: { series: PricePoint[]; now: number; change: number | null } | null
+  days: number
+  scope: 'collection' | 'all'
+  /** Primer y último día del historial. */
+  since: string | null
+  updated: string | null
+  risers: RadarCard[]
+  fallers: RadarCard[]
+  expensive: RadarCard[]
 }
 
 export interface CardSummary {
@@ -190,7 +225,22 @@ export interface OwnedSummary {
   locations: OwnedLocation[]
 }
 
+/** Una impresión de un mismo número (normal, SPR, promo, arte alternativo…). */
+export interface CardPrint {
+  id: number
+  ref: string
+  rarity_code: string
+  card_set: string
+  thumb_url: string
+}
+
 export interface CardDetail extends CardSummary {
+  /** Su enlace legible: BT20-149 (primera impresión), BT20-149-2… */
+  ref: string
+  /** Todas las impresiones de su número (vacío si solo hay una). */
+  prints: CardPrint[]
+  /** Cambios de su precio (el historial empieza el día que se activaron los precios). */
+  price_history?: PricePoint[]
   text: string
   back_text: string
   back_power: number | null

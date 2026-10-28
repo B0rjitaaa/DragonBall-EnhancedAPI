@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
-import { PRICE_LOW_HINT, formatEur, priceLabel } from '../lib/prices'
+import { cardLink, showCardRef } from '../lib/cardLink'
+import { formatEur, priceLabel } from '../lib/prices'
+import PriceChart from './PriceChart'
 import { CATEGORY_LABEL, type SkillIndex } from '../lib/skills'
 import type { CardDetail, CardPrice, SkillCategory } from '../lib/types'
 import CardText from './CardText'
@@ -13,11 +15,13 @@ interface Props {
   onFilter: (field: string, value: string) => void
   /** Mi colección: copias de la carta por ubicación (se pinta bajo el título). */
   children?: ReactNode
+  /** Abrir otra impresión del mismo número (fila «Otras impresiones»). */
+  onOpenPrint?: (id: number) => void
 }
 
 const HIDDEN_CONFIG = new Set(['Notes'])
 
-export default function CardModal({ id, skills, onClose, onFilter, children }: Props) {
+export default function CardModal({ id, skills, onClose, onFilter, children, onOpenPrint }: Props) {
   const [card, setCard] = useState<CardDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<'front' | 'back'>('front')
@@ -26,6 +30,11 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
   useEffect(() => {
     api.card(id).then(setCard).catch((e: Error) => setError(e.message))
   }, [id])
+
+  // Abierta la carta, la dirección lleva su número (?card=BT20-149), también si se abrió por id.
+  useEffect(() => {
+    if (card && new URLSearchParams(window.location.search).has('card')) showCardRef(card.ref)
+  }, [card])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -66,10 +75,33 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
                   </button>
                 </div>
               )}
+              {card.prints.length > 1 && (
+                <section className="card-prints">
+                  <strong className="small">Impresiones de {card.card_number}</strong>
+                  <div>
+                    {card.prints.map((p) => (
+                      <button
+                        key={p.id}
+                        className={p.id === card.id ? 'on' : ''}
+                        onClick={() => p.id !== card.id && onOpenPrint?.(p.id)}
+                        disabled={!onOpenPrint && p.id !== card.id}
+                        title={`${p.ref} · ${p.rarity_code} · ${p.card_set}`}
+                      >
+                        <img src={p.thumb_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                        <span>{p.rarity_code || '—'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+              {card.price && card.price.counts && <PriceChart points={card.price_history ?? []} />}
             </div>
             <div className="detail-info">
-              <p className="muted small">
-                {card.card_number} · {card.card_set}
+              <p className="muted small detail-meta">
+                <span>
+                  {card.card_number} · {card.card_set}
+                </span>
+                <CopyLink cardRef={card.ref} />
               </p>
               <h2>{back ? card.back_name : card.name}</h2>
               {card.price && <PriceBox price={card.price} />}
@@ -184,32 +216,74 @@ export default function CardModal({ id, skills, onClose, onFilter, children }: P
   )
 }
 
-/** Precio de mercado en Europa (Cardmarket), de dónde sale y las ofertas en España y en Europa. */
+const SOURCE_LABEL = { cardmarket: 'Cardmarket', tcgplayer: 'TCGplayer', manual: 'a mano' } as const
+
+/** Variación en tanto por uno → «▲ 12 %» / «▼ 5 %». */
+function Change({ label, value }: { label: string; value: number | null | undefined }) {
+  if (value == null) return null
+  const pct = Math.round(value * 100)
+  if (pct === 0) return <span className="price-change flat">{label}: =</span>
+  return (
+    <span className={`price-change ${pct > 0 ? 'up' : 'down'}`}>
+      {label}: {pct > 0 ? '▲' : '▼'} {Math.abs(pct)} %
+    </span>
+  )
+}
+
+/** El precio de la carta: de dónde sale (Cardmarket, TCGplayer o a mano), su variación y los enlaces a
+ * las ofertas en España y Europa (Cardmarket) y en TCGplayer. Su evolución va bajo la foto (PriceChart). */
 function PriceBox({ price }: { price: CardPrice }) {
-  const details = [
+  const what = price.manual
+    ? 'precio puesto a mano'
+    : price.suspect && !price.counts
+      ? 'precio dudoso: un solo anuncio, sin ventas (no cuenta en el valor)'
+      : !price.counts
+        ? 'solo lo que pide un vendedor: sin ventas (no cuenta en el valor)'
+        : `precio de mercado · ${SOURCE_LABEL[price.source]}`
+  const sources = [
+    price.cardmarket_eur != null && `Cardmarket ${formatEur(price.cardmarket_eur)}`,
+    price.tcgplayer_eur != null && `TCGplayer ${formatEur(price.tcgplayer_eur)} (EE. UU.)`,
     price.low != null && `desde ${formatEur(price.low)} en Europa`,
-    price.trend != null && `Trend ${formatEur(price.trend)}`,
-    price.avg30 != null && `media 30 días ${formatEur(price.avg30)}`,
   ].filter(Boolean)
   return (
-    <div className={`price-box ${price.is_low || price.suspect ? 'is-low' : ''}`}>
+    <div className={`price-box ${price.counts ? '' : 'is-low'}`}>
       <span className="price-main">{priceLabel(price)}</span>
-      <span className="price-what small">
-        {price.manual
-          ? 'precio puesto a mano'
-          : price.suspect
-            ? 'precio dudoso: un solo anuncio, sin ventas (no cuenta en el valor)'
-            : price.is_low
-              ? price.counts ? 'anuncio más barato en Europa (sin ventas, confirmado)' : 'solo lo que pide un vendedor: sin ventas (no cuenta en el valor)'
-              : 'precio de mercado en Europa'}
-      </span>
-      {!price.manual && (
-        <span className="price-details muted small">{price.is_low ? PRICE_LOW_HINT : details.join(' · ')}</span>
+      <span className="price-what small">{what}</span>
+      {!price.manual && sources.length > 0 && <span className="price-details muted small">{sources.join(' · ')}</span>}
+      {(price.change_7 != null || price.change_30 != null) && (
+        <span className="price-changes small">
+          <Change label="7 días" value={price.change_7} />
+          <Change label="30 días" value={price.change_30} />
+        </span>
       )}
       <span className="price-links small">
         <a href={price.url_es} target="_blank" rel="noreferrer">Ofertas en España ↗</a>
         <a href={price.url} target="_blank" rel="noreferrer">Ofertas en Europa ↗</a>
+        {price.tcg_url && <a href={price.tcg_url} target="_blank" rel="noreferrer">TCGplayer ↗</a>}
       </span>
     </div>
+  )
+}
+
+/** Copia el enlace a esta carta (la página actual con ?card=BT20-149): al abrirlo, sale este detalle. */
+function CopyLink({ cardRef }: { cardRef: string }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'manual'>('idle')
+  const link = cardLink(cardRef)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link)
+      setState('copied')
+      window.setTimeout(() => setState('idle'), 2000)
+    } catch {
+      setState('manual')
+    }
+  }
+  if (state === 'manual') {
+    return <input className="input copy-link-input" readOnly value={link} onFocus={(e) => e.currentTarget.select()} autoFocus />
+  }
+  return (
+    <button type="button" className="link small copy-link" onClick={copy} title={link}>
+      {state === 'copied' ? 'Enlace copiado ✓' : '🔗 Copiar enlace'}
+    </button>
   )
 }

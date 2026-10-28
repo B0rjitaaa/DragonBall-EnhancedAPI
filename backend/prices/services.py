@@ -1,82 +1,90 @@
-"""Precio de una carta y valor de lo que tienes (solo copias auténticas)."""
+"""Precio de una carta para la web y valor de lo que tienes (solo copias auténticas).
+
+El precio sale de CardPrice (ver pricing.py), que combina Cardmarket, TCGplayer y lo puesto a mano.
+"""
 from __future__ import annotations
 
 from urllib.parse import quote_plus
 
-from django.db.models import DecimalField, F, Q, QuerySet, Sum
+from django.db.models import DecimalField, F, QuerySet, Sum
 from django.db.models.functions import Coalesce
 
-from .models import CardmarketProduct
+from .models import CardPrice
 
 # La carta en Cardmarket: con las ofertas de toda Europa (de donde salen los precios de la guía) y
 # solo las de vendedores de España (país 10), que suelen ser menos y más caras.
 # Solo cartas en inglés (idioma 1): la guía de precios mezcla idiomas, pero las ofertas se pueden filtrar.
 PRODUCT_URL = "https://www.cardmarket.com/en/DragonBallSuper/Products?idProduct={id}&language=1"
 SPAIN = "&sellerCountry=10"
-# Sin producto (precio puesto a mano): la búsqueda por nombre.
+# Sin producto en Cardmarket: la búsqueda por nombre.
 SEARCH_URL = "https://www.cardmarket.com/en/DragonBallSuper/Products/Search?searchString={q}&language=1"
+TCG_URL = "https://www.tcgplayer.com/product/{id}"
+# Lo que se precarga para card_price (select_related).
+PRICE_RELATED = ("price", "cardmarket__product", "tcgplayer__product")
 
 
-def price_info(product: CardmarketProduct | None) -> dict | None:
-    """El precio de una carta para la web (None: sin emparejar o sin datos en Cardmarket)."""
-    if product is None or product.price is None:
-        return None
-    return {
-        "eur": float(product.price),
-        "is_low": product.price_is_low,
-        "trend": float(product.trend) if product.trend else None,
-        "avg30": float(product.avg30) if product.avg30 else None,
-        "low": float(product.low) if product.low else None,
-        "manual": False,
-        "url": PRODUCT_URL.format(id=product.id),
-        "url_es": PRODUCT_URL.format(id=product.id) + SPAIN,
-    }
-
-
-def card_price(card) -> dict | None:
-    """Precio de una carta (usa card.cardmarket, mejor con select_related("cardmarket__product"))."""
+def _related(card, name):
     try:
-        link = card.cardmarket
-    except type(card).cardmarket.RelatedObjectDoesNotExist:
+        return getattr(card, name)
+    except Exception:  # noqa: BLE001 - RelatedObjectDoesNotExist de cada relación
         return None
-    if link.manual_price is not None:
-        search = SEARCH_URL.format(q=quote_plus(card.name))
-        return {"eur": float(link.manual_price), "is_low": False, "manual": True, "suspect": False, "counts": True,
-                "trend": None, "avg30": None,
-                "low": None, "url": search, "url_es": search + SPAIN}
-    info = price_info(link.product)
-    if info is not None:
-        info["suspect"] = link.suspect
-        # Cuenta en el valor: con ventas, o solo anuncio pero confirmado en la revisión.
-        info["counts"] = not link.suspect and (not info["is_low"] or link.method == link.Method.MANUAL)
+
+
+def _f(value):
+    return float(value) if value else None
+
+
+def card_price(card, changes: bool = False) -> dict | None:
+    """El precio de una carta para la web (mejor con select_related(*PRICE_RELATED)). Con `changes`,
+    también su variación a 7 y 30 días (consulta el historial: solo en el detalle)."""
+    price: CardPrice | None = _related(card, "price")
+    if price is None:
+        return None
+    link = _related(card, "cardmarket")
+    product = link.product if link is not None else None
+    tcg = _related(card, "tcgplayer")
+    search = SEARCH_URL.format(q=quote_plus(card.name))
+    info = {
+        "eur": float(price.eur),
+        "source": price.source,
+        "counts": price.counts,
+        "manual": price.source == CardPrice.Source.MANUAL,
+        # Sin ventas en ninguna fuente: solo lo que pide un vendedor en Cardmarket.
+        "is_low": not price.counts,
+        "suspect": bool(link and link.suspect),
+        "cardmarket_eur": _f(price.cardmarket_eur),
+        "tcgplayer_eur": _f(price.tcgplayer_eur),
+        "trend": _f(product.trend) if product else None,
+        "avg30": _f(product.avg30) if product else None,
+        "low": _f(product.low) if product else None,
+        "url": PRODUCT_URL.format(id=product.id) if product else search,
+        "url_es": (PRODUCT_URL.format(id=product.id) if product else search) + SPAIN,
+        "tcg_url": TCG_URL.format(id=tcg.product_id) if tcg else None,
+    }
+    if changes:
+        from .pricing import change
+
+        info["change_7"] = change(card.id, 7)
+        info["change_30"] = change(card.id, 30)
     return info
 
 
-# Precio de una fila de copias: el puesto a mano o, si no, el de su producto de Cardmarket.
-PRICE = Coalesce("card__cardmarket__manual_price", "card__cardmarket__product__price")
-# Cuenta en el valor: el precio puesto a mano, o el de Cardmarket si tiene ventas. Los dudosos (ver
-# matching._mark_suspects) no cuentan, y los de solo anuncio (sin ventas: lo que pide un vendedor)
-# tampoco, salvo que el usuario los haya confirmado en la revisión; se muestran aparte.
-HAS_PRICE = Q(card__cardmarket__manual_price__isnull=False) | Q(
-    card__cardmarket__product__price__isnull=False, card__cardmarket__suspect=False
-) & (Q(card__cardmarket__product__price_is_low=False) | Q(card__cardmarket__method="manual"))
-LISTING_ONLY = Q(
-    card__cardmarket__manual_price__isnull=True, card__cardmarket__suspect=False,
-    card__cardmarket__product__price_is_low=True, card__cardmarket__product__price__isnull=False,
-) & ~Q(card__cardmarket__method="manual")
 MONEY = DecimalField(max_digits=12, decimal_places=2)
 
 
 def _sum_value(entries: QuerySet):
-    return entries.aggregate(v=Coalesce(Sum(F("quantity") * PRICE, output_field=MONEY), 0, output_field=MONEY))["v"]
+    return entries.aggregate(
+        v=Coalesce(Sum(F("quantity") * F("card__price__eur"), output_field=MONEY), 0, output_field=MONEY)
+    )["v"]
 
 
 def value_of(entries: QuerySet) -> dict:
-    """Valor de unas filas de copias (sin las falsas): lo que tiene ventas o precio confirmado. Las cartas
-    sin ventas (solo un anuncio) van aparte en `value_listing`, y las que no tienen precio se cuentan."""
+    """Valor de unas filas de copias (sin las falsas): lo que tiene ventas o precio confirmado o a mano. Las
+    cartas sin ventas (solo un anuncio) van aparte en `value_listing`, y las que no tienen precio se cuentan."""
     authentic = entries.filter(fake=False)
-    priced = authentic.filter(HAS_PRICE)
-    listing = authentic.filter(LISTING_ONLY)
+    priced = authentic.filter(card__price__counts=True)
+    # Los dudosos (un anuncio absurdo, p. ej. 9.999 €) no suman ni aparte: hasta revisarlos, sin precio.
+    listing = authentic.filter(card__price__counts=False).exclude(card__cardmarket__suspect=True)
     copies = authentic.aggregate(n=Sum("quantity"))["n"] or 0
     with_price = priced.aggregate(n=Sum("quantity"))["n"] or 0
     listing_copies = listing.aggregate(n=Sum("quantity"))["n"] or 0
@@ -90,8 +98,8 @@ def values_by_location() -> dict[int, float]:
     from collection.models import CollectionEntry
 
     rows = (
-        CollectionEntry.objects.filter(HAS_PRICE, fake=False)
+        CollectionEntry.objects.filter(fake=False, card__price__counts=True)
         .values("location_id")
-        .annotate(v=Sum(F("quantity") * PRICE, output_field=MONEY))
+        .annotate(v=Sum(F("quantity") * F("card__price__eur"), output_field=MONEY))
     )
     return {r["location_id"]: float(r["v"]) for r in rows}

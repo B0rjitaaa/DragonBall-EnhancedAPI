@@ -107,7 +107,7 @@
                     {% if pr.thumb %}<img src="{{ pr.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
                     <span><strong>{{ pr.card.card_number }} · {{ pr.card.rarity_code }}</strong><br>
                       <span class="rv-set">{{ pr.card.card_set|truncatechars:40 }}</span><br>
-                      {% if pr.price and pr.price.price is not None %}{{ pr.price.price }} €{% if pr.price.price_is_low %} (sin ventas){% endif %}{% else %}sin precio{% endif %}</span>
+                      {% if pr.price %}{{ pr.price.eur }} €{% if not pr.price.counts %} (sin ventas){% endif %}{% else %}sin precio{% endif %}</span>
                   </label>
                 {% endfor %}
               </div>

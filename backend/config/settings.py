@@ -238,6 +238,8 @@ BACKUP_DIR = env("BACKUP_DIR", str(Path(BACKUP_STATUS_FILE).parent) if BACKUP_ST
 BACKUP_REQUEST_DIR = env("BACKUP_REQUEST_DIR", "/backup-request")
 # Precios: catálogo y guía pública de Cardmarket (prices/). Dragon Ball Super es el juego 13.
 CARDMARKET_GAME_ID = int(env("CARDMARKET_GAME_ID", "13"))
+# Y de TCGplayer (vía tcgcsv.com): Dragon Ball Super (Masters) es la categoría 27.
+TCGPLAYER_CATEGORY_ID = int(env("TCGPLAYER_CATEGORY_ID", "27"))
 ERRATA_URL = env("ERRATA_URL", "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php")
 CARD_FAQ_URL = env("CARD_FAQ_URL", "https://www.dbs-cardgame.com/us-en/rule/card_faq.php")
 # Avisos por Telegram (cards/alerts.py) cuando algo de /api/health/ falla. Vacíos: sin avisos.

@@ -8,6 +8,7 @@ import DeckView from './components/DeckView'
 import OwnedPanel, { type Spot } from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
 import CsvImport from './components/CsvImport'
+import { useOpenCard } from './lib/cardLink'
 import { api, ApiError, COLLECTION_BACKUP_URL, COLLECTION_CSV_URL, type Scope } from './lib/api'
 import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
@@ -66,7 +67,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [data, setData] = useState<SearchResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [openId, setOpenId] = useOpenCard()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [adjusting, setAdjusting] = useState<Set<number>>(() => new Set())
   // Mi colección: ubicaciones, la filtrada (null = todas) y el gestor.
@@ -697,6 +698,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         <CardModal
           key={openId}
           id={openId}
+          onOpenPrint={setOpenId}
           skills={skills}
           onClose={() => {
             setOpenId(null)
