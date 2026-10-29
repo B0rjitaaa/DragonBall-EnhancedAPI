@@ -10,13 +10,15 @@ Uso (una vez: pip install playwright; usa el Chrome instalado, no descarga naveg
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-BASE = "http://localhost:5173"
+# WIKI_BASE=http://<servidor> para sacar alguna captura de otra instalación (p. ej. una con más datos).
+BASE = os.environ.get("WIKI_BASE", "http://localhost:5173")
 # El admin no pasa por Vite: en local se sirve directamente desde el backend.
 ADMIN = "http://localhost:8000"
 OUT = Path(__file__).resolve().parent.parent / "frontend" / "wiki" / "img"
@@ -115,7 +117,7 @@ def shots():
 
 def main(only: str | None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    session = admin_session()
+    session = admin_session() if not only or "admin" in only else ""
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="chrome")
         for name, size, prepare in shots():

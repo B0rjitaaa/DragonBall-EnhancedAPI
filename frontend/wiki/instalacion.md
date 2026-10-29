@@ -107,6 +107,7 @@ No hace falta para usarla. Si quieres cambiar algo, crea un fichero **`.env`** c
 | `DJANGO_SECRET_KEY=dev-insecure-solo-para-local` | Clave de Django. En un servidor, una aleatoria. |
 | `DJANGO_DEBUG=1` | Modo desarrollo. En un servidor, `0`. |
 | `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,backend` | Direcciones desde las que se puede entrar. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:5173,…` | Orígenes desde los que se puede guardar con una sesión del admin abierta. En un servidor, sus direcciones (lo pone el instalador). |
 | `DJANGO_SUPERUSER_USERNAME=admin` · `DJANGO_SUPERUSER_PASSWORD=admin` | El administrador que se crea solo si no hay ninguno. |
 | `POSTGRES_DB/USER/PASSWORD=dbs` · `POSTGRES_HOST=db` | La base de datos del compose. |
 | `REDIS_URL=redis://redis:6379` | Redis del compose. |
@@ -461,5 +462,5 @@ sudo rm /etc/systemd/system/dbs-backup*
 | Bandai responde 403 o 429 en los logs | Demasiadas peticiones | Se pausa sola y reintenta. Si se repite, sube `BANDAI_REQUEST_DELAY` en el `.env`. |
 | El escáner dice «Sin coincidencias: ¿hay fingerprints calculados?» | Las huellas aún se están calculando | Espera: se calculan solas tras instalar (`docker compose logs -f scanner_worker`). |
 | El admin no tiene estilos | Faltan los estáticos | `docker compose restart backend` (los genera al arrancar). |
-| Error «CSRF» al usar la web | Sesión del admin abierta en el mismo navegador | Cierra sesión en el admin o usa una ventana privada. |
+| Error «CSRF … Origin checking failed» al guardar | Entras por una dirección que no está en `DJANGO_CSRF_TRUSTED_ORIGINS` | Añádela al `.env` (separadas por comas) y aplica con `docker compose up -d`. |
 | La cámara del móvil no abre | Página sin HTTPS o certificado no instalado | Pasos 3 y 5 (B). |

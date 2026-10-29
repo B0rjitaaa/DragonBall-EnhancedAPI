@@ -8,7 +8,7 @@ Todo lo que hace la web pasa por una **API REST en JSON**, y se puede usar direc
 > [!WARNING]
 > - **Abierta:** la API no pide usuario, ni siquiera para escribir (añadir copias, anotar partidas…). Solo lanzar una sincronización exige ser administrador. Está pensada para la red de casa.
 > - **Límite:** 1.000 peticiones por minuto (`/api/errors/`, 30).
-> - **CSRF:** si tienes sesión iniciada en el admin, Django exige el token CSRF en las peticiones que escriben.
+> - **CSRF:** si tienes sesión iniciada en el admin, Django exige en las peticiones que escriben la cabecera `X-CSRFToken` (el valor de la cookie `csrftoken`) y que el origen esté en `DJANGO_CSRF_TRUSTED_ORIGINS`. La web lo hace sola.
 
 ## Cartas y catálogo
 

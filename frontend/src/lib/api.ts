@@ -3,6 +3,8 @@ import type {
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
 
+import { csrfToken, reportApiFailure } from './errorReporter'
+
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
 /** Descarga directa (enlace) de la copia de seguridad de Mi colección. */
@@ -25,7 +27,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken(), ...(init?.headers ?? {}) },
   })
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`
@@ -39,6 +41,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* respuesta sin JSON */
     }
+    // Fallos del servidor y peticiones rechazadas: al registro de errores (y a Telegram).
+    if (res.status >= 500 || res.status === 403) reportApiFailure(init?.method ?? 'GET', path, res.status, detail)
     throw new ApiError(detail, res.status, body)
   }
   return (res.status === 204 ? undefined : res.json()) as Promise<T>

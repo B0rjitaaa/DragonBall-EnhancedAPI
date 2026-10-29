@@ -10,7 +10,7 @@ Cuando algo falla, sea en el servidor, en una tarea de fondo o en tu navegador, 
 |---|---|
 | **Servidor (API y admin)** | Cualquier error del backend: fallos 500 de la API o del admin (con el método, la dirección y el navegador) y errores registrados por el código. |
 | **Tareas (Celery)** | Errores de las tareas en segundo plano: sincronizaciones, precios, escáner… |
-| **Web (navegador)** | Errores de JavaScript en tu navegador mientras usas la web. Solo en la versión del servidor, no en desarrollo. |
+| **Web (navegador)** | Errores de JavaScript en tu navegador mientras usas la web, y las peticiones a la API que fallan (5xx) o se rechazan (403), agrupadas por método, ruta y código. Solo en la versión del servidor, no en desarrollo. |
 
 En el navegador:
 - se envían como mucho 10 errores distintos por página;

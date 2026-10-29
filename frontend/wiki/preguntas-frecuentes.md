@@ -50,7 +50,11 @@ Confirmar la buena enseña al escáner para la próxima vez.
 
 ### Al guardar algo sale un error «CSRF»
 
-Pasa cuando tienes **la sesión del admin abierta** en el mismo navegador. Cierra sesión en `/admin/`, o usa el admin en una ventana privada. Hay un arreglo preparado pero sin desplegar todavía.
+La web manda siempre el token de seguridad, así que no debería pasar. Si pasa:
+- **«Origin checking failed»:** entras por una dirección que no está en `DJANGO_CSRF_TRUSTED_ORIGINS` (por ejemplo, otra IP o un nombre `.local`). Añádela al `.env` del servidor y aplica con `docker compose up -d`.
+- **«CSRF token missing»:** la página es antigua. Recárgala.
+
+Cualquier 403 queda además en el [registro de errores](registro-de-errores.md).
 
 ### La cámara del móvil no se abre en el escáner
 

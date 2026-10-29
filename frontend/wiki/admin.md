@@ -11,8 +11,8 @@ El **admin** (`/admin/`) es el panel de administración de Django. Desde la web 
 
 El admin está en español y usa la hora de Madrid.
 
-> [!WARNING]
-> Mientras tengas la sesión del admin abierta en un navegador, en ese mismo navegador fallan las acciones de la web que guardan algo (añadir copias, anotar partidas…), con un error «CSRF». Hay un arreglo preparado pero sin desplegar. Mientras tanto, **cierra sesión en el admin** o usa el admin en una ventana privada.
+> [!TIP]
+> Puedes tener el admin y la web abiertos a la vez en el mismo navegador: la web manda el token de seguridad (CSRF) que Django pide cuando hay una sesión iniciada.
 
 ## Secciones
 

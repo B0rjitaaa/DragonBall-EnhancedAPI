@@ -1,7 +1,9 @@
+import { csrfToken, reportApiFailure } from "../lib/errorReporter";
 import type { BinderSpot, CardOption, FrameRegion, Location, Page, Scan, ScanSession, SessionMode } from "./types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  // El token CSRF hace falta si hay sesión iniciada (p. ej. tras entrar en /admin).
+  const response = await fetch(url, { ...init, headers: { "X-CSRFToken": csrfToken(), ...(init?.headers ?? {}) } });
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`;
     try {
@@ -9,6 +11,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       detail = body.detail ?? JSON.stringify(body);
     } catch {
       /* respuesta sin JSON */
+    }
+    if (response.status >= 500 || response.status === 403) {
+      reportApiFailure(init?.method ?? "GET", url.replace(/^\/api/, ""), response.status, detail);
     }
     throw new Error(detail);
   }

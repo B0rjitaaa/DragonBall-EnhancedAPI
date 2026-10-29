@@ -213,6 +213,6 @@ frontend/src/
 
 Las tareas pendientes están en el tablero de Trello del proyecto. Las más importantes:
 
-- Cuentas de usuario (y el arreglo de CSRF con sesión del admin abierta)
+- Cuentas de usuario
 - Seguridad del servidor: no publicar los puertos de Postgres y del backend, SSH solo con clave
 - Exponer la web fuera de casa (Cloudflare Tunnel), después de lo anterior
