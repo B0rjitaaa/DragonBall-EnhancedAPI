@@ -1,6 +1,6 @@
 import type {
   CardDetail, ChangesResponse, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
-  KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, SearchResponse,
+  KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
@@ -121,6 +121,12 @@ export const api = {
   previewCsvImport: (csv: string) => request<CsvImportPreview>('/my-collection/import/', post({ csv })),
   applyCsvImport: (csv: string) =>
     request<{ applied: CsvImportPreview['totals'] }>('/my-collection/import/', post({ csv, apply: true })),
+  /** Restaurar la copia JSON SUSTITUYENDO la colección: sin `apply`, vista previa; con `apply`, la aplica. */
+  previewRestore: (backup: unknown) => request<RestorePreview>('/my-collection/restore/', post({ backup })),
+  applyRestore: (backup: unknown) =>
+    request<{ applied: { copies: number; rows: number; created_locations: number; skipped: number } }>(
+      '/my-collection/restore/', post({ backup, apply: true }),
+    ),
   locations: () => request<Location[]>('/my-collection/locations/'),
   createLocation: (name: string, kind: LocationKind, position = 0) =>
     request<Location>('/my-collection/locations/', post({ name, kind, position })),

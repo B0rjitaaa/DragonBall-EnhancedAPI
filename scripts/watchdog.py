@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Vigilante externo: avisa por Telegram si el servidor (Mint) cae de una forma que él
-mismo no puede avisar. Se ejecuta en otro equipo (la Raspberry) cada 5 minutos por cron.
+"""Vigilante externo: avisa por Telegram si el servidor cae de una forma que él
+mismo no puede avisar. Se ejecuta en otro equipo (el de respaldo) cada 5 minutos por cron.
 
-Dentro de Mint, la tarea cards.tasks.check_health avisa de casi todo, pero necesita a
+Dentro del servidor, la tarea cards.tasks.check_health avisa de casi todo, pero necesita a
 Redis y al worker de Celery. Este script cubre justo lo que ella no ve:
-- Mint no responde (apagado, sin red, nginx parado).
+- El servidor no responde (apagado, sin red, nginx parado).
 - La web responde pero el backend no (Django caído).
 - Redis o el worker de Celery caídos (según /api/health/).
 
@@ -15,7 +15,7 @@ Uso (crontab -e):
   */5 * * * * /usr/bin/python3 /home/USUARIO/dbs-watchdog/watchdog.py /home/USUARIO/dbs-watchdog/watchdog.env
 
 watchdog.env (permisos 600):
-  HEALTH_URL=http://192.168.178.104/api/health/
+  HEALTH_URL=http://192.168.1.50/api/health/
   TELEGRAM_BOT_TOKEN=...
   TELEGRAM_CHAT_ID=...
 """
@@ -31,7 +31,7 @@ ALERT_AFTER = timedelta(minutes=10)
 TIMEOUT = 20
 
 MESSAGES = {
-    "mint": "Mint no responde",
+    "server": "El servidor no responde",
     "backend": "El backend no responde (la web carga, pero sin datos)",
     "redis": "Redis caído (escáner y tareas parados)",
     "worker": "Worker de Celery caído (sync y avisos parados)",
@@ -57,7 +57,7 @@ def problems(url):
     except urllib.error.HTTPError as exc:  # 503: algo crítico caído, el cuerpo dice qué
         body = exc.read()
     except Exception as exc:  # noqa: BLE001 - sin conexión, timeout…
-        return {"mint": str(exc)[:150]}
+        return {"server": str(exc)[:150]}
     try:
         checks = {c["key"]: c for c in json.loads(body)["checks"]}
     except (ValueError, KeyError, TypeError):  # el 503 de nginx no trae las comprobaciones
@@ -106,20 +106,20 @@ def main():
     current = problems(config["HEALTH_URL"])
     if "--test" in sys.argv:
         print(current or "todo en orden")
-        sys.exit(0 if send(config, "👀 <b>Vigilante de la Raspberry activo</b>\nComprueba Mint cada 5 minutos.", silent=True) else 1)
+        sys.exit(0 if send(config, "👀 <b>Vigilante activo</b>\nComprueba el servidor cada 5 minutos.", silent=True) else 1)
 
     for key, detail in current.items():
         entry = state.setdefault(key, {"since": now.isoformat(), "alerted": False})
         since = datetime.fromisoformat(entry["since"])
         if not entry["alerted"] and now - since >= ALERT_AFTER:
-            text = f"🔴 <b>{MESSAGES[key]}</b> desde hace {duration(since, now)}\n{escape(detail)}\n<i>(aviso de la Raspberry)</i>"
+            text = f"🔴 <b>{MESSAGES[key]}</b> desde hace {duration(since, now)}\n{escape(detail)}\n<i>(aviso del vigilante)</i>"
             entry["alerted"] = send(config, text)
 
     for key in [k for k in state if k not in current]:
         entry = state.pop(key)
         if entry["alerted"]:
             since = datetime.fromisoformat(entry["since"])
-            send(config, f"✅ <b>Vuelve a funcionar: {MESSAGES[key]}</b>\nEstuvo fallando {duration(since, now)}.\n<i>(aviso de la Raspberry)</i>")
+            send(config, f"✅ <b>Vuelve a funcionar: {MESSAGES[key]}</b>\nEstuvo fallando {duration(since, now)}.\n<i>(aviso del vigilante)</i>")
 
     with open(state_path, "w", encoding="utf-8") as fh:
         json.dump(state, fh)

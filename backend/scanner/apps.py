@@ -16,5 +16,8 @@ class ScannerConfig(AppConfig):
             # Solo el worker del escáner (cola «scanner»): el del sync no necesita el índice.
             if os.environ.get("SCANNER_WORKER") == "1":
                 from .services import warm_up
+                from .tasks import bootstrap_fingerprints
 
+                # Instalación nueva (catálogo importado de un volcado): calcular las huellas sin pedirlo.
+                bootstrap_fingerprints()
                 warm_up()

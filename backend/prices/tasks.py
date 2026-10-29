@@ -2,8 +2,10 @@
 import logging
 
 from celery import shared_task
+from django.conf import settings
+from django.core.cache import cache
 
-from . import cardmarket, matching, pricing, tcgplayer
+from . import cardmarket, matching, pricing, snapshot, tcgplayer
 
 logger = logging.getLogger(__name__)
 
@@ -18,5 +20,30 @@ def sync_prices() -> dict:
     result["tcgplayer"] = tcgplayer.sync()
     result["tcgplayer_links"] = tcgplayer.match_all()
     result["prices"] = pricing.refresh()
+    snapshot.refresh_file(settings.PRICES_SNAPSHOT)
     logger.info("Precios: %s", result)
     return result
+
+
+def bootstrap_prices() -> bool:
+    """Instalación nueva: hay cartas pero ningún precio (el catálogo llegó después de arrancar, o no había
+    volcado). Carga el volcado si lo hay (con las elecciones a mano de la revisión) y, si no, encola la
+    descarga ya, sin esperar a las 05:15. Una sola vez aunque se llame desde varios sitios."""
+    from cards.models import Card
+
+    from .models import CardPrice
+
+    if CardPrice.objects.exists() or not Card.objects.exists():
+        return False
+    if not cache.add("prices-bootstrap", 1, 3 * 3600):
+        return False
+    source = snapshot.source_file()
+    if source:
+        try:
+            logger.info("Sin precios: se cargan del volcado %s: %s", source, snapshot.load(source))
+            return True
+        except (OSError, ValueError):
+            logger.warning("Volcado de precios ilegible: se descargan", exc_info=True)
+    sync_prices.delay()
+    logger.info("Sin precios: se lanza la primera descarga")
+    return True

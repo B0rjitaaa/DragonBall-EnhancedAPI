@@ -39,7 +39,10 @@ export default function SiteNav({ active }: { active: Page }) {
           </span>
         )}
       </a>
-      <a href="/scan" className={`nav-scan ${active === 'scan' ? 'active' : ''}`}>
+      <a href="/wiki" className={`nav-wiki ${active === 'wiki' ? 'active' : ''}`} title="Guía de uso y documentación">
+        Wiki
+      </a>
+      <a href="/scan" className={active === 'scan' ? 'active' : ''}>
         Escáner
       </a>
     </nav>

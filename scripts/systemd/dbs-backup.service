@@ -5,5 +5,5 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=pc-mint
-ExecStart=/home/pc-mint/Development/DragonBall-EnhancedAPI/scripts/backup.sh
+User=@USER@
+ExecStart=@REPO@/scripts/backup.sh

@@ -4,7 +4,7 @@
 Description=Copia de seguridad pedida desde el admin
 
 [Path]
-PathExists=/home/pc-mint/backups/dbs/request/now
+PathExists=@HOME@/backups/dbs/request/now
 Unit=dbs-backup.service
 
 [Install]

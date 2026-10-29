@@ -1,13 +1,19 @@
 from decimal import Decimal
 from unittest import mock
 
-from django.test import TestCase
+import json
+import tempfile
+from pathlib import Path
+
+from django.core.cache import cache
+from django.core.management import call_command
+from django.test import TestCase, override_settings
 
 from cards.models import Card
 
-from . import cardmarket, matching, pricing
-from .models import CardmarketExpansion, CardmarketLink, CardmarketProduct
-from .tasks import sync_prices
+from . import cardmarket, matching, pricing, snapshot
+from .models import CardmarketExpansion, CardmarketLink, CardmarketProduct, CardPrice, PricePoint
+from .tasks import bootstrap_prices, sync_prices
 
 SET = "Unison Warrior Series -BOOST- Realm of the Gods [DBS-B16]"
 
@@ -98,8 +104,12 @@ class MatchingTests(TestCase):
         with mock.patch("prices.cardmarket._get", side_effect=payloads), \
                 mock.patch("prices.tasks.tcgplayer.fetch_rate", return_value=mock.Mock(usd_per_eur=Decimal("1.10"))), \
                 mock.patch("prices.tasks.tcgplayer.sync", return_value=None), \
-                mock.patch("prices.tasks.tcgplayer.match_all", return_value=0):
+                mock.patch("prices.tasks.tcgplayer.match_all", return_value=0), \
+                tempfile.TemporaryDirectory() as tmp, override_settings(PRICES_SNAPSHOT=f"{tmp}/precios.json"):
             result = sync_prices()
+            # Tras la descarga se rehace el volcado (para que una instalación nueva arranque con precios).
+            dump = json.loads(Path(tmp, "precios.json").read_text())
+            self.assertEqual(dump["counts"]["prices.CardmarketProduct"], CardmarketProduct.objects.count())
         self.assertEqual(result["products"], 1)
         self.assertEqual(CardmarketProduct.objects.get(id=20).price, Decimal("9.50"))
 
@@ -414,3 +424,66 @@ class PromoAndCustomPrintTests(TestCase):
                                   number="BT18-005", rarity="Promo", variant="Event", market_usd=Decimal("2.99"))
         tcgplayer.match_all()
         self.assertEqual(TcgLink.objects.get(card=custom).product_id, 527306)
+
+
+class SnapshotTests(TestCase):
+    """data/precios_dbs.json: una instalación nueva arranca con los precios (y las elecciones a mano)."""
+
+    def setUp(self):
+        self.c1 = card(1, "BT16-001", "Son Goku")
+        self.c2 = card(2, "BT16-002", "Vegeta")
+        product1 = CardmarketProduct.objects.create(id=10, name="Son Goku", expansion=CardmarketExpansion.objects.create(id=100),
+                                                    price=Decimal("2.50"))
+        CardmarketLink.objects.create(card=self.c1, product=product1, method="manual")
+        CardmarketLink.objects.create(card=self.c2, method="price", manual_price=Decimal("7"))
+        pricing.refresh()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name, "precios.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_export_and_load(self):
+        counts = snapshot.export(self.path)
+        self.assertEqual(counts["prices.CardPrice"], 2)
+        CardmarketExpansion.objects.all().delete()
+        CardPrice.objects.all().delete()
+        PricePoint.objects.all().delete()
+        card(3, "BT16-003", "Piccolo")
+        self.c2.delete()  # el catálogo de la otra instalación no tiene esta carta: se salta
+        loaded = snapshot.load(self.path)
+        self.assertEqual(loaded["prices.CardPrice"], 1)
+        link = CardmarketLink.objects.get(card=self.c1)
+        self.assertEqual((link.product_id, link.method), (10, "manual"))
+        self.assertEqual(Card.objects.get(id=1).price.eur, Decimal("2.50"))
+        self.assertEqual(PricePoint.objects.filter(card=self.c1).count(), 1)
+
+    def test_import_command_only_when_empty(self):
+        snapshot.export(self.path)
+        CardPrice.objects.filter(card=self.c1).update(eur=Decimal("99"))
+        call_command("import_prices", str(self.path), "--if-empty", stdout=mock.Mock())
+        self.assertEqual(CardPrice.objects.get(card=self.c1).eur, Decimal("99"))  # ya había precios
+        call_command("import_prices", str(self.path), stdout=mock.Mock())
+        self.assertEqual(CardPrice.objects.get(card=self.c1).eur, Decimal("2.50"))
+        call_command("import_prices", str(Path(self.tmp.name, "no.json")), "--if-empty", stdout=mock.Mock())
+
+    def test_bootstrap_loads_snapshot_first(self):
+        cache.delete("prices-bootstrap")
+        self.addCleanup(cache.delete, "prices-bootstrap")
+        snapshot.export(self.path)
+        CardPrice.objects.all().delete()
+        with override_settings(PRICES_SNAPSHOT=str(self.path)), mock.patch("prices.tasks.sync_prices.delay") as delay:
+            self.assertTrue(bootstrap_prices())
+        delay.assert_not_called()
+        self.assertEqual(CardPrice.objects.count(), 2)
+
+    @mock.patch("prices.tasks.snapshot.source_file", return_value=None)  # ni el del servidor ni el del repo
+    def test_bootstrap_without_snapshot(self, _source):
+        cache.delete("prices-bootstrap")
+        self.addCleanup(cache.delete, "prices-bootstrap")
+        with mock.patch("prices.tasks.sync_prices.delay") as delay:
+            self.assertFalse(bootstrap_prices())  # ya hay precios
+            CardPrice.objects.all().delete()
+            self.assertTrue(bootstrap_prices())
+            self.assertFalse(bootstrap_prices())  # una sola vez
+        delay.assert_called_once()

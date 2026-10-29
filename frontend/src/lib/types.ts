@@ -292,6 +292,21 @@ export interface ChangesResponse {
   results: CardChange[]
 }
 
+/** Vista previa de restaurar la copia JSON (sustituye la colección). */
+export interface RestorePreview {
+  exported_at: string | null
+  before: { copies: number; cards: number }
+  after: { copies: number; cards: number; fakes: number }
+  added: number
+  removed: number
+  create_locations: string[]
+  emptied_locations: string[]
+  locations: { name: string; before: number; after: number; new: boolean }[]
+  changes: { card_id: number; number: string; name: string; location: string; fake: boolean; before: number; after: number }[]
+  changes_total: number
+  skipped: { card: string; reason: string }[]
+}
+
 /** Vista previa de importar Mi colección desde CSV (nunca borra: solo suma copias). */
 export interface CsvImportPreview {
   rows: {
@@ -338,7 +353,6 @@ export interface SearchResponse {
   total_copies?: number
   /** Solo en Mi colección: valor de las copias auténticas que se ven (con los filtros). */
   value?: CollectionValue
-  missing?: string[]
 }
 
 /** Estado del panel facetado: valores marcados (OR / AND) o rango numérico por campo. */

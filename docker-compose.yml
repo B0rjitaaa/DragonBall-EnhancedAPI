@@ -3,7 +3,11 @@ name: dragonball-enhancedapi
 x-backend: &backend
   build: ./backend
   image: dragonball-enhancedapi-backend
-  env_file: .env
+  # Valores por defecto del repo y, encima, el .env de cada equipo (opcional: sin él funciona en local).
+  env_file:
+    - .env.defaults
+    - path: .env
+      required: false
   volumes:
     - ./backend:/app
     - ./data:/data
@@ -84,7 +88,10 @@ services:
     build: ./camera
     image: dragonball-enhancedapi-camera
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - .env.defaults
+      - path: .env
+        required: false
     environment:
       CAMERA_DEVICE_IN_CONTAINER: ${CAMERA_DEVICE:-/dev/video0}
     # Conexión en caliente: en vez de `devices:` (exige que la webcam exista al

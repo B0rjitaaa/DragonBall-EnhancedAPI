@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HTTPS en la red local con una CA propia (sin dominio ni servicios externos).
 #
-# Uso (en el servidor):  scripts/local-https.sh 192.168.178.104 [nombre.local ...]
+# Uso (en el servidor):  scripts/local-https.sh 192.168.1.50 [nombre.local ...]
 #
 # Genera en certs/:
 #   ca.key / ca.crt          CA local (se crea una vez y se reutiliza)

@@ -115,13 +115,13 @@ class BackupHealthTests(HealthFixture, TestCase):
             status, check = self.backup()
         self.assertEqual(status, "ok")
         self.assertTrue(check["ok"])
-        self.assertIn("replicada a la Raspberry", check["detail"])
+        self.assertIn("copiada fuera del servidor", check["detail"])
 
     def test_failed_old_or_not_replicated_is_a_warning(self):
         cases = [
             ({"status": "error", "message": "falló en: volumen media"}, "falló"),
             ({"finished_at": (timezone.now() - timedelta(hours=40)).isoformat()}, "hace"),
-            ({"remote": "error"}, "réplica a la Raspberry falló"),
+            ({"remote": "error"}, "copia fuera del servidor falló"),
         ]
         for fields, text in cases:
             with self.subTest(fields=fields), self.write(**fields):
@@ -195,3 +195,38 @@ class AlertTests(HealthFixture, TestCase):
         SyncRun.objects.create(status=SyncRun.Status.FAILED, error="x")
         self.assertEqual(self.run_check(), ([], []))
         self.assertFalse(cache.get(alerts.STATE_KEY)["cards_sync"]["alerted"])
+
+
+class HeartbeatTests(TestCase):
+    """Latido a Healthchecks.io (o compatible): si deja de llegar, avisa el servicio externo."""
+
+    def report(self, worker_ok=True):
+        return {"checks": [{"key": "worker", "label": "Worker de Celery", "kind": "critical", "ok": worker_ok},
+                           {"key": "backup", "label": "Copia de seguridad", "kind": "warning", "ok": False}]}
+
+    def test_ping_ok_and_fail(self):
+        from cards.alerts import ping_heartbeat
+
+        with mock.patch("cards.alerts.requests.post", return_value=mock.Mock(ok=True)) as post:
+            with override_settings(HEALTHCHECKS_URL=""):
+                self.assertFalse(ping_heartbeat(self.report()))  # sin configurar: nada
+            with override_settings(HEALTHCHECKS_URL="https://hc-ping.com/abc/"):
+                self.assertTrue(ping_heartbeat(self.report()))  # un aviso menor no cuenta: latido normal
+                ping_heartbeat(self.report(worker_ok=False))
+        self.assertEqual([c.args[0] for c in post.call_args_list], ["https://hc-ping.com/abc", "https://hc-ping.com/abc/fail"])
+        self.assertEqual(post.call_args.kwargs["data"], "Worker de Celery".encode())
+
+
+class EnsureAdminTests(TestCase):
+    """Instalación nueva: se crea el administrador si no hay ninguno (admin / admin por defecto)."""
+
+    def test_creates_only_when_missing(self):
+        from django.contrib.auth import authenticate, get_user_model
+        from django.core.management import call_command
+
+        with mock.patch.dict("os.environ", {"DJANGO_SUPERUSER_USERNAME": "", "DJANGO_SUPERUSER_PASSWORD": ""}):
+            call_command("ensure_admin", stdout=mock.Mock())
+        self.assertTrue(authenticate(username="admin", password="admin"))
+        with mock.patch.dict("os.environ", {"DJANGO_SUPERUSER_USERNAME": "otro", "DJANGO_SUPERUSER_PASSWORD": "x"}):
+            call_command("ensure_admin", stdout=mock.Mock())
+        self.assertEqual(get_user_model().objects.count(), 1)  # ya había uno: no toca nada

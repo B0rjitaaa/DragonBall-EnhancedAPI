@@ -51,8 +51,8 @@
         {% if last.status != 'ok' %}· <strong>{{ last.message }}</strong>{% endif %}
       </p>
       <p>
-        Raspberry:
-        {% if last.remote == 'ok' %}✅ replicada{% elif last.remote == 'error' %}❌ la réplica falló{% else %}<span class="bk-muted">no configurada</span>{% endif %}
+        Copia fuera del servidor:
+        {% if last.remote == 'ok' %}✅ copiada{% elif last.remote == 'error' %}❌ falló{% else %}<span class="bk-muted">no configurada</span>{% endif %}
       </p>
     {% endif %}
     <div class="bk-actions">
@@ -62,7 +62,7 @@
           <input type="submit" class="default" value="Hacer copia ahora" {% if state.running or state.requested %}disabled{% endif %}>
         </form>
       {% endif %}
-      <p class="help">La copia diaria se hace sola a las 03:30. Se guardan 7 diarias y 4 semanales, también en la Raspberry.</p>
+      <p class="help">La copia diaria se hace sola a las 03:30. Se guardan 7 diarias y 4 semanales, y, si está configurada, otra fuera del servidor.</p>
     </div>
   </section>
   {% endwith %}

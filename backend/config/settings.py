@@ -240,11 +240,17 @@ BACKUP_REQUEST_DIR = env("BACKUP_REQUEST_DIR", "/backup-request")
 CARDMARKET_GAME_ID = int(env("CARDMARKET_GAME_ID", "13"))
 # Y de TCGplayer (vía tcgcsv.com): Dragon Ball Super (Masters) es la categoría 27.
 TCGPLAYER_CATEGORY_ID = int(env("TCGPLAYER_CATEGORY_ID", "27"))
+# Volcado de los precios (prices/snapshot.py): se rehace tras cada descarga diaria y una instalación nueva lo
+# carga al arrancar (como data/cartas_dbs.json). Vacío: no se escribe.
+PRICES_SNAPSHOT = env("PRICES_SNAPSHOT", "/data/precios_dbs.json")
 ERRATA_URL = env("ERRATA_URL", "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php")
 CARD_FAQ_URL = env("CARD_FAQ_URL", "https://www.dbs-cardgame.com/us-en/rule/card_faq.php")
 # Avisos por Telegram (cards/alerts.py) cuando algo de /api/health/ falla. Vacíos: sin avisos.
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = env("TELEGRAM_CHAT_ID", "")
+# Vigilante externo (opcional): URL de ping de Healthchecks.io o compatible. Cada 5 min se le manda un latido;
+# si deja de llegar, avisa él (sirve aunque el servidor no sea accesible desde Internet).
+HEALTHCHECKS_URL = env("HEALTHCHECKS_URL", "")
 
 LOGGING = {
     "version": 1,

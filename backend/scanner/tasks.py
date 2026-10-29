@@ -122,6 +122,21 @@ def _delete_photos(scan) -> None:
     scan.save(update_fields=["image", "cropped_image"])
 
 
+def bootstrap_fingerprints() -> bool:
+    """Hay cartas sin huella (instalación nueva con el catálogo de un volcado, o un cálculo que se cortó al
+    reiniciar): las calcula en segundo plano. Las cartas que lleguen después las añade el propio sync."""
+    from cards.models import Card
+
+    from .models import CardFingerprint
+
+    with_print = CardFingerprint.objects.values("card_id").distinct().count()
+    if with_print >= Card.objects.count():
+        return False
+    build_fingerprints.delay()
+    logger.info("Cartas sin huella (%s con huella): se calculan", with_print)
+    return True
+
+
 @shared_task
 def build_fingerprints(force: bool = False, card_ids: list[int] | None = None):
     """Huellas de las impresiones nuevas o con imagen cambiada (tras sincronizar o add_printing)."""

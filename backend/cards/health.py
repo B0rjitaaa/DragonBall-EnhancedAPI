@@ -101,9 +101,9 @@ def _backup():
         return False, f"la última copia es de {_ago(finished)}"
     detail = f"última copia {_ago(finished)}" + (f", {size}" if size else "")
     if status.get("remote") == "error":
-        return False, detail + "; la réplica a la Raspberry falló"
+        return False, detail + "; la copia fuera del servidor falló"
     if status.get("remote") == "ok":
-        detail += "; replicada a la Raspberry"
+        detail += "; copiada fuera del servidor"
     return True, detail
 
 

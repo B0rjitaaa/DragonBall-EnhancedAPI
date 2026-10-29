@@ -686,6 +686,23 @@ class MyCollectionImportView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class MyCollectionRestoreView(APIView):
+    """Restaura Mi colección desde la copia JSON de «Descargar copia», SUSTITUYENDO las copias actuales.
+    Body: {backup: el JSON de la copia, apply: bool}. Sin `apply` devuelve la vista previa (qué se quita, qué
+    se añade, qué ubicaciones se crean o se vacían); con `apply` lo aplica todo de una vez."""
+
+    def post(self, request):
+        from collection import restore
+
+        doc = request.data.get("backup")
+        try:
+            if request.data.get("apply"):
+                return Response({"applied": restore.apply(doc)})
+            return Response(restore.preview(doc))
+        except restore.RestoreError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 def card_thumb(request, card_id: int, version: str):
     """Miniatura WebP de una carta (se genera la primera vez). Si no se puede, la imagen original."""
     card = Card.objects.filter(id=card_id).only("id", "image_url").first()

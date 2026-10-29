@@ -8,6 +8,7 @@ import DeckView from './components/DeckView'
 import OwnedPanel, { type Spot } from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
 import CsvImport from './components/CsvImport'
+import RestoreBackup from './components/RestoreBackup'
 import { useOpenCard } from './lib/cardLink'
 import { api, ApiError, COLLECTION_BACKUP_URL, COLLECTION_CSV_URL, type Scope } from './lib/api'
 import {
@@ -55,6 +56,15 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const [contextFacets, setContextFacets] = useState<Record<string, Facet> | null>(null)
   const [bootError, setBootError] = useState<string | null>(null)
   const [skills, setSkills] = useState<SkillIndex>(SkillIndex.empty)
+  const [skillsReady, setSkillsReady] = useState(false)
+  // Filtro pedido desde otra página (Novedades, Precios: /?add=<campo>&value=<valor>). Se aplica igual que
+  // un clic en la ficha, cuando ya se conocen las keyword skills ('[Over Realm 3]' → «Over Realm X»).
+  const [pendingFilter] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    const field = params.get('add')
+    const value = params.get('value')
+    return field && value ? { field, value } : null
+  })
 
   const [q, setQ] = useState(initial.q ?? '')
   const [qFocused, setQFocused] = useState(false)
@@ -135,6 +145,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
       .keywordSkills()
       .then((d) => setSkills(new SkillIndex(d)))
       .catch(() => undefined) // sin tooltips si falla, el buscador sigue funcionando
+      .finally(() => setSkillsReady(true))
   }, [])
   // Recuentos de los filtros (dependen del ámbito, la ubicación y las falsas).
   useEffect(() => {
@@ -250,6 +261,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     setPage(1)
     setOpenId(null)
   }, [skills])
+
+  useEffect(() => {
+    if (pendingFilter && skillsReady) addFilter(pendingFilter.field, pendingFilter.value)
+  }, [pendingFilter, skillsReady, addFilter])
 
   const clearAll = () => {
     setQ('')
@@ -526,13 +541,6 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             </div>
           )}
 
-          {inCollection && data?.missing && data.missing.length > 0 && (
-            <div className="legal-banner limited">
-              {data.missing.length} carta(s) escaneada(s) aún no están en este catálogo (¿set nuevo? aparecerán tras el
-              próximo sync): {data.missing.join(', ')}
-            </div>
-          )}
-
           <div className="results-head">
             <span>
               {data ? (
@@ -627,6 +635,14 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             )}
             {inCollection && (
               <CsvImport
+                onDone={() => {
+                  setReloadTick((t) => t + 1)
+                  reloadLocations()
+                }}
+              />
+            )}
+            {inCollection && (
+              <RestoreBackup
                 onDone={() => {
                   setReloadTick((t) => t + 1)
                   reloadLocations()

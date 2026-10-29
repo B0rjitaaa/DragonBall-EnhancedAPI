@@ -4,6 +4,8 @@ Buscador avanzado de cartas de **Dragon Ball Super Card Game** (BT1–BT31, prom
 con filtros por todos los atributos de `card_config`, por habilidades (`[Activate: Main]`, `[Limit 1]`,
 `[Counter: Play]`…) y búsquedas anidadas **Y / O / NO**.
 
+> 📖 **Documentación completa en la [wiki](frontend/wiki/README.md)** (también en la web, en `/wiki`): uso de cada sección, precios, escáner, admin, arquitectura, tareas, despliegue y API.
+
 | Servicio        | Tecnología                         | Puerto |
 |-----------------|------------------------------------|--------|
 | `frontend`      | React 19 + Vite + TypeScript       | 5173   |
@@ -16,17 +18,21 @@ con filtros por todos los atributos de `card_config`, por habilidades (`[Activat
 ## Arranque
 
 ```bash
-cp .env.example .env              # ajusta DJANGO_SECRET_KEY si vas a exponerlo
-cp /ruta/a/cartas_dbs.json data/  # opcional: importación inicial sin esperar a Bandai
-make up                           # = docker compose up -d --build
+git clone https://github.com/B0rjitaaa/DragonBall-EnhancedAPI.git && cd DragonBall-EnhancedAPI
+docker compose up -d              # o `make install`, que además espera y resume
+# En un servidor de casa (nginx, HTTPS, claves aleatorias, despliegue con git pull): make install SERVER=<ip>
 ```
 
 - Web: <http://localhost:5173>
 - API: <http://localhost:8000/api/> · Swagger: <http://localhost:8000/api/docs/>
-- Admin: <http://localhost:8000/admin/> (crea usuario con `make superuser`)
+- Admin: <http://localhost:8000/admin/> (**admin / admin**, se crea solo; en un servidor, contraseña aleatoria)
 
-Si `data/cartas_dbs.json` existe y la BD está vacía, se importa solo al arrancar.
-Si no, lanza `make sync` y el worker descargará todo desde Bandai.
+No hace falta `.env`: `.env.defaults` trae valores para local; un `.env` solo cambia lo que quieras.
+
+El repositorio trae el catálogo y los precios (`data/seed/`): con la BD vacía se importan solos al arrancar
+(si hay un volcado más reciente en `data/cartas_dbs.json` o `data/precios_dbs.json`, se usa ese), y las huellas
+del escáner se calculan solas en segundo plano. `make seed` pone al día `data/seed/` con los datos de una instalación.
+Paso a paso en la [wiki](frontend/wiki/instalacion.md).
 
 ## Actualizar tras un `git pull` (migraciones incluidas)
 
@@ -34,7 +40,7 @@ Si no, lanza `make sync` y el worker descargará todo desde Bandai.
 make deploy   # git pull + rebuild si cambian dependencias + migraciones + reinicio de backend/Celery
 ```
 
-Para que ocurra solo en cada `git pull` sobre `main` (recomendado en el servidor / Raspberry Pi),
+Para que ocurra solo en cada `git pull` sobre `main` (recomendado en el servidor, el servidor),
 activa una vez el hook del repositorio:
 
 ```bash
@@ -45,15 +51,15 @@ A partir de ahí, `git pull` ejecuta `scripts/deploy.sh`: reconstruye imágenes 
 `requirements.txt`, `package.json` o los Dockerfiles, aplica migraciones y reinicia backend y Celery.
 Para saltarlo puntualmente: `SKIP_DEPLOY_HOOK=1 git pull`.
 
-## Modo producción (Raspberry Pi)
+## Modo producción (servidor servidor)
 
-En máquinas con poca RAM (la Pi 3, 905 MB), usa el modo producción ligero, que ahorra ~250 MB. Añade al `.env`:
+En el servidor (el servidor, `192.168.1.50`) se usa el modo producción, más ligero (ahorra ~250 MB). Añade al `.env`:
 
 ```bash
 COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
 ```
 
-- **Frontend:** build estático servido por Nginx en lugar del servidor de Vite (misma URL, `:5173`).
+- **Frontend:** build estático servido por Nginx en lugar del servidor de Vite, en `:80`, `:443` (HTTPS, para la cámara del móvil) y `:5173` (enlaces antiguos).
 - **Backend:** gunicorn (1 proceso, 4 hilos) en lugar de `runserver`. WhiteNoise sirve los estáticos de `/admin`.
 
 `scripts/deploy.sh` lo detecta: en este modo, cualquier cambio en `frontend/` reconstruye el build.
@@ -62,14 +68,25 @@ En todos los entornos, el worker de Celery corre con concurrencia 1 y `--max-mem
 
 ## Sincronización con Bandai (Celery)
 
-Programado en `config/settings.py → CELERY_BEAT_SCHEDULE` (editable luego desde `/admin` → *Periodic tasks*):
+Programado en `config/settings.py → CELERY_BEAT_SCHEDULE` (hora de Madrid). Se ve en `/admin` → *Periodic tasks*,
+pero los cambios hechos ahí se pierden al reiniciar `celery_beat` (cada despliegue): los horarios se cambian en `settings.py`.
 
-| Tarea                    | Cuándo              | Qué hace                                  |
-|--------------------------|---------------------|-------------------------------------------|
-| `sync-new-cards-daily`   | Todos los días 04:00 | Descarga solo las cartas nuevas          |
-| `sync-all-cards-weekly`  | Domingos 05:00       | Vuelve a descargar todas (erratas, textos)|
-| `sync-banlist-daily`     | Todos los días 03:30 | Lista oficial Banned/Limited              |
-| `sync-keyword-skills-weekly` | Lunes 03:45      | Keyword skills oficiales y sus textos     |
+| Tarea                        | Cuándo                    | Qué hace                                                        |
+|------------------------------|---------------------------|-----------------------------------------------------------------|
+| `check-health-alerts`        | Cada 5 min                | Comprueba `/api/health/` y avisa por Telegram                   |
+| `scanner-keep-warm`          | Cada 60 s                 | Mantiene cargado el reconocimiento del escáner                  |
+| `scanner-cleanup-old-scans`  | Cada hora (minuto 10)     | Borra fotos de escaneos de más de 24 h (y si pasan de 2 GB)     |
+| `sync-banlist-daily`         | Todos los días 03:30      | Lista oficial Banned/Limited                                    |
+| `sync-new-cards-daily`       | Todos los días 04:00      | Descarga solo las cartas nuevas                                 |
+| `sync-prices-daily`          | Todos los días 05:15      | Cardmarket, TCGplayer, cambio del dólar y precio de cada carta  |
+| `purge-resolved-errors`      | Todos los días 05:30      | Borra los errores resueltos hace más de 90 días                 |
+| `sync-keyword-skills-weekly` | Lunes 03:45               | Keyword skills oficiales y sus textos                           |
+| `sync-errata-weekly`         | Lunes 03:50               | Erratas oficiales                                               |
+| `sync-rulings-weekly`        | Lunes 03:55               | Card Q&A oficial                                                |
+| `sync-all-cards-weekly`      | Domingos 05:00            | Vuelve a descargar todas (erratas, textos)                      |
+
+Fuera de Celery: la copia de seguridad diaria (03:30, systemd en el servidor) y, si se configura, la vigilancia de caídas desde fuera (Healthchecks.io o `scripts/watchdog.py` en otro equipo).
+Detalle en la [wiki](frontend/wiki/tareas-programadas.md).
 
 El cliente (`cards/bandai.py`) usa `curl_cffi` (huella de Chrome), limita el ritmo
 (`BANDAI_REQUEST_DELAY`, `BANDAI_WORKERS`) y, si Bandai devuelve 403/429, pausa y reintenta.
@@ -194,6 +211,8 @@ frontend/src/
 
 ## Pendiente / siguientes pasos
 
-- `docker-compose.prod.yml` (gunicorn + build estático del front con nginx)
-- Agrupar alt-arts por `card_number`
-- Mazos / colecciones de usuario
+Las tareas pendientes están en el tablero de Trello del proyecto. Las más importantes:
+
+- Cuentas de usuario (y el arreglo de CSRF con sesión del admin abierta)
+- Seguridad del servidor: no publicar los puertos de Postgres y del backend, SSH solo con clave
+- Exponer la web fuera de casa (Cloudflare Tunnel), después de lo anterior

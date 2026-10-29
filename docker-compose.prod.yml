@@ -1,4 +1,4 @@
-# Modo producción ligero (Raspberry Pi). Se activa en el .env de la Pi con:
+# Modo producción (el servidor de casa: nginx + gunicorn). Se activa en el .env del servidor con:
 #   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
 #
 # Frente al modo desarrollo ahorra ~250 MB de RAM:

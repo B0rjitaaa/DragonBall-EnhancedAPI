@@ -216,3 +216,70 @@ class LocationTests(TestCase):
     def test_unplaced_cannot_be_deleted(self):
         default = self.Location.default()
         self.assertEqual(self.client.delete(f"/api/my-collection/locations/{default.id}/").status_code, 400)
+
+
+class RestoreBackupTests(TestCase):
+    """Restaurar la copia JSON («Descargar copia») sustituyendo la colección: vista previa y aplicación."""
+
+    def setUp(self):
+        from collection.models import CollectionEntry, Location
+        from decks.models import SideCard
+
+        self.Entry, self.Location, self.Side = CollectionEntry, Location, SideCard
+        self.goku = Card.objects.create(id=1, card_number="BT1-001", name="Goku")
+        self.vegeta = Card.objects.create(id=2, card_number="BT1-002", name="Vegeta")
+        self.cell = Card.objects.create(id=3, card_number="BT1-003", name="Cell")
+        self.deck = Location.objects.create(name="Mazo rojo", kind="deck")
+        self.box = Location.objects.create(name="Caja 1", kind="storage")
+        self.client = APIClient()
+        # La copia: 4 Goku y 1 Vegeta falsa en el mazo, 2 Cell en una caja nueva.
+        self.Entry.objects.create(card=self.goku, location=self.deck, quantity=4, notes="pág. 1")
+        self.Entry.objects.create(card=self.vegeta, location=self.deck, quantity=1, fake=True)
+        self.Entry.objects.create(card=self.cell, location=self.box, quantity=2)
+        self.backup = self.client.get("/api/my-collection/backup/").json()
+        self.backup["locations"].append({"name": "Caja nueva", "kind": "almacén", "notes": "armario"})
+        for row in self.backup["cards"]:
+            if row["id"] == 3:
+                row["location"] = "Caja nueva"
+        self.backup["cards"].append({"id": 999, "number": "XX-1", "name": "Inventada", "qty": 1, "location": ""})
+        # Lo actual (después de la copia): se ha perdido Goku del mazo y hay 3 Vegeta en la caja.
+        self.Entry.objects.filter(card=self.goku).delete()
+        self.Entry.objects.create(card=self.vegeta, location=self.box, quantity=3)
+        self.Side.objects.create(deck=self.deck, card=self.vegeta, quantity=1)
+        self.Side.objects.create(deck=self.box, card=self.vegeta, quantity=3)
+
+    def restore(self, apply=False, backup=None):
+        return self.client.post("/api/my-collection/restore/", {"backup": backup or self.backup, "apply": apply},
+                                format="json")
+
+    def state(self):
+        return {(e.card_id, e.location.name, e.fake): e.quantity for e in self.Entry.objects.select_related("location")}
+
+    def test_preview_shows_what_changes_without_touching_anything(self):
+        before = self.state()
+        data = self.restore().json()
+        self.assertEqual(self.state(), before)
+        self.assertEqual((data["before"]["copies"], data["after"]["copies"]), (6, 7))
+        self.assertEqual((data["added"], data["removed"]), (6, 5))  # +4 Goku +2 Cell nueva · −3 Vegeta −2 Cell caja
+        self.assertEqual(data["create_locations"], ["Caja nueva"])
+        self.assertEqual(data["emptied_locations"], ["Caja 1"])
+        self.assertEqual(data["skipped"], [{"card": "XX-1 Inventada", "reason": "no está en el catálogo"}])
+        self.assertIn({"card_id": 1, "number": "BT1-001", "name": "Goku", "location": "Mazo rojo", "fake": False,
+                       "before": 0, "after": 4}, data["changes"])
+
+    def test_apply_replaces_the_collection(self):
+        data = self.restore(apply=True).json()
+        self.assertEqual(data["applied"]["copies"], 7)
+        self.assertEqual(self.state(), {(1, "Mazo rojo", False): 4, (2, "Mazo rojo", True): 1, (3, "Caja nueva", False): 2})
+        new = self.Location.objects.get(name="Caja nueva")
+        self.assertEqual((new.kind, new.notes), ("storage", "armario"))
+        self.assertTrue(self.Location.objects.filter(name="Caja 1").exists())  # se vacía, no se borra
+        self.assertEqual(self.Entry.objects.get(card=self.goku).notes, "pág. 1")
+        # Side deck: en el mazo sigue (hay 1 Vegeta); en la caja ya no hay Vegeta.
+        self.assertEqual(list(self.Side.objects.values_list("deck__name", "quantity")), [("Mazo rojo", 1)])
+        self.assertEqual(self.restore().json()["changes_total"], 0)  # restaurada: ya no hay diferencias
+
+    def test_rejects_other_files(self):
+        response = self.restore(backup={"cards": []})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("dbs-collection", response.json()["detail"])

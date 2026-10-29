@@ -1,14 +1,14 @@
-import json
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
 from cards.importer import upsert_cards
 from cards.models import Card
+from cards.seed import read_json
 
 
 class Command(BaseCommand):
-    help = "Importa cartas desde un JSON descargado (p. ej. cartas_dbs.json del script dbs_cards_downloader.py)."
+    help = "Importa cartas desde un JSON descargado (cartas_dbs.json, o el volcado del repo .json.gz)."
 
     def add_arguments(self, parser):
         parser.add_argument("path", nargs="?", default="/data/cartas_dbs.json")
@@ -25,7 +25,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"No existe {file}: se omite la importación inicial.")
                 return
             raise CommandError(f"No existe {file}")
-        data = json.loads(file.read_text(encoding="utf-8"))
+        data = read_json(file)
         if isinstance(data, dict):  # por si viene como {"cards": [...]}
             data = data.get("cards") or list(data.values())
         created, updated, errors = upsert_cards(data)

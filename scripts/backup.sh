@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copia de seguridad de la base de datos de DragonBall-EnhancedAPI (catálogo,
 # colección, mazos y escáner) y de sus volúmenes de datos (imágenes propias de impresiones),
-# con verificación, rotación y copia opcional a otro equipo.
+# con verificación, rotación y copia opcional fuera del servidor (otro equipo por rsync o la nube con rclone).
 #
 # Uso:    scripts/backup.sh          (a diario lo lanza dbs-backup.timer; desde el admin,
 #         «Hacer copia ahora» deja $BACKUP_DIR/request/now y dbs-backup-request.path la lanza)
@@ -11,8 +11,10 @@
 #                    (este clon)
 #   KEEP_DAILY       copias diarias a conservar          (7)
 #   KEEP_WEEKLY      copias semanales (domingos)         (4)
-#   BACKUP_REMOTE    destino rsync fuera del equipo, p. ej. usuario@192.168.178.83:  (vacío = no)
+#   BACKUP_REMOTE    destino rsync fuera del equipo, p. ej. usuario@192.168.1.60:  (vacío = no)
 #   BACKUP_SSH_KEY   clave SSH para BACKUP_REMOTE        (~/.ssh/dbs_backup_ed25519)
+#   BACKUP_RCLONE    destino rclone en la nube, p. ej. b2:mis-copias/dbs o gdrive:dbs  (vacío = no;
+#                    hace falta rclone instalado y el remoto creado con `rclone config`)
 #
 # Restaurar: pg_restore --clean -U <usuario> -d <bd> < copia.dump (dentro del contenedor db),
 # y los volúmenes con: docker run --rm -v <proyecto>_<volumen>:/data -i alpine tar xzf - -C /data < copia.tgz
@@ -27,6 +29,7 @@ KEEP_DAILY="${KEEP_DAILY:-7}"
 KEEP_WEEKLY="${KEEP_WEEKLY:-4}"
 BACKUP_REMOTE="${BACKUP_REMOTE:-}"
 BACKUP_SSH_KEY="${BACKUP_SSH_KEY:-$HOME/.ssh/dbs_backup_ed25519}"
+BACKUP_RCLONE="${BACKUP_RCLONE:-}"
 
 log() { echo "$*"; logger -t dbs-backup "$*" 2>/dev/null || true; }
 env_value() { grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' || true; }
@@ -137,6 +140,17 @@ if [ -n "$BACKUP_REMOTE" ]; then
     else
         REMOTE_STATUS="error"
         log "copia remota a $BACKUP_REMOTE FALLIDA"
+    fi
+fi
+# Copia en la nube (Backblaze B2, Google Drive, Dropbox, S3…). Como la remota: si falla, se anota.
+if [ -n "$BACKUP_RCLONE" ]; then
+    STEP="copia en la nube"
+    if rclone sync "$BACKUP_DIR/" "$BACKUP_RCLONE" --exclude /running.json --exclude "/request/**" --links --quiet; then
+        [ "$REMOTE_STATUS" = "error" ] || REMOTE_STATUS="ok"
+        log "copia en la nube a $BACKUP_RCLONE"
+    else
+        REMOTE_STATUS="error"
+        log "copia en la nube a $BACKUP_RCLONE FALLIDA"
     fi
 fi
 

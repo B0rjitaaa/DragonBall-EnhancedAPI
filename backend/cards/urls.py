@@ -21,6 +21,7 @@ urlpatterns = [
     path("my-collection/backup/", views.MyCollectionBackupView.as_view(), name="my-collection-backup"),
     path("my-collection/csv/", views.MyCollectionCsvView.as_view(), name="my-collection-csv"),
     path("my-collection/import/", views.MyCollectionImportView.as_view(), name="my-collection-import"),
+    path("my-collection/restore/", views.MyCollectionRestoreView.as_view(), name="my-collection-restore"),
     path("my-collection/move/", views.MyCollectionMoveView.as_view(), name="my-collection-move"),
     path("my-collection/note/", views.MyCollectionNoteView.as_view(), name="my-collection-note"),
     path("my-collection/reorder/", views.MyCollectionReorderView.as_view(), name="my-collection-reorder"),

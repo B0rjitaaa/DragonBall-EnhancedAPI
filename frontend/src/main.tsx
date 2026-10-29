@@ -18,6 +18,8 @@ installErrorReporter()
 upgradeLegacyUrl()
 // El escáner (cámara, React Query…) solo se descarga al abrir /scan.
 const ScanPage = lazy(() => import('./scan/ScanPage.tsx'))
+// La wiki (Markdown y su intérprete) solo se descarga al abrir /wiki.
+const WikiPage = lazy(() => import('./WikiPage.tsx'))
 const page = currentPage()
 
 createRoot(document.getElementById('root')!).render(
@@ -30,6 +32,10 @@ createRoot(document.getElementById('root')!).render(
       <NewsPage />
     ) : page === 'prices' ? (
       <PricesPage />
+    ) : page === 'wiki' ? (
+      <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Cargando la wiki…</p>}>
+        <WikiPage />
+      </Suspense>
     ) : page === 'notfound' ? (
       <NotFoundPage />
     ) : page === 'scan' ? (

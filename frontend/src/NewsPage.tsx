@@ -168,7 +168,7 @@ export default function NewsPage() {
           skills={skills}
           onClose={() => setOpenId(null)}
           onFilter={(field, value) => {
-            window.location.href = `/?filters=${encodeURIComponent(JSON.stringify({ [field]: { values: [value], match: 'any' } }))}`
+            window.location.href = `/?add=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`
           }}
         />
       )}

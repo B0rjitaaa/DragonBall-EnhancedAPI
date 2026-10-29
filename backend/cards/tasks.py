@@ -83,6 +83,11 @@ def sync_cards(full: bool = False) -> dict:
         from scanner.tasks import build_fingerprints
 
         build_fingerprints.delay()
+    if run.created:
+        # Primer catálogo sin volcado de precios: descargarlos ya.
+        from prices.tasks import bootstrap_prices
+
+        bootstrap_prices()
 
     return {
         "run": run.pk, "status": run.status, "listed": run.listed,

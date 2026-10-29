@@ -3,7 +3,15 @@ import { useState } from "react";
 
 import { api } from "../api";
 import ScanResult from "../components/ScanResult";
-import type { Scan } from "../types";
+import type { Scan, ScanStatus } from "../types";
+
+const SOURCE_LABEL: Record<Scan["source"], string> = { camera: "Cámara", upload: "Foto subida" };
+const STATUS_LABEL: Record<ScanStatus, string> = {
+  pending: "En cola…",
+  processing: "Identificando…",
+  done: "Hecho",
+  failed: "Error",
+};
 
 export default function History() {
   const [page, setPage] = useState(1);
@@ -35,10 +43,10 @@ export default function History() {
             <tr key={scan.id} className={scan.needs_review ? "warn-row" : ""} onClick={() => setSelected(scan)}>
               <td>{scan.cropped_image && <img className="thumb" src={scan.cropped_image} alt="" />}</td>
               <td>{new Date(scan.created_at).toLocaleString()}</td>
-              <td>{scan.source}</td>
+              <td>{SOURCE_LABEL[scan.source] ?? scan.source}</td>
               <td>
                 {scan.status !== "done"
-                  ? scan.status
+                  ? STATUS_LABEL[scan.status]
                   : scan.matched_card
                     ? `${scan.matched_card.card_number} · ${scan.matched_card.name}`
                     : "—"}

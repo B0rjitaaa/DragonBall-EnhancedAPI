@@ -7,8 +7,9 @@ Lo ejecuta cada 5 minutos la tarea `cards.tasks.check_health` (Celery beat):
   sin sonido; ya llevan su propio margen (días u horas) en health.py.
 - Cada problema se avisa una sola vez, y otra cuando se arregla.
 
-Lo que esta tarea no puede ver (Mint apagado, Redis o el worker de Celery caídos) lo
-vigila desde fuera scripts/watchdog.py, en la Raspberry.
+Lo que esta tarea no puede ver (el servidor apagado, Redis o el worker de Celery caídos) lo vigila
+desde fuera, si se configura: un latido a Healthchecks.io (`ping_heartbeat`) o scripts/watchdog.py
+en otro equipo de casa.
 """
 from __future__ import annotations
 
@@ -57,6 +58,22 @@ def _duration(since: datetime) -> str:
     return f"{minutes // 1440} días"
 
 
+def ping_heartbeat(report: dict) -> bool:
+    """Latido a un vigilante externo (Healthchecks.io o compatible; HEALTHCHECKS_URL). Se manda cada 5 min:
+    si deja de llegar (servidor apagado, sin Internet, Celery o Redis caídos), es el servicio externo el que
+    avisa. Con algo crítico caído se manda a «/fail» (aviso inmediato). Sin URL, no hace nada."""
+    url = settings.HEALTHCHECKS_URL.rstrip("/")
+    if not url:
+        return False
+    down = [c["label"] for c in report["checks"] if c["kind"] == "critical" and c["ok"] is False]
+    try:
+        response = requests.post(f"{url}/fail" if down else url, data=", ".join(down).encode(), timeout=10)
+        return response.ok
+    except requests.RequestException:
+        logger.warning("No se pudo mandar el latido a %s", url, exc_info=True)
+        return False
+
+
 def check_and_alert() -> list[str]:
     """Compara el estado actual con el de la vez anterior y avisa de los cambios.
 
@@ -67,8 +84,10 @@ def check_and_alert() -> list[str]:
     state: dict = cache.get(STATE_KEY) or {}
     sent = []
     failing = set()
+    report = system_health()
+    ping_heartbeat(report)
 
-    for check in system_health()["checks"]:
+    for check in report["checks"]:
         key, kind = check["key"], check["kind"]
         if kind == "optional":
             continue
