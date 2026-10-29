@@ -67,8 +67,8 @@ def build_pending(force: bool = False, limit: int | None = None, card_ids=None) 
             ok += 1
         except Exception as exc:  # noqa: BLE001 - una imagen rota no para el lote
             errors += 1
-            logger.warning("Fingerprint %s/%s falló: %s", card.card_number, face, exc)
+            logger.warning("Fingerprint %s/%s failed: %s", card.card_number, face, exc)
         if (ok + errors) % 500 == 0:
-            logger.info("Fingerprints: %s ok, %s errores", ok, errors)
-    logger.info("Fingerprints terminados: %s ok, %s errores", ok, errors)
+            logger.info("Fingerprints: %s ok, %s errors", ok, errors)
+    logger.info("Fingerprints finished: %s ok, %s errors", ok, errors)
     return ok, errors

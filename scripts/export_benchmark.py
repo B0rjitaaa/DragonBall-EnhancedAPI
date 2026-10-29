@@ -24,7 +24,7 @@ os.makedirs(IMG_DIR)
 rows = list(CardFingerprint.objects.filter(face="front").values_list("id", "card_id", "phash", "dhash"))
 index = FingerprintIndex.from_rows(rows)
 official_cards = set(index.card_ids.tolist())
-print(f"Huellas oficiales (front): {len(rows)} | cartas: {len(official_cards)}")
+print(f"Official fingerprints (front): {len(rows)} | cards: {len(official_cards)}")
 
 requested: set[int] = set()
 
@@ -60,7 +60,7 @@ for s in candidates_scans:
         result = identify(img, index, load_orb, hash_threshold=settings.MATCH_HASH_THRESHOLD,
                           orb_candidates=8, orb_wide=8)
     except Exception as exc:  # noqa: BLE001
-        print("  salto scan", s.id, exc)
+        print("  skipping scan", s.id, exc)
         continue
     if not result.best or result.best.card_id != s.matched_card_id:
         continue  # solo los que acierta con huellas oficiales (sobre la foto ya reducida)
@@ -70,7 +70,7 @@ for s in candidates_scans:
                      "card_number": s.matched_card.card_number, "confidence": round(result.confidence, 3)})
     seen_cards.add(s.matched_card_id)
 
-print(f"Escaneos en el benchmark: {len(manifest)} | huellas ORB a exportar: {len(requested)}")
+print(f"Scans in the benchmark: {len(manifest)} | ORB fingerprints to export: {len(requested)}")
 
 # Guardar índice de hash (compacto) y ORB solo de los pedidos
 np.savez_compressed(f"{OUT}/hash_index.npz",
@@ -84,4 +84,4 @@ json.dump(manifest, open(f"{OUT}/manifest.json", "w"), ensure_ascii=False, inden
 
 import subprocess
 sz = subprocess.check_output(["du", "-sh", OUT]).decode().split()[0]
-print(f"Benchmark listo en {OUT} ({sz}): {len(manifest)} fotos, hash_index.npz, orb.npz, manifest.json")
+print(f"Benchmark ready in {OUT} ({sz}): {len(manifest)} photos, hash_index.npz, orb.npz, manifest.json")

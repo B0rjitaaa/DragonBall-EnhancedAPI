@@ -72,7 +72,7 @@ def warm_up(log: bool = True):
     noise = np.random.default_rng(0).integers(0, 256, (720, 1280, 3), dtype=np.uint8)
     identify(noise, get_index(), _load_orb, hash_threshold=-1, orb_candidates=2)
     if log:
-        logger.info("Worker precalentado en %.1f s", time.monotonic() - started)
+        logger.info("Worker warmed up in %.1f s", time.monotonic() - started)
 
 
 def learn_from_scan(scan, card) -> CardFingerprint:
@@ -170,7 +170,7 @@ def _official_reference(url: str) -> np.ndarray | None:
         try:
             _REFERENCES[url] = prepare_reference(decode_reference(get_image(url)))
         except Exception:  # noqa: BLE001 - sin imagen, esa impresión no entra en el desempate
-            logger.warning("Sin imagen de referencia para el desempate: %s", url)
+            logger.warning("No reference image for the tie-break: %s", url)
             _REFERENCES[url] = None
     return _REFERENCES[url]
 
@@ -214,7 +214,7 @@ def resolve_siblings(candidates: list[dict], crop: np.ndarray, exclude_scan: int
     try:
         result = tiebreak(crop, references)
     except Exception:  # noqa: BLE001 - ante cualquier fallo, mejor preguntar que adivinar
-        logger.exception("Desempate entre hermanas fallido")
+        logger.exception("Tie-break between sibling printings failed")
         return True, None
     return True, (ids[result.winner] if result.winner is not None else None)
 

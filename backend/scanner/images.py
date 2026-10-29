@@ -68,7 +68,7 @@ def download_missing(urls, workers: int = 8, progress=None) -> tuple[int, int, i
                 ok += 1
             except Exception as exc:  # noqa: BLE001 - una imagen rota no para el lote
                 errors += 1
-                logger.warning("Imagen %s falló: %s", futures[future], exc)
+                logger.warning("Image %s failed: %s", futures[future], exc)
             if progress and (done % 250 == 0 or done == len(pending)):
                 progress(done, len(pending), errors)
     return ok, cached, errors

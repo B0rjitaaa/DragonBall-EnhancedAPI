@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 SERVER_IP=""
 if [ "${1:-}" = "--server" ]; then
-  SERVER_IP="${2:?Uso: scripts/install.sh --server <ip-del-servidor>}"
+  SERVER_IP="${2:?Usage: scripts/install.sh --server <server-ip>}"
 fi
 
 say() { printf '\n\033[1;33m▶ %s\033[0m\n' "$*"; }
@@ -30,18 +30,18 @@ set_env() {  # set_env CLAVE valor: cambia la línea (o la añade) en el .env
   fi
 }
 
-say "Comprobando Docker"
-command -v docker >/dev/null || die "No está Docker. Instálalo: https://docs.docker.com/get-docker/"
-docker compose version >/dev/null 2>&1 || die "Falta Docker Compose v2 (el comando «docker compose»)."
-docker info >/dev/null 2>&1 || die "Docker no está arrancado (en el Mac, abre Docker Desktop)."
+say "Checking Docker"
+command -v docker >/dev/null || die "Docker is not installed. Install it: https://docs.docker.com/get-docker/"
+docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is missing (the \"docker compose\" command)."
+docker info >/dev/null 2>&1 || die "Docker is not running (on a Mac, open Docker Desktop)."
 ok "$(docker compose version)"
 
 ADMIN_PASSWORD=""
-say "Configuración"
+say "Configuration"
 if [ -f .env ]; then
-  ok "Ya hay un .env: se deja como está"
+  ok "There is already a .env: leaving it as it is"
 elif [ -z "$SERVER_IP" ]; then
-  ok "En local no hace falta .env: se usan los valores de .env.defaults"
+  ok "No .env needed locally: using the values in .env.defaults"
 else
   cp .env.example .env
   ADMIN_PASSWORD="$(random 16)"
@@ -49,7 +49,7 @@ else
   set_env POSTGRES_PASSWORD "$(random 24)"
   set_env DJANGO_SUPERUSER_PASSWORD "$ADMIN_PASSWORD"
   chmod 600 .env
-  ok "Creado .env con claves aleatorias (Django, Postgres y el admin)"
+  ok "Created .env with random keys (Django, Postgres and the admin)"
   set_env COMPOSE_FILE "docker-compose.yml:docker-compose.prod.yml"
   set_env DJANGO_DEBUG 0
   set_env DJANGO_ALLOWED_HOSTS "localhost,127.0.0.1,backend,$SERVER_IP"
@@ -57,58 +57,58 @@ else
   set_env BACKUP_DIR_HOST "$HOME/backups/dbs"
   set_env BACKUP_STATUS_FILE /backups/last_status.json
   mkdir -p "$HOME/backups/dbs/request"
-  ok "Modo servidor para $SERVER_IP (nginx en el 80/443, gunicorn, copias en ~/backups/dbs)"
+  ok "Server mode for $SERVER_IP (nginx on 80/443, gunicorn, backups in ~/backups/dbs)"
 fi
 
-say "Construyendo y arrancando los servicios (la primera vez tarda unos minutos)"
+say "Building and starting the services (the first time takes a few minutes)"
 docker compose up -d --build
 
-say "Esperando al backend (la primera vez importa el catálogo y los precios del repositorio)"
+say "Waiting for the backend (the first time it imports the catalog and prices from the repository)"
 for i in $(seq 1 120); do
   if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/fields/', timeout=3)" >/dev/null 2>&1; then
-    ok "Backend listo"
+    ok "Backend ready"
     break
   fi
-  [ "$i" = 120 ] && die "El backend no arranca. Mira qué pasa con: docker compose logs --tail 100 backend"
+  [ "$i" = 120 ] && die "The backend does not start. See what is going on with: docker compose logs --tail 100 backend"
   sleep 5
 done
 docker compose exec -T backend python manage.py shell -c "
 from cards.models import Card; from prices.models import CardPrice
-print(f'  ✔ {Card.objects.count()} cartas, {CardPrice.objects.count()} con precio')" 2>/dev/null | tail -1
+print(f'  ✔ {Card.objects.count()} cards, {CardPrice.objects.count()} with a price')" 2>/dev/null | tail -1
 
 if [ -n "$SERVER_IP" ]; then
-  say "HTTPS para la cámara del móvil"
+  say "HTTPS for the phone camera"
   scripts/local-https.sh "$SERVER_IP"
-  say "Despliegue automático en cada git pull"
+  say "Automatic deploy on every git pull"
   git config core.hooksPath .githooks
-  ok "Hook activado"
+  ok "Hook enabled"
 fi
 
 WEB="http://localhost:5173"; ADMIN="http://localhost:8000/admin/"
 if [ -n "$SERVER_IP" ]; then WEB="http://$SERVER_IP"; ADMIN="http://$SERVER_IP/admin/"; fi
 if [ -n "$ADMIN_PASSWORD" ]; then
-  LOGIN="admin / $ADMIN_PASSWORD   (guárdala; está en el .env, DJANGO_SUPERUSER_PASSWORD)"
+  LOGIN="admin / $ADMIN_PASSWORD   (keep it safe; it is in .env, DJANGO_SUPERUSER_PASSWORD)"
 elif [ -f .env ] && grep -q "^DJANGO_SUPERUSER_PASSWORD=" .env; then
-  LOGIN="el usuario y la contraseña de DJANGO_SUPERUSER_* en tu .env"
+  LOGIN="the user and password from DJANGO_SUPERUSER_* in your .env"
 else
-  LOGIN="admin / admin   (si ya había un administrador, el tuyo)"
+  LOGIN="admin / admin   (if there was already an administrator, yours)"
 fi
-say "¡Listo!"
+say "Done!"
 cat <<EOF
   Web:    $WEB
   Wiki:   $WEB/wiki
   Admin:  $ADMIN  →  $LOGIN
 
-  En segundo plano, sin que hagas nada:
-  · se calculan las huellas del escáner (un buen rato la primera vez),
-  · y cada día se ponen al día las cartas, la ban list y los precios.
+  In the background, without you doing anything:
+  · the scanner fingerprints are computed (a good while the first time),
+  · and every day the cards, the ban list and the prices are brought up to date.
 EOF
 if [ -n "$SERVER_IP" ]; then
   cat <<EOF
 
-  Para terminar el servidor (necesita sudo; ver la wiki, «Instalación paso a paso»):
-  · copias de seguridad diarias:
+  To finish the server (needs sudo; see the wiki, "Step-by-step installation"):
+  · daily backups:
       make backups
-  · instala $WEB/ca.crt en cada móvil para usar la cámara por HTTPS.
+  · install $WEB/ca.crt on each phone to use the camera over HTTPS.
 EOF
 fi

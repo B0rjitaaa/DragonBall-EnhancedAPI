@@ -62,7 +62,7 @@ def fetch_rate() -> ExchangeRate:
                 date=date.fromisoformat(day), defaults={"usd_per_eur": Decimal(cube.get("rate"))}
             )
             return rate
-    raise ValueError("El BCE no trae el cambio del dólar")
+    raise ValueError("The ECB feed has no dollar rate")
 
 
 def parse(product: dict) -> dict:

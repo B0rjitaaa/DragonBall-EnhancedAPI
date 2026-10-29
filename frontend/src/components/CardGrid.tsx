@@ -8,7 +8,7 @@ import type { CardSummary } from '../lib/types'
 import { cardThumb } from '../lib/types'
 
 // Etiqueta corta en el listado para las keyword skills que limitan la construcción del mazo
-const DECK_BADGES: Record<string, string> = { Ultimate: '1 COPIA', 'Super Combo': 'SC ≤4', 'Dragon Ball': 'DB ≤7' }
+const DECK_BADGES: Record<string, string> = { Ultimate: '1 COPY', 'Super Combo': 'SC ≤4', 'Dragon Ball': 'DB ≤7' }
 
 interface Props {
   cards: CardSummary[]
@@ -54,7 +54,7 @@ export default function CardGrid({
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
   )
   if (!loading && cards.length === 0) {
-    return <div className="empty">{emptyText ?? 'No hay cartas que cumplan estos filtros.'}</div>
+    return <div className="empty">{emptyText ?? 'No cards match these filters.'}</div>
   }
   const tile = (c: CardSummary) => {
     const locs = (c.locations ?? []).filter((l) => showFakes || !l.fake)
@@ -77,14 +77,14 @@ export default function CardGrid({
                     {DECK_BADGES[k]}
                   </span>
                 ))}
-              {c.has_back && <span className="badge">2 caras</span>}
+              {c.has_back && <span className="badge">2 sides</span>}
               {showFakes && (c.fakes ?? 0) > 0 && (
-                <span className="fake-badge tile-fake" title="Copias falsas en tu colección">
-                  {c.fakes === 1 ? '1 falsa' : `${c.fakes} falsas`}
+                <span className="fake-badge tile-fake" title="Fake copies in your collection">
+                  {c.fakes === 1 ? '1 fake' : `${c.fakes} fakes`}
                 </span>
               )}
               {quantities?.[c.id] != null && !onAdjust && (
-                <span className="qty-badge" title={`${quantities[c.id]} copias en tu colección`}>
+                <span className="qty-badge" title={`${quantities[c.id]} copies in your collection`}>
                   ×{quantities[c.id]}
                 </span>
               )}
@@ -96,10 +96,10 @@ export default function CardGrid({
               {(c.has_errata || c.rulings_count > 0) && (
                 <span className="card-marks">
                   {c.has_errata && (
-                    <span className="mark errata" title="Tiene errata oficial">✎</span>
+                    <span className="mark errata" title="Has an official erratum">✎</span>
                   )}
                   {c.rulings_count > 0 && (
-                    <span className="mark qa" title={`${c.rulings_count} preguntas y respuestas oficiales`}>
+                    <span className="mark qa" title={`${c.rulings_count} official Q&As`}>
                       ?{c.rulings_count}
                     </span>
                   )}
@@ -120,40 +120,40 @@ export default function CardGrid({
                 <span>{c.card_type}</span>
                 <span>
                   {c.energy != null && <>⚡{c.energy} </>}
-                  {c.power != null && <>✊{c.power.toLocaleString('es-ES')}</>}
+                  {c.power != null && <>✊{c.power.toLocaleString('en-GB')}</>}
                 </span>
               </div>
               {locs.length > 0 && (
                 <div
                   className="tile-loc"
-                  title={locs.map((l) => `${l.name}${l.fake ? ' (falsas)' : ''}: ${l.quantity}`).join('\n')}
+                  title={locs.map((l) => `${l.name}${l.fake ? ' (fakes)' : ''}: ${l.quantity}`).join('\n')}
                 >
                   {locs.length === 1
-                    ? `${locs[0].name}${locs[0].fake ? ' (falsa)' : ''}`
-                    : locs.map((l) => `${l.name}${l.fake ? ' (falsa)' : ''} ×${l.quantity}`).join(' · ')}
+                    ? `${locs[0].name}${locs[0].fake ? ' (fake)' : ''}`
+                    : locs.map((l) => `${l.name}${l.fake ? ' (fake)' : ''} ×${l.quantity}`).join(' · ')}
                 </div>
               )}
             </div>
           </button>
           {onAdjust && quantities?.[c.id] != null && (
             // Fuera del botón de la carta: pulsar − / + no abre la ficha.
-            <div className="qty-controls" aria-label={`Copias de ${c.name}`}>
+            <div className="qty-controls" aria-label={`Copies of ${c.name}`}>
               <button
                 className="qty-btn"
                 onClick={() => onAdjust(c.id, -1)}
                 disabled={adjusting?.has(c.id)}
-                aria-label="Quitar una copia"
-                title="Quitar una copia"
+                aria-label="Remove a copy"
+                title="Remove a copy"
               >
                 −
               </button>
-              <span className="qty-value" title="Copias en tu colección">×{quantities[c.id]}</span>
+              <span className="qty-value" title="Copies in your collection">×{quantities[c.id]}</span>
               <button
                 className="qty-btn"
                 onClick={() => onAdjust(c.id, 1)}
                 disabled={adjusting?.has(c.id)}
-                aria-label="Añadir una copia"
-                title="Añadir una copia"
+                aria-label="Add a copy"
+                title="Add a copy"
               >
                 +
               </button>

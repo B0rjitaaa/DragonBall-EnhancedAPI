@@ -1,149 +1,149 @@
 # DragonBall-EnhancedAPI
 
-Buscador avanzado de cartas de **Dragon Ball Super Card Game** (BT1–BT31, promos, starter decks, expansiones…)
-con filtros por todos los atributos de `card_config`, por habilidades (`[Activate: Main]`, `[Limit 1]`,
-`[Counter: Play]`…) y búsquedas anidadas **Y / O / NO**.
+Advanced card search for the **Dragon Ball Super Card Game** (BT1–BT31, promos, starter decks, expansions…)
+with filters on every `card_config` attribute, on skills (`[Activate: Main]`, `[Limit 1]`,
+`[Counter: Play]`…) and nested **AND / OR / NOT** searches.
 
-> 📖 **Documentación completa en la [wiki](frontend/wiki/README.md)** (también en la web, en `/wiki`): uso de cada sección, precios, escáner, admin, arquitectura, tareas, despliegue y API.
+> 📖 **Full documentation in the [wiki](frontend/wiki/README.md)** (also on the web, at `/wiki`): how to use each section, prices, scanner, admin, architecture, scheduled tasks, deployment and API.
 
-| Servicio        | Tecnología                         | Puerto |
-|-----------------|------------------------------------|--------|
-| `frontend`      | React 19 + Vite + TypeScript       | 5173   |
-| `backend`       | Django 5.2 + Django REST Framework | 8000   |
-| `celery_worker` | Celery (tareas en segundo plano)   | —      |
-| `celery_beat`   | Celery Beat (tareas programadas)   | —      |
-| `db`            | PostgreSQL 16                      | 5432   |
-| `redis`         | Redis 7 (broker + caché)           | 6379   |
+| Service         | Technology                         | Port |
+|-----------------|------------------------------------|------|
+| `frontend`      | React 19 + Vite + TypeScript       | 5173 |
+| `backend`       | Django 5.2 + Django REST Framework | 8000 |
+| `celery_worker` | Celery (background tasks)          | —    |
+| `celery_beat`   | Celery Beat (scheduled tasks)      | —    |
+| `db`            | PostgreSQL 16                      | 5432 |
+| `redis`         | Redis 7 (broker + cache)           | 6379 |
 
-## Arranque
+## Getting started
 
 ```bash
 git clone https://github.com/B0rjitaaa/DragonBall-EnhancedAPI.git && cd DragonBall-EnhancedAPI
-docker compose up -d              # o `make install`, que además espera y resume
-# En un servidor de casa (nginx, HTTPS, claves aleatorias, despliegue con git pull): make install SERVER=<ip>
+docker compose up -d              # or `make install`, which also waits and prints a summary
+# On a home server (nginx, HTTPS, random keys, deploy on git pull): make install SERVER=<ip>
 ```
 
 - Web: <http://localhost:5173>
 - API: <http://localhost:8000/api/> · Swagger: <http://localhost:8000/api/docs/>
-- Admin: <http://localhost:8000/admin/> (**admin / admin**, se crea solo; en un servidor, contraseña aleatoria)
+- Admin: <http://localhost:8000/admin/> (**admin / admin**, created automatically; on a server, a random password)
 
-No hace falta `.env`: `.env.defaults` trae valores para local; un `.env` solo cambia lo que quieras.
+No `.env` is needed: `.env.defaults` has values for local use; a `.env` only changes what you want.
 
-El repositorio trae el catálogo y los precios (`data/seed/`): con la BD vacía se importan solos al arrancar
-(si hay un volcado más reciente en `data/cartas_dbs.json` o `data/precios_dbs.json`, se usa ese), y las huellas
-del escáner se calculan solas en segundo plano. `make seed` pone al día `data/seed/` con los datos de una instalación.
-Paso a paso en la [wiki](frontend/wiki/instalacion.md).
+The repository ships the catalog and the prices (`data/seed/`): with an empty database they are imported
+automatically at startup (if there is a more recent dump in `data/cartas_dbs.json` or `data/precios_dbs.json`, that
+one is used), and the scanner fingerprints are computed by themselves in the background. `make seed` refreshes
+`data/seed/` with the data from an installation. Step by step in the [wiki](frontend/wiki/README.md).
 
-## Actualizar tras un `git pull` (migraciones incluidas)
+## Updating after a `git pull` (migrations included)
 
 ```bash
-make deploy   # git pull + rebuild si cambian dependencias + migraciones + reinicio de backend/Celery
+make deploy   # git pull + rebuild if dependencies changed + migrations + backend/Celery restart
 ```
 
-Para que ocurra solo en cada `git pull` sobre `main` (recomendado en el servidor, el servidor),
-activa una vez el hook del repositorio:
+To make it happen automatically on every `git pull` on `main` (recommended on the server),
+enable the repository hook once:
 
 ```bash
 make hooks    # = git config core.hooksPath .githooks
 ```
 
-A partir de ahí, `git pull` ejecuta `scripts/deploy.sh`: reconstruye imágenes solo si cambian
-`requirements.txt`, `package.json` o los Dockerfiles, aplica migraciones y reinicia backend y Celery.
-Para saltarlo puntualmente: `SKIP_DEPLOY_HOOK=1 git pull`.
+From then on, `git pull` runs `scripts/deploy.sh`: it rebuilds images only if
+`requirements.txt`, `package.json` or the Dockerfiles change, applies migrations and restarts the backend and Celery.
+To skip it once: `SKIP_DEPLOY_HOOK=1 git pull`.
 
-## Modo producción (servidor servidor)
+## Production mode (server)
 
-En el servidor (el servidor, `192.168.1.50`) se usa el modo producción, más ligero (ahorra ~250 MB). Añade al `.env`:
+The server (`192.168.1.50`) uses production mode, which is lighter (saves ~250 MB). Add to `.env`:
 
 ```bash
 COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
 ```
 
-- **Frontend:** build estático servido por Nginx en lugar del servidor de Vite, en `:80`, `:443` (HTTPS, para la cámara del móvil) y `:5173` (enlaces antiguos).
-- **Backend:** gunicorn (1 proceso, 4 hilos) en lugar de `runserver`. WhiteNoise sirve los estáticos de `/admin`.
+- **Frontend:** a static build served by Nginx instead of the Vite server, on `:80`, `:443` (HTTPS, for the phone camera) and `:5173` (old links).
+- **Backend:** gunicorn (1 process, 4 threads) instead of `runserver`. WhiteNoise serves the `/admin` static files.
 
-`scripts/deploy.sh` lo detecta: en este modo, cualquier cambio en `frontend/` reconstruye el build.
+`scripts/deploy.sh` detects it: in this mode, any change in `frontend/` rebuilds the static build.
 
-En todos los entornos, el worker de Celery corre con concurrencia 1 y `--max-memory-per-child`: tras el sync diario, el proceso se recicla si se queda con más de ~250 MB (antes se quedaba con ~470 MB indefinidamente).
+In every environment, the Celery worker runs with concurrency 1 and `--max-memory-per-child`: after the daily sync, the process is recycled if it holds more than ~250 MB (it used to keep ~470 MB indefinitely).
 
-## Sincronización con Bandai (Celery)
+## Bandai sync (Celery)
 
-Programado en `config/settings.py → CELERY_BEAT_SCHEDULE` (hora de Madrid). Se ve en `/admin` → *Periodic tasks*,
-pero los cambios hechos ahí se pierden al reiniciar `celery_beat` (cada despliegue): los horarios se cambian en `settings.py`.
+Scheduled in `config/settings.py → CELERY_BEAT_SCHEDULE` (Madrid time). It shows up in `/admin` → *Periodic tasks*,
+but changes made there are lost when `celery_beat` restarts (every deploy): schedules are changed in `settings.py`.
 
-| Tarea                        | Cuándo                    | Qué hace                                                        |
+| Task                         | When                      | What it does                                                    |
 |------------------------------|---------------------------|-----------------------------------------------------------------|
-| `check-health-alerts`        | Cada 5 min                | Comprueba `/api/health/` y avisa por Telegram                   |
-| `scanner-keep-warm`          | Cada 60 s                 | Mantiene cargado el reconocimiento del escáner                  |
-| `scanner-cleanup-old-scans`  | Cada hora (minuto 10)     | Borra fotos de escaneos de más de 24 h (y si pasan de 2 GB)     |
-| `sync-banlist-daily`         | Todos los días 03:30      | Lista oficial Banned/Limited                                    |
-| `sync-new-cards-daily`       | Todos los días 04:00      | Descarga solo las cartas nuevas                                 |
-| `sync-prices-daily`          | Todos los días 05:15      | Cardmarket, TCGplayer, cambio del dólar y precio de cada carta  |
-| `purge-resolved-errors`      | Todos los días 05:30      | Borra los errores resueltos hace más de 90 días                 |
-| `sync-keyword-skills-weekly` | Lunes 03:45               | Keyword skills oficiales y sus textos                           |
-| `sync-errata-weekly`         | Lunes 03:50               | Erratas oficiales                                               |
-| `sync-rulings-weekly`        | Lunes 03:55               | Card Q&A oficial                                                |
-| `sync-all-cards-weekly`      | Domingos 05:00            | Vuelve a descargar todas (erratas, textos)                      |
+| `check-health-alerts`        | Every 5 min               | Checks `/api/health/` and sends Telegram alerts                 |
+| `scanner-keep-warm`          | Every 60 s                | Keeps the scanner recognition loaded                            |
+| `scanner-cleanup-old-scans`  | Every hour (minute 10)    | Deletes scan photos older than 24 h (and above 2 GB)            |
+| `sync-banlist-daily`         | Every day 03:30           | Official Banned/Limited list                                    |
+| `sync-new-cards-daily`       | Every day 04:00           | Downloads only the new cards                                    |
+| `sync-prices-daily`          | Every day 05:15           | Cardmarket, TCGplayer, dollar rate and the price of each card   |
+| `purge-resolved-errors`      | Every day 05:30           | Deletes errors resolved more than 90 days ago                   |
+| `sync-keyword-skills-weekly` | Mondays 03:45             | Official keyword skills and their texts                         |
+| `sync-errata-weekly`         | Mondays 03:50             | Official errata                                                 |
+| `sync-rulings-weekly`        | Mondays 03:55             | Official Card Q&A                                               |
+| `sync-all-cards-weekly`      | Sundays 05:00             | Downloads every card again (errata, texts)                      |
 
-Fuera de Celery: la copia de seguridad diaria (03:30, systemd en el servidor) y, si se configura, la vigilancia de caídas desde fuera (Healthchecks.io o `scripts/watchdog.py` en otro equipo).
-Detalle en la [wiki](frontend/wiki/tareas-programadas.md).
+Outside Celery: the daily backup (03:30, systemd on the server) and, if configured, outside downtime monitoring (Healthchecks.io or `scripts/watchdog.py` on another machine).
+Details in the [wiki](frontend/wiki/README.md).
 
-El cliente (`cards/bandai.py`) usa `curl_cffi` (huella de Chrome), limita el ritmo
-(`BANDAI_REQUEST_DELAY`, `BANDAI_WORKERS`) y, si Bandai devuelve 403/429, pausa y reintenta.
-Guarda cada 200 cartas, así que un corte no pierde lo descargado. Historial en `GET /api/sync/`.
+The client (`cards/bandai.py`) uses `curl_cffi` (Chrome fingerprint), rate-limits itself
+(`BANDAI_REQUEST_DELAY`, `BANDAI_WORKERS`) and, if Bandai returns 403/429, pauses and retries.
+It saves every 200 cards, so an interruption doesn't lose what was downloaded. History at `GET /api/sync/`.
 
-## Cartas prohibidas y limitadas (Ban / Limit)
+## Banned and limited cards (Ban / Limit)
 
-La lista oficial (<https://www.dbs-cardgame.com/us-en/rule/banned-limited-cards.php>) se descarga cada día
-a las 03:30 (`sync-banlist-daily`) y marca `legality` = `banned` | `limited` | `legal` en todas las
-impresiones de cada `card_number`. La migración carga una copia incluida en el proyecto
-(`cards/data/banlist_snapshot.json`, actualizada a 19/06/2026) para que funcione desde el primer arranque.
-
-```bash
-docker compose exec backend python manage.py sync_banlist             # forzar actualización
-docker compose exec backend python manage.py sync_banlist --snapshot  # volver a la copia local
-```
-
-`GET /api/banlist/` devuelve la lista; en búsquedas: `{"field": "legality", "operator": "in", "value": ["banned"]}`.
-
-## Keyword skills (nombres y textos oficiales)
-
-Las habilidades se clasifican como en <https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php>:
-**Activate Timing** (`timing`), **Keyword Skills** (`keyword_skill`) y **Keywords** (`keyword_rule`),
-con el nombre oficial (`Over Realm X`, `Once per Turn`, `Counter : Play`…) y su texto, que la web
-muestra al pasar el ratón. La variante exacta sigue disponible en `keyword` (`Over Realm 3`).
-
-- Solo cuentan las habilidades **propias** de la carta (al inicio de línea o encadenadas). Las que
-  se mencionan dentro de una frase ("it gains [Barrier]", "activates [Revive]") van a `keyword_mention`.
-- Lo que no está en la web oficial (p. ej. `Z-Stack`, posterior a su última actualización) aparece
-  en Keyword Skills sin descripción.
-- Se actualiza cada lunes a las 03:45 (`sync-keyword-skills-weekly`); la migración carga una copia local.
+The official list (<https://www.dbs-cardgame.com/us-en/rule/banned-limited-cards.php>) is downloaded every day
+at 03:30 (`sync-banlist-daily`) and sets `legality` = `banned` | `limited` | `legal` on every
+printing of each `card_number`. The migration loads a copy bundled with the project
+(`cards/data/banlist_snapshot.json`, updated on 19/06/2026) so it works from the very first start.
 
 ```bash
-docker compose exec backend python manage.py sync_keyword_skills             # forzar actualización
-docker compose exec backend python manage.py sync_keyword_skills --snapshot  # volver a la copia local
+docker compose exec backend python manage.py sync_banlist             # force an update
+docker compose exec backend python manage.py sync_banlist --snapshot  # go back to the local copy
 ```
 
-`GET /api/keyword-skills/` devuelve las skills con su texto, sus variantes y el mapa de alias.
+`GET /api/banlist/` returns the list; in searches: `{"field": "legality", "operator": "in", "value": ["banned"]}`.
+
+## Keyword skills (official names and texts)
+
+Skills are classified as on <https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php>:
+**Activate Timing** (`timing`), **Keyword Skills** (`keyword_skill`) and **Keywords** (`keyword_rule`),
+with the official name (`Over Realm X`, `Once per Turn`, `Counter : Play`…) and its text, which the web
+shows on hover. The exact variant is still available in `keyword` (`Over Realm 3`).
+
+- Only the card's **own** skills count (at the start of a line or chained). The ones
+  mentioned inside a sentence ("it gains [Barrier]", "activates [Revive]") go to `keyword_mention`.
+- What is not on the official website (e.g. `Z-Stack`, newer than its last update) shows up
+  under Keyword Skills without a description.
+- Updated every Monday at 03:45 (`sync-keyword-skills-weekly`); the migration loads a local copy.
+
+```bash
+docker compose exec backend python manage.py sync_keyword_skills             # force an update
+docker compose exec backend python manage.py sync_keyword_skills --snapshot  # go back to the local copy
+```
+
+`GET /api/keyword-skills/` returns the skills with their text, their variants and the alias map.
 
 ## API
 
-### Campos filtrables — `GET /api/fields/`
+### Filterable fields — `GET /api/fields/`
 
-| Tipo     | Campos                                                                                   | Operadores                          |
+| Type     | Fields                                                                                   | Operators                           |
 |----------|------------------------------------------------------------------------------------------|-------------------------------------|
-| texto    | `name`, `text` (ambas caras), `card_number`                                               | `contains`, `eq`, `startswith`      |
-| número   | `energy`, `power`, `back_power`, `combo_energy`, `combo_power`, `z_energy_cost`           | `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `between`, `isnull` |
+| text     | `name`, `text` (both sides), `card_number`                                                | `contains`, `eq`, `startswith`      |
+| number   | `energy`, `power`, `back_power`, `combo_energy`, `combo_power`, `z_energy_cost`           | `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `between`, `isnull` |
 | enum     | `type`, `rarity`, `series`, `set_code`, `card_set`, `legality`                            | `eq`, `in`                          |
-| lista    | `color`, `color_cost`, `character`, `special_trait`, `era`, `timing`, `keyword_skill`, `keyword_rule`, `keyword`, `keyword_mention`, `keyword_family`, `regulation` | `has`, `has_any`, `has_all`, `is_empty` |
-| booleano | `has_back`                                                                                | `eq`                                |
+| list     | `color`, `color_cost`, `character`, `special_trait`, `era`, `timing`, `keyword_skill`, `keyword_rule`, `keyword`, `keyword_mention`, `keyword_family`, `regulation` | `has`, `has_any`, `has_all`, `is_empty` |
+| boolean  | `has_back`                                                                                | `eq`                                |
 
-- `keyword`: habilidad exacta normalizada (`Activate: Main`, `Limit 1`, `Counter: Play`, `Once Per Turn`…).
-  `[Activate : Main/Battle]` cuenta también como `Activate: Main` y `Activate: Battle`.
-- `keyword_family`: agrupa variantes (`Limit 1`/`Limit 2` → `Limit`, `Counter: Play`/`Counter: Attack` → `Counter`).
-- `special_trait`, `character`, `era`, `color` se separan por `/` (`Saiyan/Earthling` → `Saiyan` + `Earthling`).
+- `keyword`: exact normalized skill (`Activate: Main`, `Limit 1`, `Counter: Play`, `Once Per Turn`…).
+  `[Activate : Main/Battle]` also counts as `Activate: Main` and `Activate: Battle`.
+- `keyword_family`: groups variants (`Limit 1`/`Limit 2` → `Limit`, `Counter: Play`/`Counter: Attack` → `Counter`).
+- `special_trait`, `character`, `era`, `color` are split on `/` (`Saiyan/Earthling` → `Saiyan` + `Earthling`).
 
-### Búsqueda anidada — `POST /api/cards/search/`
+### Nested search — `POST /api/cards/search/`
 
 ```json
 {
@@ -165,54 +165,54 @@ docker compose exec backend python manage.py sync_keyword_skills --snapshot  # v
 }
 ```
 
-Cualquier nodo admite `"not": true`. Límites: 6 niveles y 60 condiciones.
-Ordenación: `number` (natural: BT1, BT2… BT10), `name`, `energy`, `power`, `newest`; prefijo `-` para descendente.
+Any node accepts `"not": true`. Limits: 6 levels and 60 conditions.
+Ordering: `number` (natural: BT1, BT2… BT10), `name`, `energy`, `power`, `newest`; prefix `-` for descending.
 
-### Filtros rápidos por querystring — `GET /api/cards/`
+### Quick filters via querystring — `GET /api/cards/`
 
 `/api/cards/?color=Red&color=Blue&energy_max=3&keyword=Barrier&keyword=Blocker&keyword_match=all&q=vegeta`
 
-Números: `campo`, `campo_min`, `campo_max`. Listas: varios valores = O (`campo_match=all` para Y).
-También acepta `query=<árbol JSON>`.
+Numbers: `field`, `field_min`, `field_max`. Lists: several values = OR (`field_match=all` for AND).
+It also accepts `query=<JSON tree>`.
 
-### Facetas — `GET|POST /api/facets/`
+### Facets — `GET|POST /api/facets/`
 
-Valores y recuentos de cada atributo (cacheados en Redis, se invalidan tras cada importación/sync).
-`POST {q, query, only?}` devuelve los recuentos dentro de una búsqueda.
+Values and counts for each attribute (cached in Redis, invalidated after each import/sync).
+`POST {q, query, only?}` returns the counts within a search.
 
-## Comandos útiles
+## Useful commands
 
 ```bash
-make import      # importar data/cartas_dbs.json
-make sync        # encolar sync (solo nuevas) · make sync-full para todas
-make test        # tests del backend
-make logs        # logs de todos los servicios
-make reset       # borra BD y Redis (¡cuidado!)
+make import      # import data/cartas_dbs.json
+make sync        # queue a sync (new cards only) · make sync-full for all of them
+make test        # backend tests
+make logs        # logs of every service
+make reset       # deletes the database and Redis (careful!)
 ```
 
-## Estructura
+## Structure
 
 ```
 backend/
   config/            settings, urls, celery
   cards/
-    models.py        Card (atributos normalizados + JSON original) y SyncRun
-    parsing.py       card_config → campos; extracción y normalización de habilidades
-    query.py         árbol AND/OR/NOT → Q de Django (con validación)
-    facets.py        recuentos por atributo (Postgres unnest) + caché Redis
-    bandai.py        cliente de Bandai TCG+ (ritmo, reintentos, pausa ante bloqueos)
+    models.py        Card (normalized attributes + original JSON) and SyncRun
+    parsing.py       card_config → fields; skill extraction and normalization
+    query.py         AND/OR/NOT tree → Django Q (with validation)
+    facets.py        counts per attribute (Postgres unnest) + Redis cache
+    bandai.py        Bandai TCG+ client (rate limiting, retries, pause when blocked)
     tasks.py         sync_cards (Celery)
-    importer.py      upsert masivo
+    importer.py      bulk upsert
 frontend/src/
-  App.tsx            estado, búsqueda y URL compartible
+  App.tsx            state, search and shareable URL
   components/        FacetPanel, QueryBuilder, CardGrid, CardModal
-  lib/               tipos, cliente API, construcción de la query
+  lib/               types, API client, query building
 ```
 
-## Pendiente / siguientes pasos
+## To do / next steps
 
-Las tareas pendientes están en el tablero de Trello del proyecto. Las más importantes:
+Pending work lives on the project's Trello board. The most important items:
 
-- Cuentas de usuario
-- Seguridad del servidor: no publicar los puertos de Postgres y del backend, SSH solo con clave
-- Exponer la web fuera de casa (Cloudflare Tunnel), después de lo anterior
+- User accounts
+- Server security: don't publish the Postgres and backend ports, key-only SSH
+- Exposing the web outside home (Cloudflare Tunnel), after the above

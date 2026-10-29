@@ -1,7 +1,7 @@
 # «Hacer copia ahora» en el admin deja ~/backups/dbs/request/now: esto lanza la copia
 # (backup.sh borra la petición al empezar; si ya hay una en curso, no se lanza otra).
 [Unit]
-Description=Copia de seguridad pedida desde el admin
+Description=Backup requested from the admin
 
 [Path]
 PathExists=@HOME@/backups/dbs/request/now

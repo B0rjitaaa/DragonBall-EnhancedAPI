@@ -6,21 +6,21 @@ let seq = 0
 export const uid = () => `n${Date.now().toString(36)}${(seq++).toString(36)}`
 
 export const OPERATOR_LABELS: Record<string, string> = {
-  contains: 'contiene',
-  eq: 'es',
-  startswith: 'empieza por',
+  contains: 'contains',
+  eq: 'is',
+  startswith: 'starts with',
   ne: '≠',
   lt: '<',
   lte: '≤',
   gt: '>',
   gte: '≥',
-  between: 'entre',
-  isnull: 'sin valor',
-  in: 'es uno de',
-  has: 'incluye',
-  has_any: 'incluye alguno de',
-  has_all: 'incluye todos',
-  is_empty: 'está vacío',
+  between: 'between',
+  isnull: 'has no value',
+  in: 'is one of',
+  has: 'includes',
+  has_any: 'includes any of',
+  has_all: 'includes all',
+  is_empty: 'is empty',
 }
 
 export function defaultValue(field: FieldDef, operator: string): unknown {

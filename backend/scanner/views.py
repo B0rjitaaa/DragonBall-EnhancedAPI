@@ -73,7 +73,7 @@ class ScanViewSet(
         scan = self.get_object()
         if scan.status != Scan.Status.DONE or not scan.cropped_image:
             return Response(
-                {"detail": "El escaneo no tiene recorte que confirmar"},
+                {"detail": "The scan has no crop to confirm"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         serializer = ConfirmScanSerializer(data=request.data)
@@ -106,7 +106,7 @@ class ScanViewSet(
         scan = self.get_object()
         if not scan.session_id or not scan.added_to_collection:
             return Response(
-                {"detail": "Solo se pueden cambiar las copias de una carta añadida en modo ráfaga"},
+                {"detail": "Copies can only be changed for a card added in burst mode"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         serializer = ScanCopiesSerializer(data=request.data)

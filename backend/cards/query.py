@@ -45,7 +45,7 @@ class Field:
     label: str
     type: str
     columns: tuple[str, ...]
-    group: str = "Carta"
+    group: str = "Card"
     facet: bool = field(default=False)  # se ofrecen valores/recuentos en /api/facets/
     normalized: bool = field(default=False)  # columna en formato normalize_search
 
@@ -102,9 +102,9 @@ def _as_list(value: Any) -> list:
     values = value if isinstance(value, list) else [value]
     values = [v for v in values if v not in (None, "")]
     if not values:
-        raise QueryError("Se necesita al menos un valor")
+        raise QueryError("At least one value is required")
     if len(values) > MAX_VALUES:
-        raise QueryError(f"Máximo {MAX_VALUES} valores por condición")
+        raise QueryError(f"At most {MAX_VALUES} values per condition")
     return values
 
 
@@ -112,12 +112,12 @@ def _as_number(value: Any) -> int:
     try:
         return int(value)
     except (TypeError, ValueError):
-        raise QueryError(f"'{value}' no es un número") from None
+        raise QueryError(f"'{value}' is not a number") from None
 
 
 def _as_text(value: Any) -> str:
     if not isinstance(value, (str, int, float)) or str(value).strip() == "":
-        raise QueryError("Se necesita un texto")
+        raise QueryError("A text is required")
     return str(value).strip()[:200]
 
 
@@ -128,7 +128,7 @@ def _as_bool(value: Any) -> bool:
         return True
     if str(value).lower() in {"false", "0", "no"}:
         return False
-    raise QueryError(f"'{value}' no es un booleano")
+    raise QueryError(f"'{value}' is not a boolean")
 
 
 # --- Construcción de Q ------------------------------------------------------------
@@ -143,11 +143,11 @@ def _any_column(columns: tuple[str, ...], lookup: str, value: Any) -> Q:
 def condition_to_q(node: dict) -> Q:
     key = node.get("field")
     if key not in FIELDS:
-        raise QueryError(f"Campo desconocido: {key}")
+        raise QueryError(f"Unknown field: {key}")
     f = FIELDS[key]
     op = node.get("operator")
     if op not in OPERATORS[f.type]:
-        raise QueryError(f"Operador '{op}' no válido para {key} ({f.type})")
+        raise QueryError(f"Operator '{op}' is not valid for {key} ({f.type})")
     value = node.get("value")
     col = f.columns[0]
 
@@ -163,7 +163,7 @@ def condition_to_q(node: dict) -> Q:
             q = Q(**{f"{col}__isnull": _as_bool(True if value is None else value)})
         elif op == "between":
             if not isinstance(value, (list, tuple)) or len(value) != 2:
-                raise QueryError("'between' necesita [mínimo, máximo]")
+                raise QueryError("'between' needs [min, max]")
             lo, hi = value
             q = Q()
             if lo not in (None, ""):
@@ -215,22 +215,22 @@ def tree_to_q(node: dict | None) -> Q:
 
 def _node_to_q(node: Any, depth: int, counter: dict) -> Q:
     if not isinstance(node, dict):
-        raise QueryError("Cada nodo debe ser un objeto")
+        raise QueryError("Each node must be an object")
     if depth > MAX_DEPTH:
-        raise QueryError(f"Máximo {MAX_DEPTH} niveles de anidación")
+        raise QueryError(f"At most {MAX_DEPTH} nesting levels")
 
     if "field" in node:
         counter["conditions"] += 1
         if counter["conditions"] > MAX_CONDITIONS:
-            raise QueryError(f"Máximo {MAX_CONDITIONS} condiciones")
+            raise QueryError(f"At most {MAX_CONDITIONS} conditions")
         return condition_to_q(node)
 
     op = node.get("op", "and")
     if op not in {"and", "or"}:
-        raise QueryError(f"Operador de grupo no válido: {op}")
+        raise QueryError(f"Invalid group operator: {op}")
     children = node.get("children") or []
     if not isinstance(children, list):
-        raise QueryError("'children' debe ser una lista")
+        raise QueryError("'children' must be a list")
 
     q = Q()
     for child in children:

@@ -42,10 +42,10 @@ def send_telegram(text: str, silent: bool = False) -> bool:
             timeout=10,
         )
     except requests.RequestException as exc:
-        logger.warning("Telegram no responde: %s", exc)
+        logger.warning("Telegram is not responding: %s", exc)
         return False
     if not response.ok:
-        logger.warning("Telegram rechazó el aviso: %s %s", response.status_code, response.text[:200])
+        logger.warning("Telegram rejected the alert: %s %s", response.status_code, response.text[:200])
     return response.ok
 
 
@@ -55,7 +55,7 @@ def _duration(since: datetime) -> str:
         return f"{minutes} min"
     if minutes < 48 * 60:
         return f"{minutes // 60} h {minutes % 60:02d} min"
-    return f"{minutes // 1440} días"
+    return f"{minutes // 1440} days"
 
 
 def ping_heartbeat(report: dict) -> bool:
@@ -70,7 +70,7 @@ def ping_heartbeat(report: dict) -> bool:
         response = requests.post(f"{url}/fail" if down else url, data=", ".join(down).encode(), timeout=10)
         return response.ok
     except requests.RequestException:
-        logger.warning("No se pudo mandar el latido a %s", url, exc_info=True)
+        logger.warning("Could not send the heartbeat to %s", url, exc_info=True)
         return False
 
 
@@ -98,7 +98,7 @@ def check_and_alert() -> list[str]:
             due = kind == "warning" or now - since >= ALERT_CRITICAL_AFTER
             if due and not entry["alerted"]:
                 icon = "🔴" if kind == "critical" else "🟡"
-                extra = f" desde hace {_duration(since)}" if kind == "critical" else ""
+                extra = f" for {_duration(since)}" if kind == "critical" else ""
                 text = f"{icon} <b>{escape(check['label'])}</b>{extra}\n{escape(check['detail'])}"
                 if send_telegram(text, silent=kind == "warning"):
                     entry["alerted"] = True
@@ -106,8 +106,8 @@ def check_and_alert() -> list[str]:
         elif key in state:
             entry = state.pop(key)
             if entry["alerted"]:
-                text = (f"✅ <b>Vuelve a funcionar: {escape(check['label'])}</b>\n"
-                        f"Estuvo fallando {_duration(datetime.fromisoformat(entry['since']))}.")
+                text = (f"✅ <b>Working again: {escape(check['label'])}</b>\n"
+                        f"It was failing for {_duration(datetime.fromisoformat(entry['since']))}.")
                 send_telegram(text, silent=kind == "warning")
                 sent.append(text)
 

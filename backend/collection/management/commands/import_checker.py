@@ -29,12 +29,12 @@ from scanner.models import CardFingerprint, Scan, ScanSession
 
 
 class Command(BaseCommand):
-    help = "Importa la colección (y los mazos) de un volcado JSON del escáner"
+    help = "Imports the collection (and decks) from a JSON dump of the scanner"
 
     def add_arguments(self, parser):
-        parser.add_argument("dump", help="Fichero de `manage.py dumpdata` del escáner")
-        parser.add_argument("--replace", action="store_true", help="Borra antes la colección y los mazos de aquí")
-        parser.add_argument("--dry-run", action="store_true", help="Comprueba el volcado sin guardar nada")
+        parser.add_argument("dump", help="`manage.py dumpdata` file from the scanner")
+        parser.add_argument("--replace", action="store_true", help="Delete the collection and decks here first")
+        parser.add_argument("--dry-run", action="store_true", help="Check the dump without saving anything")
 
     def handle(self, dump, replace=False, dry_run=False, **options):
         with open(dump, encoding="utf-8") as fh:
@@ -42,7 +42,7 @@ class Command(BaseCommand):
         rows: dict[str, list[dict]] = defaultdict(list)
         for obj in objects:
             rows[obj["model"]].append(obj)
-        self.stdout.write("Volcado: " + ", ".join(f"{m} {len(r)}" for m, r in sorted(rows.items())))
+        self.stdout.write("Dump: " + ", ".join(f"{m} {len(r)}" for m, r in sorted(rows.items())))
 
         # Cartas: pk del escáner -> id de Bandai, y que estén todas en este catálogo.
         bandai = {o["pk"]: o["fields"]["bandai_id"] for o in rows["cards.card"]}
@@ -50,14 +50,14 @@ class Command(BaseCommand):
         used = {o["fields"]["card"] for m in ("collection.collectionentry", "decks.deckversioncard", "decks.sidecard")
                 for o in rows[m]}
         if missing_pk := used - set(bandai):
-            raise CommandError(f"El volcado no trae las cartas {sorted(missing_pk)} (falta cards.card)")
+            raise CommandError(f"The dump does not include cards {sorted(missing_pk)} (cards.card is missing)")
         known = set(Card.objects.filter(id__in={bandai[pk] for pk in used}).values_list("id", flat=True))
         if missing := sorted({bandai[pk] for pk in used} - known):
             listing = ", ".join(f"{numbers[b]} ({b})" for b in missing)
-            raise CommandError(f"Faltan en el catálogo {len(missing)} cartas: {listing}. Dalas de alta antes.")
+            raise CommandError(f"{len(missing)} cards are missing from the catalog: {listing}. Add them first.")
 
         if not replace and (CollectionEntry.objects.exists() or DeckVersion.objects.exists() or Scan.objects.exists()):
-            raise CommandError("Ya hay colección, mazos o escaneos aquí: usa --replace para sustituirlos")
+            raise CommandError("There is already a collection, decks or scans here: use --replace to replace them")
 
         with transaction.atomic():
             if replace:
@@ -74,7 +74,7 @@ class Command(BaseCommand):
             counts.update(self._import_scanner(rows, bandai))
             if dry_run:
                 transaction.set_rollback(True)
-        verb = "Se importarían" if dry_run else "Importado"
+        verb = "Would import" if dry_run else "Imported"
         self.stdout.write(self.style.SUCCESS(f"{verb}: " + ", ".join(f"{k} {v}" for k, v in counts.items())))
 
     def _import(self, rows, bandai) -> Counter:
@@ -96,7 +96,7 @@ class Command(BaseCommand):
             if f.get("created_at"):
                 Location.objects.filter(pk=loc.pk).update(created_at=parse_datetime(f["created_at"]))
             locations[o["pk"]] = loc
-            counts["ubicaciones"] += 1
+            counts["locations"] += 1
 
         self.entries: dict[int, CollectionEntry] = {}
         self.locations = locations
@@ -109,8 +109,8 @@ class Command(BaseCommand):
             dates = {k: parse_datetime(f[k]) for k in ("created_at", "updated_at") if f.get(k)}
             if dates:
                 CollectionEntry.objects.filter(pk=entry.pk).update(**dates)
-            counts["filas de copias"] += 1
-            counts["copias"] += f["quantity"]
+            counts["copy rows"] += 1
+            counts["copies"] += f["quantity"]
 
         versions: dict[int, DeckVersion] = {}
         for o in rows["decks.deckversion"]:
@@ -121,7 +121,7 @@ class Command(BaseCommand):
             )
             DeckVersion.objects.filter(pk=v.pk).update(created_at=parse_datetime(f["created_at"]))
             versions[o["pk"]] = v
-            counts["listas de mazo"] += 1
+            counts["deck lists"] += 1
         DeckVersionCard.objects.bulk_create(
             DeckVersionCard(version=versions[o["fields"]["version"]], card_id=bandai[o["fields"]["card"]],
                             section=o["fields"]["section"], quantity=o["fields"]["quantity"])
@@ -142,7 +142,7 @@ class Command(BaseCommand):
                 event=f.get("event", ""), notes=f.get("notes", ""),
             )
             Match.objects.filter(pk=m.pk).update(created_at=parse_datetime(f["created_at"]))
-            counts["partidas"] += 1
+            counts["matches"] += 1
         return counts
 
     def _import_scanner(self, rows, bandai) -> Counter:
@@ -163,7 +163,7 @@ class Command(BaseCommand):
             )
             ScanSession.objects.filter(pk=session.pk).update(started_at=parse_datetime(f["started_at"]))
             sessions[o["pk"]] = session
-            counts["sesiones"] += 1
+            counts["sessions"] += 1
 
         scans: dict[int, Scan] = {}
         for o in rows["scans.scan"]:
@@ -171,7 +171,7 @@ class Command(BaseCommand):
             original = f.pop("matched_card", None)
             matched = card_id(original) if original else None
             if original and matched is None:
-                counts["escaneos con carta desconocida"] += 1
+                counts["scans with unknown card"] += 1
             session = sessions.get(f.pop("session", None))
             entry = self.entries.get(f.pop("collection_entry", None))
             # Los candidatos guardan el id de carta del escáner: se pasan al de aquí.
@@ -189,19 +189,19 @@ class Command(BaseCommand):
                 created_at=parse_datetime(created_at), finished_at=parse_datetime(finished_at) if finished_at else None,
             )
             scans[o["pk"]] = scan
-            counts["escaneos"] += 1
+            counts["scans"] += 1
 
         prints = []
         for o in rows["cards.cardfingerprint"]:
             f = o["fields"]
             cid = card_id(f["card"])
             if cid is None:
-                counts["huellas omitidas (carta desconocida)"] += 1
+                counts["fingerprints skipped (unknown card)"] += 1
                 continue
             prints.append(CardFingerprint(
                 card_id=cid, face=f["face"], source_url=f.get("source_url", ""), scan=scans.get(f.get("scan")),
                 phash=f["phash"], dhash=f["dhash"], orb=base64.b64decode(f["orb"]), orb_count=f.get("orb_count", 0),
             ))
         CardFingerprint.objects.bulk_create(prints, batch_size=500)
-        counts["huellas"] += len(prints)
+        counts["fingerprints"] += len(prints)
         return counts

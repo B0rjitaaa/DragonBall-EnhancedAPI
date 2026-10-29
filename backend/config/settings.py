@@ -104,7 +104,7 @@ CACHES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-LANGUAGE_CODE = "es-es"
+LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Europe/Madrid"
 USE_I18N = True
 USE_TZ = True
@@ -127,7 +127,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "DragonBall-EnhancedAPI",
-    "DESCRIPTION": "Buscador avanzado de cartas de Dragon Ball Super Card Game",
+    "DESCRIPTION": "Advanced card search for the Dragon Ball Super Card Game",
     "VERSION": "0.1.0",
 }
 

@@ -5,11 +5,11 @@ from cards.importer import invalidate_facets
 
 
 class Command(BaseCommand):
-    help = "Actualiza las keyword skills oficiales (dbs-cardgame.com) y reclasifica las cartas."
+    help = "Updates the official keyword skills (dbs-cardgame.com) and reclassifies the cards."
 
     def add_arguments(self, parser):
         parser.add_argument("--snapshot", action="store_true",
-                            help="Cargar la copia incluida en el proyecto en vez de descargarla")
+                            help="Load the copy bundled with the project instead of downloading it")
 
     def handle(self, *args, snapshot, **options):
         if snapshot:
@@ -17,10 +17,10 @@ class Command(BaseCommand):
             skills.store_entries(catalog.entries, "Jul. 22, 2022", "snapshot")
             count = skills.recompute_cards(catalog)
             invalidate_facets()
-            self.stdout.write(self.style.SUCCESS(f"Copia local cargada; {count} cartas reclasificadas"))
+            self.stdout.write(self.style.SUCCESS(f"Local copy loaded; {count} cards reclassified"))
             return
         try:
             result = skills.sync_keyword_skills()
         except Exception as exc:  # noqa: BLE001
-            raise CommandError(f"No se pudo actualizar desde la web oficial: {exc}") from exc
+            raise CommandError(f"Could not update from the official website: {exc}") from exc
         self.stdout.write(self.style.SUCCESS(str(result)))

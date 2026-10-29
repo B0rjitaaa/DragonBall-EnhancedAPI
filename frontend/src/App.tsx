@@ -24,10 +24,10 @@ const PAGE_SIZE = 48
 // Escáner de cartas (DragonBall-CameraCardChecker), en el mismo servidor.
 
 const ORDERINGS: [string, string][] = [
-  ['number', 'Número de carta'],
-  ['-newest', 'Más antiguas'],
-  ['newest', 'Más recientes'],
-  ['name', 'Nombre A-Z'],
+  ['number', 'Card number'],
+  ['-newest', 'Oldest'],
+  ['newest', 'Newest'],
+  ['name', 'Name A-Z'],
   ['energy', 'Energy ↑'],
   ['-energy', 'Energy ↓'],
   ['power', 'Power ↑'],
@@ -89,7 +89,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   // Mi colección: por defecto solo cuentan las copias auténticas; con esto, también las falsas.
   // Dentro de una ubicación, «Mi orden»: el orden en que el usuario ha colocado sus cartas.
   const orderings: [string, string][] = inCollection
-    ? [...(location != null ? [['position', 'Mi orden'] as [string, string]] : []), ...ORDERINGS, ['-quantity', 'Más copias']]
+    ? [...(location != null ? [['position', 'My order'] as [string, string]] : []), ...ORDERINGS, ['-quantity', 'Most copies']]
     : ORDERINGS
   const [showFakes, setShowFakes] = useState<boolean>(inCollection ? initial.showFakes ?? false : false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -108,7 +108,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     if (!pendingUid || !locations.length) return
     const found = locations.find((l) => l.uid === pendingUid)
     if (found) setLocation(found.id)
-    else setNotice('Esa ubicación ya no existe: se muestra toda tu colección.')
+    else setNotice('That location no longer exists: showing your whole collection.')
     setPendingUid(null)
   }, [pendingUid, locations])
   // La ubicación filtrada ya no existe (se borró): se quita el filtro.
@@ -352,7 +352,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         if (e instanceof ApiError && e.status === 409) {
           // Copias repartidas en varias ubicaciones: se abre la ficha para elegir de cuál.
           setOpenId(id)
-          setNotice('Esta carta está en varias ubicaciones: quita la copia desde la que quieras.')
+          setNotice('This card is in several locations: remove the copy from the one you want.')
         } else {
           setError(e instanceof Error ? e.message : String(e))
         }
@@ -389,7 +389,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         const byId = new Map(prev.results.map((c) => [c.id, c]))
         return { ...prev, results: ids.map((id) => byId.get(id)!).filter(Boolean) }
       })
-      api.reorderCollection(location, ids).catch((e: Error) => setError(`No se pudo guardar el orden: ${e.message}`))
+      api.reorderCollection(location, ids).catch((e: Error) => setError(`Couldn't save the order: ${e.message}`))
     },
     [location],
   )
@@ -399,9 +399,9 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   if (bootError) {
     return (
       <div className="boot-error">
-        <h1>{inCollection ? 'No se puede cargar Mi colección' : 'No se puede conectar con la API'}</h1>
+        <h1>{inCollection ? "Can't load My collection" : "Can't connect to the API"}</h1>
         <p>{bootError}</p>
-        <p className="muted">¿Está levantado el backend? Prueba <code>docker compose ps</code>.</p>
+        <p className="muted">Is the backend running? Try <code>docker compose ps</code>.</p>
       </div>
     )
   }
@@ -412,23 +412,23 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         <button
           className="icon-btn menu"
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label="Filtros"
+          aria-label="Filters"
           aria-expanded={sidebarOpen}
         >
           ☰
         </button>
-        <button className="brand" onClick={goHome} title="Volver al inicio y limpiar los filtros">
+        <button className="brand" onClick={goHome} title="Back to the start and clear the filters">
           <span className="ball" aria-hidden>★</span>
           <span className="brand-text">
-            <strong>{inCollection ? 'Mi colección' : 'DragonBall EnhancedAPI'}</strong>
-            <small>{inCollection ? 'Cartas escaneadas con el escáner de cartas' : 'Buscador de cartas · Dragon Ball Super Card Game'}</small>
+            <strong>{inCollection ? 'My collection' : 'DragonBall EnhancedAPI'}</strong>
+            <small>{inCollection ? 'Cards scanned with the card scanner' : 'Card search · Dragon Ball Super Card Game'}</small>
           </span>
         </button>
         <input
           className="input search"
           type="search"
-          placeholder={inCollection ? 'Buscar en mi colección por nombre, número o texto…' : 'Buscar por nombre, número o texto…'}
-          title={'Busca por palabras: aparecen todas (AND).\n"frase exacta" entre comillas · -palabra para excluir'}
+          placeholder={inCollection ? 'Search my collection by name, number or text…' : 'Search by name, number or text…'}
+          title={'Searches by words: all must appear (AND).\n"exact phrase" in quotes · -word to exclude'}
           value={q}
           onFocus={() => setQFocused(true)}
           onBlur={() => setQFocused(false)}
@@ -437,7 +437,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             setPage(1)
           }}
         />
-        <select className="input" value={ordering} onChange={(e) => setOrdering(e.target.value)} aria-label="Ordenar">
+        <select className="input" value={ordering} onChange={(e) => setOrdering(e.target.value)} aria-label="Sort">
           {orderings.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
@@ -451,13 +451,13 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             setPage(1)
           }}
         >
-          Modo avanzado {advancedOn ? 'ON' : 'OFF'}
+          Advanced mode {advancedOn ? 'ON' : 'OFF'}
         </button>
       </header>
 
       {(qFocused || q.trim().length > 0) && (
         <p className="search-help">
-          Busca por palabras: aparecen <strong>todas</strong>. <code>"frase exacta"</code> entre comillas · <code>-palabra</code> para excluir.
+          Searches by words: <strong>all</strong> must appear. <code>"exact phrase"</code> in quotes · <code>-word</code> to exclude.
         </p>
       )}
 
@@ -465,14 +465,14 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
         {sidebarOpen && <div className="backdrop" onClick={() => setSidebarOpen(false)} aria-hidden />}
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="sidebar-head">
-            <strong>Filtros</strong>
+            <strong>Filters</strong>
             <span className="sidebar-actions">
               {activeCount > 0 && (
                 <button className="link small" onClick={clearAll}>
-                  Limpiar todo
+                  Clear all
                 </button>
               )}
-              <button className="icon-btn close-filters" onClick={() => setSidebarOpen(false)} aria-label="Cerrar filtros">
+              <button className="icon-btn close-filters" onClick={() => setSidebarOpen(false)} aria-label="Close filters">
                 ✕
               </button>
             </span>
@@ -489,7 +489,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           )}
           <div className="sidebar-foot">
             <button className="btn primary" onClick={() => setSidebarOpen(false)}>
-              Ver {data ? data.count.toLocaleString('es-ES') : ''} cartas
+              Show {data ? data.count.toLocaleString('en-GB') : ''} cards
             </button>
           </div>
         </aside>
@@ -498,8 +498,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           {advancedOn && fields.length > 0 && (
             <section className="panel">
               <div className="panel-head">
-                <h2>Búsqueda avanzada</h2>
-                <span className="muted small">Se combina (Y) con los filtros del panel lateral</span>
+                <h2>Advanced search</h2>
+                <span className="muted small">Combined (AND) with the sidebar filters</span>
               </div>
               <QueryBuilder
                 tree={advanced}
@@ -521,7 +521,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                     <small>{labels[key]}:</small> {valueLabel(key, v)}
                     <button
                       onClick={() => changeFacets({ ...facets, [key]: { ...sel, values: sel.values.filter((x) => x !== v) } })}
-                      aria-label="Quitar"
+                      aria-label="Remove"
                     >
                       ×
                     </button>
@@ -531,7 +531,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                   ? [
                       <span key={`${key}-range`} className="tag">
                         <small>{labels[key]}:</small> {sel.min === '' || sel.min == null ? '…' : sel.min} – {sel.max === '' || sel.max == null ? '…' : sel.max}
-                        <button onClick={() => changeFacets({ ...facets, [key]: { ...sel, min: '', max: '' } })} aria-label="Quitar">
+                        <button onClick={() => changeFacets({ ...facets, [key]: { ...sel, min: '', max: '' } })} aria-label="Remove">
                           ×
                         </button>
                       </span>,
@@ -545,31 +545,31 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             <span>
               {data ? (
                 <>
-                  <strong>{data.count.toLocaleString('es-ES')}</strong> cartas
+                  <strong>{data.count.toLocaleString('en-GB')}</strong> cards
                   {inCollection && data.total_copies != null && (
                     <>
-                      {' '}· <strong>{data.total_copies.toLocaleString('es-ES')}</strong> copias
+                      {' '}· <strong>{data.total_copies.toLocaleString('en-GB')}</strong> copies
                     </>
                   )}
                   {inCollection && data.value && data.value.copies_priced > 0 && (
                     <span
                       className="collection-value"
                       title={[
-                        'Valor en Cardmarket de las copias auténticas que se ven (las falsas no cuentan), con lo que se vende de verdad.',
+                        "Cardmarket value of the genuine copies shown (fakes don't count), based on actual sales.",
                         data.value.value_listing > 0 &&
-                          `Aparte, sin sumar: ${formatEur(data.value.value_listing)} en ${data.value.copies_listing.toLocaleString('es-ES')} copias sin ventas, por lo que pide un vendedor (revísalas en el admin).`,
-                        data.value.copies_unpriced > 0 && `${data.value.copies_unpriced.toLocaleString('es-ES')} copias sin precio.`,
+                          `Separately, not added: ${formatEur(data.value.value_listing)} in ${data.value.copies_listing.toLocaleString('en-GB')} copies without sales, at a seller's asking price (check them in the admin).`,
+                        data.value.copies_unpriced > 0 && `${data.value.copies_unpriced.toLocaleString('en-GB')} copies without a price.`,
                       ].filter(Boolean).join('\n')}
                     >
-                      {' '}· valor <strong>{formatEur(data.value.value)}</strong>
+                      {' '}· value <strong>{formatEur(data.value.value)}</strong>
                       {data.value.value_listing > 0 && (
-                        <small className="muted"> (+ {formatEur(data.value.value_listing)} en cartas sin ventas)</small>
+                        <small className="muted"> (+ {formatEur(data.value.value_listing)} in cards without sales)</small>
                       )}
                     </span>
                   )}
                 </>
               ) : (
-                'Cargando…'
+                'Loading…'
               )}
             </span>
             {error && <span className="error">{error}</span>}
@@ -584,16 +584,16 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                     if (next != null && ordering === 'number') setOrdering('position')
                     setPage(1)
                   }}
-                  aria-label="Ubicación"
+                  aria-label="Location"
                 >
-                  <option value="">Todas las ubicaciones</option>
+                  <option value="">All locations</option>
                   {locations.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name} ({l.copies})
                     </option>
                   ))}
                 </select>
-                <label className="fake-filter" title="Contar y mostrar también las copias falsas">
+                <label className="fake-filter" title="Also count and show fake copies">
                   <input
                     id="show-fakes"
                     type="checkbox"
@@ -603,34 +603,34 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                       setPage(1)
                     }}
                   />
-                  Mostrar falsas
+                  Show fakes
                 </label>
                 <a className="btn ghost" href="/locations">
-                  Ubicaciones…
+                  Locations…
                 </a>
-                <span className="view-toggle" role="group" aria-label="Vista">
+                <span className="view-toggle" role="group" aria-label="View">
                   {isDeck && (
                     <button className={view === 'deck' ? 'on' : ''} onClick={() => setView('deck')} aria-pressed={view === 'deck'}>
-                      Mazo
+                      Deck
                     </button>
                   )}
                   <button className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')} aria-pressed={view === 'grid'}>
-                    Cuadrícula
+                    Grid
                   </button>
                   <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-pressed={view === 'list'}>
-                    Lista
+                    List
                   </button>
                 </span>
               </span>
             )}
             {inCollection && (
-              <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Descarga un JSON con tus ubicaciones y todas tus cartas, con sus copias en cada ubicación">
-                Descargar copia
+              <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Downloads a JSON with your locations and all your cards, with their copies in each location">
+                Download backup
               </a>
             )}
             {inCollection && (
-              <a className="btn backup-link" href={COLLECTION_CSV_URL} download title="Descarga tu colección en CSV para abrirla en Excel u otra hoja de cálculo">
-                Descargar CSV
+              <a className="btn backup-link" href={COLLECTION_CSV_URL} download title="Downloads your collection as CSV to open in Excel or another spreadsheet">
+                Download CSV
               </a>
             )}
             {inCollection && (
@@ -651,7 +651,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             )}
             {inCollection && (
               <a className="btn primary scan-link" href="/scan">
-                Escanear cartas
+                Scan cards
               </a>
             )}
           </div>
@@ -683,7 +683,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           ) : (
             <>
             {canReorder && (data?.results.length ?? 0) > 1 && (
-              <p className="reorder-hint">Arrastra las cartas para ordenarlas (en el móvil, mantén pulsada una carta). El orden se guarda.</p>
+              <p className="reorder-hint">Drag the cards to reorder them (on mobile, press and hold a card). The order is saved.</p>
             )}
             <CardGrid
               cards={data?.results ?? []}
@@ -697,7 +697,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               onReorder={canReorder ? reorder : undefined}
               emptyText={
                 inCollection && activeCount === 0
-                  ? 'Tu colección está vacía: escanea cartas con el escáner y aparecerán aquí.'
+                  ? "Your collection is empty: scan cards with the scanner and they'll show up here."
                   : undefined
               }
             />

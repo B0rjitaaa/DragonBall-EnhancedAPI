@@ -6,16 +6,16 @@ export default function NotFoundPage() {
         ★
       </div>
       <p className="notfound-code">ERROR 404</p>
-      <h1>Página no encontrada</h1>
+      <h1>Page not found</h1>
       <p className="muted">
-        La dirección <code>{window.location.pathname}</code> no existe en esta web.
+        The address <code>{window.location.pathname}</code> doesn't exist on this site.
       </p>
       <div className="notfound-links">
         <a className="btn primary" href="/">
-          Ir al buscador
+          Go to search
         </a>
         <a className="btn" href="/collection">
-          Mi colección
+          My collection
         </a>
       </div>
     </main>

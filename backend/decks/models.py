@@ -48,7 +48,7 @@ class DeckVersion(models.Model):
 
 class DeckVersionCard(models.Model):
     class Section(models.TextChoices):
-        MAIN = "main", "Mazo principal"
+        MAIN = "main", "Main deck"
         Z = "z", "Z Deck"
         SIDE = "side", "Side deck"
 
@@ -65,9 +65,9 @@ class DeckVersionCard(models.Model):
 
 class Match(models.Model):
     class Result(models.TextChoices):
-        WIN = "win", "Victoria"
-        LOSS = "loss", "Derrota"
-        DRAW = "draw", "Empate"
+        WIN = "win", "Win"
+        LOSS = "loss", "Loss"
+        DRAW = "draw", "Draw"
 
     version = models.ForeignKey(DeckVersion, on_delete=models.CASCADE, related_name="matches")
     played_on = models.DateField()

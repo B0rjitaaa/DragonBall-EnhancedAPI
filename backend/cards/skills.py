@@ -33,9 +33,9 @@ MIN_EXPECTED = 40
 
 # Restricciones de construcción de mazo definidas por la propia keyword skill
 DECK_RULES = {
-    "Ultimate": "Máx. 1 copia en el mazo",
-    "Super Combo": "Máx. 4 cartas [Super Combo] en el mazo",
-    "Dragon Ball": "Máx. 7 cartas [Dragon Ball] en total",
+    "Ultimate": "Max. 1 copy in the deck",
+    "Super Combo": "Max. 4 [Super Combo] cards in the deck",
+    "Dragon Ball": "Max. 7 [Dragon Ball] cards in total",
 }
 
 
@@ -160,10 +160,10 @@ def sync_keyword_skills() -> dict:
 
     resp = http.get(settings.KEYWORD_SKILLS_URL, impersonate="chrome", timeout=30)
     if resp.status_code != 200:
-        raise RuntimeError(f"{resp.status_code} al descargar {settings.KEYWORD_SKILLS_URL}")
+        raise RuntimeError(f"{resp.status_code} downloading {settings.KEYWORD_SKILLS_URL}")
     updated, entries = parse_keyword_page(resp.text)
     if len(entries) < MIN_EXPECTED:
-        raise RuntimeError(f"Solo {len(entries)} keyword skills: ¿ha cambiado la web oficial?")
+        raise RuntimeError(f"Only {len(entries)} keyword skills: has the official website changed?")
     store_entries(entries, updated, "official")
     cards = recompute_cards()
     invalidate_facets()

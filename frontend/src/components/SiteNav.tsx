@@ -18,32 +18,32 @@ export default function SiteNav({ active }: { active: Page }) {
   }, [active])
 
   return (
-    <nav className="site-nav" aria-label="Secciones">
+    <nav className="site-nav" aria-label="Sections">
       <a href="/" className={active === 'search' ? 'active' : ''}>
-        Buscador
+        Search
       </a>
       <a href="/collection" className={active === 'collection' ? 'active' : ''}>
-        Mi colección
+        My collection
       </a>
       <a href="/locations" className={active === 'locations' ? 'active' : ''}>
-        Ubicaciones
+        Locations
       </a>
       <a href="/prices" className={active === 'prices' ? 'active' : ''}>
-        Precios
+        Prices
       </a>
       <a href="/news" className={active === 'news' ? 'active' : ''}>
-        Novedades
+        News
         {unseen > 0 && active !== 'news' && (
-          <span className="nav-badge" title={`${unseen} novedades desde tu última visita`}>
+          <span className="nav-badge" title={`${unseen} updates since your last visit`}>
             {unseen > 99 ? '99+' : unseen}
           </span>
         )}
       </a>
-      <a href="/wiki" className={`nav-wiki ${active === 'wiki' ? 'active' : ''}`} title="Guía de uso y documentación">
+      <a href="/wiki" className={`nav-wiki ${active === 'wiki' ? 'active' : ''}`} title="User guide and documentation">
         Wiki
       </a>
       <a href="/scan" className={active === 'scan' ? 'active' : ''}>
-        Escáner
+        Scanner
       </a>
     </nav>
   )

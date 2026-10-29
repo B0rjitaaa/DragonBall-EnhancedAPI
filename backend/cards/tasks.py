@@ -27,7 +27,7 @@ def sync_cards(full: bool = False) -> dict:
     full=True  -> vuelve a descargar todas (recoge erratas y cambios de texto).
     """
     if not cache.add(LOCK_KEY, "1", LOCK_TIMEOUT):
-        logger.info("Ya hay un sync en marcha; se omite.")
+        logger.info("A sync is already running; skipping.")
         return {"skipped": True}
 
     run = SyncRun.objects.create(full=full)
@@ -61,7 +61,7 @@ def sync_cards(full: bool = False) -> dict:
         if not full:
             existing = set(Card.objects.values_list("id", flat=True))
             ids = [i for i in ids if i not in existing]
-        logger.info("Sync: %s cartas listadas, %s a descargar", run.listed, len(ids))
+        logger.info("Sync: %s cards listed, %s to download", run.listed, len(ids))
 
         _, failed = client.fetch_details(ids, on_result=on_result)
         if buffer:
@@ -71,7 +71,7 @@ def sync_cards(full: bool = False) -> dict:
     except Exception as exc:  # noqa: BLE001
         if buffer:
             flush()  # no perder lo ya descargado
-        logger.exception("Sync fallido")
+        logger.exception("Sync failed")
         run.status = SyncRun.Status.FAILED
         run.error = str(exc)
     finally:

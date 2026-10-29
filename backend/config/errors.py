@@ -1,21 +1,21 @@
 """Páginas de error propias (solo con DEBUG desactivado, como en producción).
 
 - En la API (/api/…): JSON con `detail`, igual que el resto de errores de DRF.
-- En lo demás (admin, fotos…): una página en español con el estilo de la web.
+- En lo demás (admin, fotos…): una página (en inglés) con el estilo de la web.
 """
 from html import escape
 
 from django.http import HttpResponse, JsonResponse
 
 MESSAGES = {
-    400: ("Petición no válida", "La petición tiene algún dato que no se entiende."),
-    403: ("Acceso denegado", "No tienes permiso para ver esta página."),
-    404: ("Página no encontrada", "Esta dirección no existe o ya no está disponible."),
-    500: ("Error del servidor", "Algo ha fallado en el servidor. Vuelve a intentarlo en un momento."),
+    400: ("Bad request", "Something in the request could not be understood."),
+    403: ("Access denied", "You do not have permission to see this page."),
+    404: ("Page not found", "This address does not exist or is no longer available."),
+    500: ("Server error", "Something went wrong on the server. Please try again in a moment."),
 }
 
 PAGE = """<!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -41,7 +41,7 @@ PAGE = """<!doctype html>
   <div class="code">ERROR {status}</div>
   <h1>{title}</h1>
   <p>{message}</p>
-  <a href="/">Volver al buscador</a>
+  <a href="/">Back to the search</a>
 </main>
 </body>
 </html>

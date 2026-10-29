@@ -33,13 +33,13 @@ createRoot(document.getElementById('root')!).render(
     ) : page === 'prices' ? (
       <PricesPage />
     ) : page === 'wiki' ? (
-      <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Cargando la wiki…</p>}>
+      <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Loading the wiki…</p>}>
         <WikiPage />
       </Suspense>
     ) : page === 'notfound' ? (
       <NotFoundPage />
     ) : page === 'scan' ? (
-      <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Cargando el escáner…</p>}>
+      <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Loading the scanner…</p>}>
         <ScanPage />
       </Suspense>
     ) : (

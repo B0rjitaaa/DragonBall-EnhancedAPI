@@ -16,7 +16,7 @@ fi
 AFTER="$(git rev-parse HEAD)"
 
 if [ "$BEFORE" = "$AFTER" ] && [ "${FORCE:-0}" != "1" ]; then
-  echo "✔ Sin cambios nuevos (usa FORCE=1 para forzar)."
+  echo "✔ No new changes (use FORCE=1 to force it)."
   exit 0
 fi
 
@@ -24,13 +24,13 @@ CHANGED="$(git diff --name-only "$BEFORE" "$AFTER" || true)"
 changed() { printf '%s\n' "$CHANGED" | grep -qE "$1"; }
 
 if changed '^backend/(requirements\.txt|Dockerfile|entrypoint\.sh)$'; then
-  echo "→ Cambian las dependencias del backend: reconstruyendo imagen…"
+  echo "→ Backend dependencies changed: rebuilding the image…"
   docker compose build backend
 fi
 
 # Webcam del archivador (solo con COMPOSE_PROFILES=camera).
 if changed '^camera/' && docker compose config --services 2>/dev/null | grep -qx camera; then
-  echo "→ Cambia el servicio de la webcam: reconstruyendo…"
+  echo "→ The webcam service changed: rebuilding…"
   docker compose build camera
 fi
 
@@ -39,24 +39,24 @@ fi
 # en frontend/ obliga a reconstruirla.
 if docker compose config 2>/dev/null | grep -q "target: prod"; then
   if changed '^frontend/'; then
-    echo "→ Cambios en el frontend (modo producción): reconstruyendo build estático…"
+    echo "→ Frontend changes (production mode): rebuilding the static build…"
     docker compose up -d --build frontend
   fi
 elif changed '^frontend/(package(-lock)?\.json|Dockerfile)$'; then
-  echo "→ Cambian las dependencias del frontend: reconstruyendo (con node_modules nuevos)…"
+  echo "→ Frontend dependencies changed: rebuilding (with fresh node_modules)…"
   docker compose up -d --build --renew-anon-volumes frontend
 fi
 
-echo "→ Levantando servicios…"
+echo "→ Starting services…"
 docker compose up -d
 
-echo "→ Aplicando migraciones…"
+echo "→ Applying migrations…"
 docker compose exec -T backend python manage.py migrate --noinput
 
-echo "→ Reiniciando backend, Celery y el escáner para cargar el código nuevo…"
+echo "→ Restarting the backend, Celery and the scanner to load the new code…"
 docker compose restart backend celery_worker celery_beat scanner_worker
 
-echo "→ Limpiando imágenes antiguas…"
+echo "→ Cleaning up old images…"
 docker image prune -f >/dev/null
 
-echo "✔ Actualizado a $(git log -1 --format='%h %s')"
+echo "✔ Updated to $(git log -1 --format='%h %s')"

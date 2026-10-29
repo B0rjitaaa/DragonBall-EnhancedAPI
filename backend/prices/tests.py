@@ -177,8 +177,8 @@ class ReviewTests(TestCase):
     def test_page(self):
         page = self.client.get("/admin/prices/pricereview/").content.decode()
         self.assertIn("P-003 · PR · Son Goku", page)
-        self.assertIn("Emparejados por orden (0)", page)
-        self.assertIn("Precios dudosos (0)", page)
+        self.assertIn("Matched by order (0)", page)
+        self.assertIn("Suspect prices (0)", page)
 
     def test_manual_price(self):
         from prices.services import card_price, value_of
@@ -286,7 +286,7 @@ class ListingOnlyTests(TestCase):
     def test_listing_only_is_apart(self):
         v = self.value()
         self.assertEqual((v["value"], v["value_listing"], v["copies_listing"]), (0, 2499.0, 1))
-        self.assertIn("Cartas caras sin ventas (1)", self.client.get("/admin/prices/pricereview/").content.decode())
+        self.assertIn("Expensive cards with no sales (1)", self.client.get("/admin/prices/pricereview/").content.decode())
 
     def test_confirmed_listing_counts(self):
         self.client.post("/admin/prices/pricereview/choose/", {f"choice_{self.gdr.id}": "11", "tab": "sinventas"})

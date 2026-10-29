@@ -33,9 +33,9 @@ class CardChangesTests(TestCase):
         ])
         self.assertEqual(n, 4)
         got = {(c.kind, c.card_number, c.field, c.before, c.after) for c in CardChange.objects.all()}
-        self.assertIn(("text", "BT1-030", "texto", "Draw 1.", "Draw 2."), got)
+        self.assertIn(("text", "BT1-030", "text", "Draw 1.", "Draw 2."), got)
         self.assertIn(("stats", "BT1-030", "power", "10000", "15000"), got)
-        self.assertIn(("image", "BT10-002", "imagen", "https://e/a.png", "https://e/b.png"), got)
+        self.assertIn(("image", "BT10-002", "image", "https://e/a.png", "https://e/b.png"), got)
         self.assertIn(("new", "BT31-001", "", "", ""), got)
 
     def test_redownloading_the_same_cards_records_nothing(self):
@@ -75,7 +75,7 @@ class ListChangesTests(TestCase):
                {"card_number": "BT1-030", "order": 2, "question": "Can you draw?", "answer": "No."}]
         self.assertEqual(changes.record_ruling_changes(old, new), 1)
         c = CardChange.objects.get()
-        self.assertEqual((c.kind, c.field, c.after), ("ruling", "P1", "New question?\n→ Yes."))
+        self.assertEqual((c.kind, c.field, c.after), ("ruling", "Q1", "New question?\n→ Yes."))
 
 
 class ChangesApiTests(TestCase):

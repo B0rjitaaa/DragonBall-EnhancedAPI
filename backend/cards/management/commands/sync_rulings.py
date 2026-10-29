@@ -5,20 +5,20 @@ from cards.importer import invalidate_facets
 
 
 class Command(BaseCommand):
-    help = "Actualiza el Card Q&A oficial (dbs-cardgame.com) y cuenta las Q&A por carta."
+    help = "Updates the official Card Q&A (dbs-cardgame.com) and counts the Q&A per card."
 
     def add_arguments(self, parser):
         parser.add_argument("--snapshot", action="store_true",
-                            help="Cargar la copia incluida en el proyecto en vez de descargarla")
+                            help="Load the copy bundled with the project instead of downloading it")
 
     def handle(self, *args, snapshot, **options):
         if snapshot:
             count = rulings.load_snapshot()
             invalidate_facets()
-            self.stdout.write(self.style.SUCCESS(f"Cargadas {count} Q&A desde la copia local"))
+            self.stdout.write(self.style.SUCCESS(f"Loaded {count} Q&A from the local copy"))
             return
         try:
             result = rulings.sync_rulings()
         except Exception as exc:  # noqa: BLE001
-            raise CommandError(f"No se pudo actualizar desde la web oficial: {exc}") from exc
+            raise CommandError(f"Could not update from the official website: {exc}") from exc
         self.stdout.write(self.style.SUCCESS(str(result)))

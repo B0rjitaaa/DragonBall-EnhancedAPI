@@ -12,7 +12,7 @@ class AmbiguousLocation(Exception):
     """Hay que quitar copias y están repartidas: hay que decir de qué ubicación."""
 
     def __init__(self, card: Card):
-        super().__init__("Las copias están en varias ubicaciones: indica de cuál quitarla")
+        super().__init__("The copies are in several locations: say which one to remove it from")
         self.card = card
 
 
@@ -112,12 +112,12 @@ def move_copies(
         entry = CollectionEntry.objects.select_for_update().filter(card=card, location=source, fake=source_fake).first()
         if entry is None or entry.quantity < quantity:
             available = entry.quantity if entry else 0
-            kind = " falsas" if source_fake else ""
-            raise ValueError(f"En «{source.name}» solo hay {available} copias{kind}")
+            kind = " fake" if source_fake else ""
+            raise ValueError(f"“{source.name}” only has {available}{kind} copies")
         lines = entry.notes.splitlines()
         if note_line:
             if note_line not in lines:
-                raise ValueError(f"«{note_line}» no está en la nota de esas copias")
+                raise ValueError(f"“{note_line}” is not in the note of those copies")
             remaining = [line for line in lines if line != note_line]
             carried = note_line
         elif quantity == entry.quantity:
@@ -135,10 +135,10 @@ def delete_location(location: Location) -> None:
     from django.apps import apps
 
     if location.is_default:
-        raise ValueError("«Sin ubicar» no se puede borrar")
+        raise ValueError(f"“{location.name}” cannot be deleted")
     if location.deck_versions.filter(matches__isnull=False).exists():
         # Se perdería el historial de versiones y partidas del mazo.
-        raise ValueError(f"«{location.name}» tiene partidas anotadas: bórralas antes o cámbiale el tipo")
+        raise ValueError(f"“{location.name}” has recorded matches: delete them first or change its type")
     default = Location.default()
     with transaction.atomic():
         for entry in list(CollectionEntry.objects.select_for_update().filter(location=location)):

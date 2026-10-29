@@ -173,7 +173,7 @@ class VersionDetailView(APIView):
     def delete(self, request, pk):
         version = get_object_or_404(DeckVersion, pk=pk)
         if version.matches.exists():
-            return Response({"detail": "Esta versión tiene partidas anotadas: bórralas antes."}, status=400)
+            return Response({"detail": "This version has recorded matches: delete them first."}, status=400)
         version.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -221,7 +221,7 @@ class DeckMatchesView(APIView):
         body.is_valid(raise_exception=True)
         version = body.validated_data.get("version")
         if version is not None and version.deck_id != deck.id:
-            return Response({"version": "No es una versión de este mazo"}, status=400)
+            return Response({"version": "Not a version of this deck"}, status=400)
         match = body.save(version=version or services.version_for_match(deck))
         return Response(MatchSerializer(match).data, status=status.HTTP_201_CREATED)
 
@@ -261,7 +261,7 @@ class DeckToHistoryView(APIView):
     def post(self, request, pk):
         deck = _deck(pk)
         if deck.status == Location.Status.PARKED:
-            return Response({"detail": "El mazo ya está en el histórico"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "The deck is already archived"}, status=status.HTTP_400_BAD_REQUEST)
         moved = services.move_to_history(deck)
         return Response({"deck": deck.name, "target": Location.default().name, "cards": moved})
 
@@ -272,5 +272,5 @@ class DeckBackInUseView(APIView):
     def post(self, request, pk):
         deck = _deck(pk)
         if deck.status != Location.Status.PARKED:
-            return Response({"detail": "El mazo ya está en uso"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "The deck is already in use"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"deck": deck.name, "leader": services.back_in_use(deck)})

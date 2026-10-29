@@ -26,7 +26,7 @@ function fromCandidate(c: Candidate): Option {
 
 function Tile({ o, busy, onPick, showSet }: { o: Option; busy: boolean; onPick: (id: number) => void; showSet?: boolean }) {
   return (
-    <button className="scan-tile" disabled={busy} onClick={() => onPick(o.id)} title="Es esta">
+    <button className="scan-tile" disabled={busy} onClick={() => onPick(o.id)} title="This one">
       {o.image_url && <img src={o.image_url} alt={o.name} loading="lazy" />}
       <span>
         {o.card_number} · {o.name}
@@ -82,25 +82,25 @@ export default function CardPicker({
     <div className="picker">
       <input
         type="search"
-        placeholder="Buscar por nombre o número (p. ej. BT25-120)…"
+        placeholder="Search by name or number (e.g. BT25-120)…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
       {searching && results.data && (
-        <p className="muted">{results.data.count} resultados{results.data.count > 30 && " (se muestran 30)"}</p>
+        <p className="muted">{results.data.count} results{results.data.count > 30 && " (showing 30)"}</p>
       )}
       {!searching && siblings.length > 0 && (
         <div className="picker-siblings">
           <p className="picker-note">
-            Es <strong>{siblings[0].card_number} · {siblings[0].name}</strong>, pero hay varias impresiones: elige la
-            edición de tu carta.
+            It's <strong>{siblings[0].card_number} · {siblings[0].name}</strong>, but there are several printings: pick the
+            edition of your card.
           </p>
           <div className="picker-grid">
             {siblings.map((o) => (
               <Tile key={o.id} o={o} busy={busy} onPick={onPick} showSet />
             ))}
           </div>
-          {others.length > 0 && <p className="muted small">Otros candidatos</p>}
+          {others.length > 0 && <p className="muted small">Other candidates</p>}
         </div>
       )}
       <div className="picker-grid">
@@ -109,8 +109,8 @@ export default function CardPicker({
         ))}
       </div>
       <p className="muted small">
-        Si tu impresión no aparece (promos, premios…), elige la misma carta en otra impresión: tu foto se guarda y la
-        próxima vez la reconocerá.
+        If your printing isn't listed (promos, prizes…), pick the same card in another printing: your photo is saved and
+        it will be recognised next time.
       </p>
     </div>
   );

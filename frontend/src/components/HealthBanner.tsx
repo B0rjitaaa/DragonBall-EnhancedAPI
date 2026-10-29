@@ -8,12 +8,12 @@ const DISMISS_KEY = 'dbs-health-dismissed'
 
 /** Qué deja de funcionar cuando cae cada pieza crítica. */
 const MESSAGES: Record<string, string> = {
-  database: 'La base de datos no responde: el buscador y Mi colección no funcionan ahora mismo.',
-  redis: 'Redis no responde: el escáner y las tareas en segundo plano están parados.',
-  scanner_worker: 'El escáner no está disponible ahora mismo.',
-  worker: 'Las tareas en segundo plano (sync con Bandai, importaciones) están paradas.',
+  database: "The database isn't responding: search and My collection don't work right now.",
+  redis: "Redis isn't responding: the scanner and background tasks are stopped.",
+  scanner_worker: "The scanner isn't available right now.",
+  worker: 'Background tasks (Bandai sync, imports) are stopped.',
 }
-const SERVER_DOWN = 'El servidor no responde ahora mismo.'
+const SERVER_DOWN = "The server isn't responding right now."
 
 interface Check {
   key: string
@@ -34,7 +34,7 @@ async function fetchProblems(): Promise<string[]> {
   const down = body.checks.filter((c) => c.kind === 'critical' && !c.ok).map((c) => c.key)
   // Si no hay base de datos ni Redis, lo demás es consecuencia: basta con decir eso.
   const root = down.filter((k) => k === 'database' || k === 'redis')
-  return (root.length ? root : down).map((k) => MESSAGES[k] ?? `${k} no responde.`)
+  return (root.length ? root : down).map((k) => MESSAGES[k] ?? `${k} isn't responding.`)
 }
 
 function readDismissed(): string | null {
@@ -86,7 +86,7 @@ export default function HealthBanner() {
           <p key={p}>{p}</p>
         ))}
       </div>
-      <button type="button" onClick={dismiss} aria-label="Cerrar aviso" title="Cerrar aviso">
+      <button type="button" onClick={dismiss} aria-label="Dismiss notice" title="Dismiss notice">
         ×
       </button>
     </div>

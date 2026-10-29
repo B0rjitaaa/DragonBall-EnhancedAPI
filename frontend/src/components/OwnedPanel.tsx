@@ -19,7 +19,7 @@ function rememberLocation(id: number): void {
   }
 }
 
-export const KIND_LABELS: Record<string, string> = { deck: 'Mazo', binder: 'Archivador', storage: 'Almacén', other: 'Otro' }
+export const KIND_LABELS: Record<string, string> = { deck: 'Deck', binder: 'Binder', storage: 'Storage', other: 'Other' }
 
 /** Una fila de copias: ubicación + auténticas o falsas. */
 export interface Spot {
@@ -55,16 +55,16 @@ export default function OwnedPanel({ card, locations, busy, notice, onAdjust, on
   const selected = free.some((l) => l.id === addTo) ? addTo : ''
 
   return (
-    <section className="owned-panel" aria-label="Copias en tu colección">
+    <section className="owned-panel" aria-label="Copies in your collection">
       <header>
         {total === 0 ? (
-          <>No la tienes en tu colección</>
+          <>Not in your collection</>
         ) : (
           <>
-            En tu colección: <strong>×{total}</strong>
+            In your collection: <strong>×{total}</strong>
           </>
         )}
-        {fakes > 0 && <span className="fake-badge">{fakes === 1 ? '1 falsa' : `${fakes} falsas`}</span>}
+        {fakes > 0 && <span className="fake-badge">{fakes === 1 ? '1 fake' : `${fakes} fakes`}</span>}
       </header>
       {notice && <p className="owned-notice">{notice}</p>}
       <ul>
@@ -88,9 +88,9 @@ export default function OwnedPanel({ card, locations, busy, notice, onAdjust, on
       </ul>
       {free.length > 0 && (
         <div className="owned-add">
-          <span>{total === 0 ? 'Añadir a Mi colección en' : 'Añadir una copia en'}</span>
+          <span>{total === 0 ? 'Add to My collection in' : 'Add a copy to'}</span>
           <select className="input" value={selected} onChange={(e) => setAddTo(e.target.value ? Number(e.target.value) : '')}>
-            <option value="">elige ubicación…</option>
+            <option value="">choose location…</option>
             {free.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
@@ -106,7 +106,7 @@ export default function OwnedPanel({ card, locations, busy, notice, onAdjust, on
               rememberLocation(selected)
             }}
           >
-            Añadir
+            Add
           </button>
         </div>
       )}
@@ -148,16 +148,16 @@ function OwnedRow({
         <span className="owned-name">
           {loc.name}
           {loc.kind !== 'other' && <small>{KIND_LABELS[loc.kind]}</small>}
-          {loc.fake && <span className="fake-badge">Falsa</span>}
+          {loc.fake && <span className="fake-badge">Fake</span>}
         </span>
         <span className="owned-qty">
-          <button className="qty-btn" disabled={busy} onClick={() => onAdjust(-1)} aria-label={`Quitar una copia${loc.fake ? ' falsa' : ''} de ${loc.name}`}>
+          <button className="qty-btn" disabled={busy} onClick={() => onAdjust(-1)} aria-label={`Remove a${loc.fake ? ' fake' : ''} copy from ${loc.name}`}>
             −
           </button>
           <strong>{loc.quantity}</strong>
           {/* Las copias nuevas son auténticas: en una fila de falsas, + no tiene sentido. */}
           {!loc.fake && (
-            <button className="qty-btn" disabled={busy} onClick={() => onAdjust(1)} aria-label={`Añadir una copia en ${loc.name}`}>
+            <button className="qty-btn" disabled={busy} onClick={() => onAdjust(1)} aria-label={`Add a copy to ${loc.name}`}>
               +
             </button>
           )}
@@ -168,20 +168,20 @@ function OwnedRow({
             disabled={busy}
             onClick={() => (mustPick ? setPicking(!picking) : onToggleFake())}
             aria-expanded={mustPick ? picking : undefined}
-            title={loc.fake ? 'Una de estas copias es auténtica' : 'Una de estas copias es falsa'}
+            title={loc.fake ? 'One of these copies is genuine' : 'One of these copies is fake'}
           >
-            {loc.fake ? 'Es auténtica' : 'Marcar falsa'}
+            {loc.fake ? "It's genuine" : 'Mark as fake'}
           </button>
           {others.length > 0 && (
             <button className="link small" onClick={() => setMoving(!moving)} aria-expanded={moving}>
-              Mover…
+              Move…
             </button>
           )}
         </span>
       </div>
       {picking && (
         <div className="owned-pick">
-          <span>{loc.fake ? '¿Cuál es auténtica?' : '¿Cuál es la falsa?'}</span>
+          <span>{loc.fake ? 'Which one is genuine?' : 'Which one is the fake?'}</span>
           {lines.map((line) => (
             <button
               key={line}
@@ -204,17 +204,17 @@ function OwnedRow({
                 setPicking(false)
               }}
             >
-              Otra (sin posición)
+              Another (no position)
             </button>
           )}
           <button className="link small" onClick={() => setPicking(false)}>
-            Cancelar
+            Cancel
           </button>
         </div>
       )}
       {moving && (
         <div className="owned-move">
-          Mover
+          Move
           <input
             className="input"
             type="number"
@@ -222,11 +222,11 @@ function OwnedRow({
             max={loc.quantity}
             value={qty}
             onChange={(e) => setQty(Math.max(1, Math.min(loc.quantity, Number(e.target.value) || 1)))}
-            aria-label="Copias a mover"
+            aria-label="Copies to move"
           />
           {mustPick && qty === 1 && (
-            <select className="input" value={moveLine} onChange={(e) => setMoveLine(e.target.value)} aria-label="Cuál">
-              <option value="">cualquiera</option>
+            <select className="input" value={moveLine} onChange={(e) => setMoveLine(e.target.value)} aria-label="Which one">
+              <option value="">any</option>
               {lines.map((line) => (
                 <option key={line} value={line}>
                   {line}
@@ -234,9 +234,9 @@ function OwnedRow({
               ))}
             </select>
           )}
-          a
+          to
           <select className="input" value={target} onChange={(e) => setTarget(e.target.value ? Number(e.target.value) : '')}>
-            <option value="">elige…</option>
+            <option value="">choose…</option>
             {others.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
@@ -251,19 +251,19 @@ function OwnedRow({
               setMoving(false)
             }}
           >
-            Mover
+            Move
           </button>
         </div>
       )}
       <textarea
         className="input owned-note"
-        placeholder={loc.fake ? 'Nota (p. ej. AliExpress, junio)' : 'Nota (p. ej. página 12)'}
+        placeholder={loc.fake ? 'Note (e.g. AliExpress, June)' : 'Note (e.g. page 12)'}
         value={notes}
         rows={Math.max(1, notes.split('\n').length)}
         maxLength={500}
         onChange={(e) => setNotes(e.target.value)}
         onBlur={() => notes !== loc.notes && onNote(notes)}
-        aria-label="Nota"
+        aria-label="Note"
       />
     </li>
   )

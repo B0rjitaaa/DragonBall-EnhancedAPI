@@ -33,7 +33,7 @@ def upsert_cards(items: Iterable[dict]) -> tuple[int, int, list[int]]:
             fields.update(catalog.assign(fields["keywords"]))
             parsed.append(Card(**fields))
         except Exception:  # noqa: BLE001 - una carta rara no debe tumbar la importación
-            logger.exception("No se pudo parsear la carta %s", data.get("id"))
+            logger.exception("Could not parse card %s", data.get("id"))
             if data.get("id"):
                 errors.append(int(data["id"]))
 

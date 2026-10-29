@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, COLLECTION_BACKUP_URL } from '../lib/api'
 import type { RestorePreview } from '../lib/types'
 
-const CONFIRM_WORD = 'sustituir'
+const CONFIRM_WORD = 'replace'
 const SHOWN = 60 // cambios carta a carta que se listan antes de resumir el resto
 
 interface Props {
@@ -21,9 +21,9 @@ function downloadCurrentBackup() {
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return 'fecha desconocida'
+  if (!iso) return 'unknown date'
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
 }
 
 /** Restaurar la copia JSON de «Descargar copia»: elegir fichero → vista previa → confirmar escribiendo
@@ -67,7 +67,7 @@ export default function RestoreBackup({ onDone }: Props) {
       try {
         parsed = JSON.parse(await file.text())
       } catch {
-        throw new Error('El fichero no es un JSON válido. Elige el que descargaste con «Descargar copia».')
+        throw new Error("The file isn't valid JSON. Choose the one you got with “Download backup”.")
       }
       setDoc(parsed)
       setPreview(await api.previewRestore(parsed))
@@ -102,9 +102,9 @@ export default function RestoreBackup({ onDone }: Props) {
       <button
         className="btn backup-link"
         onClick={() => setOpen(true)}
-        title="Sustituye tu colección por la de una copia descargada con «Descargar copia» (con vista previa)"
+        title="Replaces your collection with one from a backup made with “Download backup” (with a preview)"
       >
-        Restaurar copia
+        Restore backup
       </button>
       {open && (
         <div className="modal-backdrop" onClick={() => !busy && close()}>
@@ -115,78 +115,78 @@ export default function RestoreBackup({ onDone }: Props) {
             aria-labelledby="restore-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="icon-btn close" onClick={close} disabled={busy} aria-label="Cerrar">
+            <button className="icon-btn close" onClick={close} disabled={busy} aria-label="Close">
               ✕
             </button>
-            <h2 id="restore-title">Restaurar una copia</h2>
+            <h2 id="restore-title">Restore a backup</h2>
             <p className="muted small">
-              <strong>Sustituye</strong> tus copias por las de una copia descargada con «Descargar copia»: lo que no esté
-              en la copia se quita. Las ubicaciones se conservan (las que falten se crean) y los mazos mantienen sus
-              versiones y partidas. Antes de aplicar verás exactamente qué cambia.
+              <strong>Replaces</strong> your copies with those in a backup made with “Download backup”: anything not in
+              the backup is removed. Locations are kept (missing ones are created) and decks keep their
+              versions and matches. Before applying you'll see exactly what changes.
             </p>
 
             {applied === null && (
               <label className="csv-file">
                 <input type="file" accept=".json,application/json" disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
-                {fileName || 'Elegir copia (.json)…'}
+                {fileName || 'Choose backup (.json)…'}
               </label>
             )}
 
-            {busy && <p className="muted">{preview ? 'Restaurando…' : 'Leyendo la copia…'}</p>}
+            {busy && <p className="muted">{preview ? 'Restoring…' : 'Reading the backup…'}</p>}
             {error && <p className="error">{error}</p>}
 
             {preview && applied === null && (
               <div className="csv-preview">
-                <p className="muted small">Copia del {formatDate(preview.exported_at)}.</p>
+                <p className="muted small">Backup from {formatDate(preview.exported_at)}.</p>
                 <div className="restore-totals">
                   <div>
-                    <small>Ahora</small>
-                    <strong>{preview.before.copies.toLocaleString('es-ES')}</strong>
-                    <span>copias · {preview.before.cards.toLocaleString('es-ES')} cartas</span>
+                    <small>Now</small>
+                    <strong>{preview.before.copies.toLocaleString('en-GB')}</strong>
+                    <span>copies · {preview.before.cards.toLocaleString('en-GB')} cards</span>
                   </div>
                   <span aria-hidden>→</span>
                   <div>
-                    <small>Después</small>
-                    <strong>{preview.after.copies.toLocaleString('es-ES')}</strong>
+                    <small>After</small>
+                    <strong>{preview.after.copies.toLocaleString('en-GB')}</strong>
                     <span>
-                      copias · {preview.after.cards.toLocaleString('es-ES')} cartas
-                      {preview.after.fakes > 0 && <> · {preview.after.fakes} falsas</>}
+                      copies · {preview.after.cards.toLocaleString('en-GB')} cards
+                      {preview.after.fakes > 0 && <> · {preview.after.fakes} fakes</>}
                     </span>
                   </div>
                 </div>
 
                 {preview.changes_total === 0 ? (
-                  <p>✔ Tu colección ya es igual que la copia: no hay nada que cambiar.</p>
+                  <p>✔ Your collection already matches the backup: nothing to change.</p>
                 ) : (
                   <>
                     <p>
-                      Se añaden <strong className="restore-plus">{preview.added}</strong> copias y se quitan{' '}
-                      <strong className="restore-minus">{preview.removed}</strong>, en {preview.changes_total} cambios.
+                      <strong className="restore-plus">{preview.added}</strong> copies added and{' '}
+                      <strong className="restore-minus">{preview.removed}</strong> removed, in {preview.changes_total} changes.
                     </p>
                     {preview.create_locations.length > 0 && (
                       <p className="small">
-                        Se crean estas ubicaciones: {preview.create_locations.map((l) => `«${l}»`).join(', ')}
+                        These locations will be created: {preview.create_locations.map((l) => `“${l}”`).join(', ')}
                       </p>
                     )}
                     {preview.emptied_locations.length > 0 && (
                       <p className="csv-warn">
-                        Se quedan vacías (no se borran): {preview.emptied_locations.map((l) => `«${l}»`).join(', ')}
+                        These will be left empty (not deleted): {preview.emptied_locations.map((l) => `“${l}”`).join(', ')}
                       </p>
                     )}
                     {preview.locations.length > 0 && (
                       <table className="restore-locations">
                         <thead>
                           <tr>
-                            <th>Ubicación</th>
-                            <th>Ahora</th>
-                            <th>Después</th>
+                            <th>Location</th>
+                            <th>Now</th>
+                            <th>After</th>
                           </tr>
                         </thead>
                         <tbody>
                           {preview.locations.map((l) => (
                             <tr key={l.name}>
                               <td>
-                                {l.name} {l.new && <span className="restore-new">nueva</span>}
+                                {l.name} {l.new && <span className="restore-new">new</span>}
                               </td>
                               <td>{l.before}</td>
                               <td>{l.after}</td>
@@ -196,7 +196,7 @@ export default function RestoreBackup({ onDone }: Props) {
                       </table>
                     )}
                     <details className="restore-changes">
-                      <summary>Ver los cambios carta a carta ({preview.changes_total})</summary>
+                      <summary>See the changes card by card ({preview.changes_total})</summary>
                       <ul className="csv-skips">
                         {preview.changes.slice(0, SHOWN).map((c) => (
                           <li key={`${c.card_id}-${c.location}-${c.fake}`}>
@@ -204,10 +204,10 @@ export default function RestoreBackup({ onDone }: Props) {
                               {c.after > c.before ? `+${c.after - c.before}` : `−${c.before - c.after}`}
                             </span>{' '}
                             {c.number} {c.name}
-                            {c.fake && ' (falsa)'} <span className="muted">· {c.location}: {c.before} → {c.after}</span>
+                            {c.fake && ' (fake)'} <span className="muted">· {c.location}: {c.before} → {c.after}</span>
                           </li>
                         ))}
-                        {preview.changes_total > SHOWN && <li className="muted">… y {preview.changes_total - SHOWN} más</li>}
+                        {preview.changes_total > SHOWN && <li className="muted">… and {preview.changes_total - SHOWN} more</li>}
                       </ul>
                     </details>
                   </>
@@ -215,7 +215,7 @@ export default function RestoreBackup({ onDone }: Props) {
 
                 {preview.skipped.length > 0 && (
                   <p className="csv-warn">
-                    Se saltan {preview.skipped.length} filas de la copia:{' '}
+                    {preview.skipped.length} rows of the backup will be skipped:{' '}
                     {preview.skipped.slice(0, 5).map((s) => `${s.card} (${s.reason})`).join(' · ')}
                     {preview.skipped.length > 5 && ' …'}
                   </p>
@@ -224,11 +224,11 @@ export default function RestoreBackup({ onDone }: Props) {
                 {preview.changes_total > 0 && (
                   <div className="restore-confirm">
                     <p className="small">
-                      Al aplicar, primero <strong>se descarga una copia de tu colección actual</strong>, por si quieres
-                      volver atrás (se restaura igual, con este mismo botón).
+                      When you apply, <strong>a backup of your current collection is downloaded first</strong>, in case you want
+                      to go back (restore it the same way, with this same button).
                     </p>
                     <label>
-                      Escribe <code>{CONFIRM_WORD}</code> para confirmar:
+                      Type <code>{CONFIRM_WORD}</code> to confirm:
                       <input
                         className="input"
                         value={confirm}
@@ -242,11 +242,11 @@ export default function RestoreBackup({ onDone }: Props) {
                 )}
                 <div className="csv-actions">
                   <button className="btn ghost" onClick={close} disabled={busy}>
-                    Cancelar
+                    Cancel
                   </button>
                   {preview.changes_total > 0 && (
                     <button className="btn danger" onClick={apply} disabled={busy || !ready}>
-                      Sustituir mi colección
+                      Replace my collection
                     </button>
                   )}
                 </div>
@@ -256,14 +256,14 @@ export default function RestoreBackup({ onDone }: Props) {
             {applied !== null && (
               <div className="csv-preview">
                 <p>
-                  ✔ Colección restaurada: ahora tienes <strong>{applied.toLocaleString('es-ES')}</strong> copias.
+                  ✔ Collection restored: you now have <strong>{applied.toLocaleString('en-GB')}</strong> copies.
                 </p>
                 <p className="muted small">
-                  La copia de cómo estaba antes se ha descargado: si quieres deshacerlo, restáurala igual.
+                  A backup of how it was before has been downloaded: to undo this, restore it the same way.
                 </p>
                 <div className="csv-actions">
                   <button className="btn primary" onClick={close}>
-                    Cerrar
+                    Close
                   </button>
                 </div>
               </div>

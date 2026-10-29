@@ -8,10 +8,10 @@ from collection.models import CollectionEntry
 
 
 class Command(BaseCommand):
-    help = "Genera las miniaturas que falten (primero las de las cartas de Mi colección)."
+    help = "Generates missing thumbnails (cards in My collection first)."
 
     def add_arguments(self, parser):
-        parser.add_argument("--collection-only", action="store_true", help="Solo las cartas de Mi colección")
+        parser.add_argument("--collection-only", action="store_true", help="Only the cards in My collection")
         parser.add_argument("--workers", type=int, default=2)
 
     def handle(self, *args, collection_only: bool, workers: int, **options):
@@ -24,7 +24,7 @@ class Command(BaseCommand):
             for card_id, url in sorted(cards.values_list("id", "image_url"), key=lambda c: (c[0] not in owned, c[0]))
             if not thumbs.thumb_path(card_id, url).exists()
         ]
-        self.stdout.write(f"Miniaturas pendientes: {len(pending)}")
+        self.stdout.write(f"Pending thumbnails: {len(pending)}")
         ok = errors = 0
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = [pool.submit(thumbs.make_thumb, card_id, url) for card_id, url in pending]
@@ -35,5 +35,5 @@ class Command(BaseCommand):
                 except Exception:  # noqa: BLE001 - una imagen rota no para el lote
                     errors += 1
                 if done % 500 == 0:
-                    self.stdout.write(f"  {done}/{len(pending)} ({errors} errores)")
-        self.stdout.write(self.style.SUCCESS(f"Miniaturas: {ok} generadas, {errors} errores"))
+                    self.stdout.write(f"  {done}/{len(pending)} ({errors} errors)")
+        self.stdout.write(self.style.SUCCESS(f"Thumbnails: {ok} generated, {errors} errors"))

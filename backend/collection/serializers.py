@@ -18,7 +18,7 @@ class LocationSerializer(serializers.ModelSerializer):
     def validate_status(self, value):
         # El estado cambia solo con sus acciones propias, que además mueven copias y lo apuntan en el registro.
         if value != (self.instance.status if self.instance else Location.Status.ACTIVE):
-            raise serializers.ValidationError("Usa «Mover al histórico» o «Volver a usar».")
+            raise serializers.ValidationError("Use “Move to archive” or “Use again”.")
         return value
 
     @staticmethod

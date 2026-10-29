@@ -123,7 +123,7 @@ def main(only: str | None) -> None:
         for name, size, prepare in shots():
             if only and only not in name:
                 continue
-            context = browser.new_context(viewport=size, device_scale_factor=2 if size is PHONE else 1, locale="es-ES")
+            context = browser.new_context(viewport=size, device_scale_factor=2 if size is PHONE else 1, locale="en-GB")
             # Solo en las del admin: con la sesión abierta, la web da error CSRF al buscar.
             if name.startswith("admin"):
                 context.add_cookies([{"name": "sessionid", "value": session, "url": ADMIN}])

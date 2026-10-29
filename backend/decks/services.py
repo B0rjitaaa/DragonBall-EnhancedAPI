@@ -202,7 +202,7 @@ def restore_version(version: DeckVersion, default_target: Location, targets: dic
         for row in plan["outgoing"]:
             card, target = cards[row["card_id"]], targets.get(row["card_id"], default_target)
             if target.pk == deck.pk:
-                raise ValueError("Las copias que sobran no pueden quedarse en el mismo mazo")
+                raise ValueError("The leftover copies cannot stay in the same deck")
             fakes = row["fakes"]
             if fakes:
                 move_copies(card, deck, target, fakes, source_fake=True)
@@ -258,7 +258,7 @@ def move_to_history(deck: Location) -> list[dict]:
         Location.objects.select_for_update().filter(pk=deck.pk).first()
         moved = history_preview(deck)
         if moved:
-            save_version(deck, name="Al pasar al histórico", automatic=True)
+            save_version(deck, name="When moved to archive", automatic=True)
         target = Location.default()
         for entry in CollectionEntry.objects.filter(location=deck).select_related("card"):
             move_copies(entry.card, deck, target, entry.quantity, source_fake=entry.fake)

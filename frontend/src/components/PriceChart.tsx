@@ -7,11 +7,11 @@ const H = 150
 const PAD = { top: 12, right: 10, bottom: 22, left: 10 }
 const DAY = 86_400_000
 const PERIODS = [
-  { days: 30, label: '30 días' },
-  { days: 90, label: '90 días' },
-  { days: 0, label: 'Todo' },
+  { days: 30, label: '30 days' },
+  { days: 90, label: '90 days' },
+  { days: 0, label: 'All' },
 ] as const
-const dateFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' })
+const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
 
 /** Precio en una fecha: el último cambio hasta ese día (el historial solo guarda los cambios). */
 function priceAt(points: PricePoint[], t: number): number | null {
@@ -42,10 +42,10 @@ export default function PriceChart({ points }: { points: PricePoint[] }) {
     return (
       <section className="price-chart">
         <header>
-          <strong>Evolución del precio</strong>
+          <strong>Price history</strong>
         </header>
         <p className="muted small">
-          El historial empezó el {dateFormat.format(new Date(points[0].date))}: la gráfica se irá llenando con los días.
+          History started on {dateFormat.format(new Date(points[0].date))}: the chart will fill in over the coming days.
         </p>
       </section>
     )
@@ -69,7 +69,7 @@ export default function PriceChart({ points }: { points: PricePoint[] }) {
   return (
     <section className="price-chart">
       <header>
-        <strong>Evolución del precio</strong>
+        <strong>Price history</strong>
         <span className={`price-change ${change > 0.005 ? 'up' : change < -0.005 ? 'down' : 'flat'}`}>
           {change > 0.005 ? '▲' : change < -0.005 ? '▼' : '='} {Math.abs(Math.round(change * 100))} %
         </span>
@@ -84,7 +84,7 @@ export default function PriceChart({ points }: { points: PricePoint[] }) {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Precio: de ${formatEur(shown[0].eur)} a ${formatEur(last)}`}
+        aria-label={`Price: from ${formatEur(shown[0].eur)} to ${formatEur(last)}`}
         onMouseMove={(e) => {
           const box = e.currentTarget.getBoundingClientRect()
           setHover(Math.min(W - PAD.right, Math.max(PAD.left, ((e.clientX - box.left) / box.width) * W)))
@@ -103,7 +103,7 @@ export default function PriceChart({ points }: { points: PricePoint[] }) {
         <text x={PAD.left} y={PAD.top - 2} className="axis">{formatEur(max)}</text>
         <text x={PAD.left} y={H - PAD.bottom - 3} className="axis">{formatEur(min)}</text>
         <text x={PAD.left} y={H - 6} className="axis">{dateFormat.format(new Date(start))}</text>
-        <text x={W - PAD.right} y={H - 6} className="axis" textAnchor="end">hoy</text>
+        <text x={W - PAD.right} y={H - 6} className="axis" textAnchor="end">today</text>
         {hover != null && hoverT != null && hoverV != null && (
           <g>
             <line x1={hover} x2={hover} y1={PAD.top} y2={H - PAD.bottom} className="cursor" />

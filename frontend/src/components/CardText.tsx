@@ -23,7 +23,7 @@ export default function CardText({ text, skills, onKeyword }: Props) {
             if (!(part.startsWith('[') && part.endsWith(']'))) return <Fragment key={j}>{part}</Fragment>
             const skill = skills.describe(part)
             return (
-              <Tooltip key={j} title={skill ? `[${skill.name}]` : undefined} text={skill?.description} footer="Clic para filtrar">
+              <Tooltip key={j} title={skill ? `[${skill.name}]` : undefined} text={skill?.description} footer="Click to filter">
                 <button className="kw" onClick={() => onKeyword?.(part.slice(1, -1))}>
                   {part}
                 </button>

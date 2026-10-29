@@ -35,9 +35,9 @@ class CollectionCsvTests(TestCase):
         text = r.content.decode("utf-8")
         self.assertTrue(text.startswith("﻿"))
         rows = list(csv.reader(io.StringIO(text.lstrip("﻿")), delimiter=";"))
-        self.assertEqual(rows[0], ["id", "número", "nombre", "edición", "ubicación", "cantidad", "falsa", "notas"])
-        self.assertIn(["4", "BT1-001", "Champa", "Galactic Battle", "Sin ubicar", "2", "no", ""], rows)
-        self.assertIn(["7", "BT1-008", "Vados", "Galactic Battle", "Mazo rojo", "1", "sí", "titular"], rows)
+        self.assertEqual(rows[0], ["id", "number", "name", "set", "location", "quantity", "fake", "notes"])
+        self.assertIn(["4", "BT1-001", "Champa", "Galactic Battle", "Unsorted", "2", "no", ""], rows)
+        self.assertIn(["7", "BT1-008", "Vados", "Galactic Battle", "Mazo rojo", "1", "yes", "titular"], rows)
 
     def test_export_reimports_as_the_same_copies(self):
         # Exportar y volver a importar duplica exactamente lo que había (nunca borra, suma).
@@ -65,7 +65,7 @@ class CollectionCsvTests(TestCase):
         text = "id;ubicación;cantidad;falsa\n7;Caja que no existe;2;sí\n4;mazo rojo;1;no\n"
         data = self.preview(text).data
         self.assertEqual(data["totals"]["unknown_locations"], ["Caja que no existe"])
-        self.assertEqual([r["location"] for r in data["rows"]], ["Sin ubicar", "Mazo rojo"])
+        self.assertEqual([r["location"] for r in data["rows"]], ["Unsorted", "Mazo rojo"])
         self.client.post("/api/my-collection/import/", {"csv": text, "apply": True}, format="json")
         self.assertEqual(self.qty(self.vados, self.loose, fake=True), 2)
         self.assertEqual(self.qty(self.champa, self.deck), 1)

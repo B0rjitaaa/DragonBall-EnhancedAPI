@@ -93,7 +93,7 @@ class ErrorLogTests(TestCase):
             self.assertTrue(tasks.notify_error(group.pk, "nuevo"))
         data = post.call_args.kwargs["data"]
         self.assertTrue(data["disable_notification"])
-        self.assertIn("Error nuevo", data["text"])
+        self.assertIn("New error", data["text"])
         self.assertIn(f"/admin/errorlog/errorgroup/{group.pk}/change/", data["text"])
 
     def test_purge_only_old_resolved(self):

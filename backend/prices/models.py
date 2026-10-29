@@ -12,17 +12,17 @@ from cards.models import Card
 class CardmarketExpansion(models.Model):
     """Una expansión de Cardmarket y el set nuestro (Card.card_set) al que corresponde."""
 
-    id = models.PositiveIntegerField(primary_key=True, help_text="idExpansion de Cardmarket")
-    card_set = models.CharField(max_length=255, blank=True, help_text="Set nuestro; vacío = sin emparejar")
-    score = models.FloatField(default=0, help_text="Parte de sus nombres que están en ese set (0-1)")
+    id = models.PositiveIntegerField(primary_key=True, help_text="Cardmarket idExpansion")
+    card_set = models.CharField(max_length=255, blank=True, help_text="Our set; empty = unmatched")
+    score = models.FloatField(default=0, help_text="Share of its names found in that set (0-1)")
     # Elegida a mano: el emparejamiento diario no la cambia.
     manual = models.BooleanField(default=False)
     # Fusion World va en el mismo juego de Cardmarket, pero no está en nuestro catálogo.
     fusion_world = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name = "expansión de Cardmarket"
-        verbose_name_plural = "expansiones de Cardmarket"
+        verbose_name = "Cardmarket expansion"
+        verbose_name_plural = "Cardmarket expansions"
 
     def __str__(self):
         return f"{self.id} → {self.card_set or '—'}"
@@ -31,10 +31,10 @@ class CardmarketExpansion(models.Model):
 class CardmarketProduct(models.Model):
     """Una carta suelta de Cardmarket con su precio del día (en euros)."""
 
-    id = models.PositiveIntegerField(primary_key=True, help_text="idProduct de Cardmarket")
+    id = models.PositiveIntegerField(primary_key=True, help_text="Cardmarket idProduct")
     name = models.CharField(max_length=255)
     expansion = models.ForeignKey(CardmarketExpansion, on_delete=models.CASCADE, related_name="products")
-    metacard = models.PositiveIntegerField(null=True, blank=True, help_text="Agrupa las impresiones de una carta")
+    metacard = models.PositiveIntegerField(null=True, blank=True, help_text="Groups the printings of a card")
     date_added = models.DateTimeField(null=True, blank=True)
     # Guía de precios del día (None = sin datos).
     trend = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -51,8 +51,8 @@ class CardmarketProduct(models.Model):
     fetched_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        verbose_name = "producto de Cardmarket"
-        verbose_name_plural = "productos de Cardmarket"
+        verbose_name = "Cardmarket product"
+        verbose_name_plural = "Cardmarket products"
 
     def __str__(self):
         return f"{self.name} ({self.id})"
@@ -62,13 +62,13 @@ class CardmarketLink(models.Model):
     """A qué producto de Cardmarket corresponde una impresión nuestra."""
 
     class Method(models.TextChoices):
-        AUTO = "auto", "Automático (única)"
-        ORDERED = "ordered", "Automático (por orden)"
-        REPRINT = "reprint", "Automático (como su versión normal)"
-        CHEAPEST = "cheapest", "Automático (la más barata de varias)"
-        MANUAL = "manual", "Elegido a mano"
-        NONE = "none", "No está en Cardmarket"
-        PRICE = "price", "Precio puesto a mano"
+        AUTO = "auto", "Automatic (only one)"
+        ORDERED = "ordered", "Automatic (by order)"
+        REPRINT = "reprint", "Automatic (like its regular version)"
+        CHEAPEST = "cheapest", "Automatic (cheapest of several)"
+        MANUAL = "manual", "Chosen by hand"
+        NONE = "none", "Not on Cardmarket"
+        PRICE = "price", "Price set by hand"
 
     # Elegidos a mano (producto, «no está» o precio): el emparejamiento diario no los toca.
     MANUAL_METHODS = (Method.MANUAL, Method.NONE, Method.PRICE)
@@ -84,8 +84,8 @@ class CardmarketLink(models.Model):
     method = models.CharField(max_length=8, choices=Method.choices)
 
     class Meta:
-        verbose_name = "enlace con Cardmarket"
-        verbose_name_plural = "enlaces con Cardmarket"
+        verbose_name = "Cardmarket link"
+        verbose_name_plural = "Cardmarket links"
 
     def __str__(self):
         return f"{self.card_id} → {self.product_id} ({self.method})"
@@ -96,14 +96,14 @@ class PriceReview(models.Model):
 
     class Meta:
         managed = False
-        verbose_name = "revisión de emparejamientos"
-        verbose_name_plural = "revisar emparejamientos"
+        verbose_name = "match review"
+        verbose_name_plural = "review matches"
 
 
 class TcgProduct(models.Model):
     """Una carta de TCGplayer (vía tcgcsv.com) con su precio de mercado del día, en dólares."""
 
-    id = models.PositiveIntegerField(primary_key=True, help_text="productId de TCGplayer")
+    id = models.PositiveIntegerField(primary_key=True, help_text="TCGplayer productId")
     group_id = models.PositiveIntegerField(db_index=True)
     group_name = models.CharField(max_length=255, blank=True)
     name = models.CharField(max_length=255)
@@ -119,8 +119,8 @@ class TcgProduct(models.Model):
     fetched_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        verbose_name = "producto de TCGplayer"
-        verbose_name_plural = "productos de TCGplayer"
+        verbose_name = "TCGplayer product"
+        verbose_name_plural = "TCGplayer products"
 
     def __str__(self):
         return f"{self.name} ({self.id})"
@@ -133,8 +133,8 @@ class TcgLink(models.Model):
     product = models.ForeignKey(TcgProduct, on_delete=models.CASCADE, related_name="links")
 
     class Meta:
-        verbose_name = "enlace con TCGplayer"
-        verbose_name_plural = "enlaces con TCGplayer"
+        verbose_name = "TCGplayer link"
+        verbose_name_plural = "TCGplayer links"
 
 
 class ExchangeRate(models.Model):
@@ -145,8 +145,8 @@ class ExchangeRate(models.Model):
 
     class Meta:
         ordering = ["-date"]
-        verbose_name = "cambio dólar/euro"
-        verbose_name_plural = "cambios dólar/euro"
+        verbose_name = "dollar/euro rate"
+        verbose_name_plural = "dollar/euro rates"
 
     @classmethod
     def latest(cls):
@@ -159,7 +159,7 @@ class CardPrice(models.Model):
     class Source(models.TextChoices):
         CARDMARKET = "cardmarket", "Cardmarket"
         TCGPLAYER = "tcgplayer", "TCGplayer"
-        MANUAL = "manual", "Puesto a mano"
+        MANUAL = "manual", "Set by hand"
 
     card = models.OneToOneField(Card, primary_key=True, on_delete=models.CASCADE, related_name="price")
     eur = models.DecimalField(max_digits=10, decimal_places=2, db_index=True)
@@ -172,8 +172,8 @@ class CardPrice(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "precio de carta"
-        verbose_name_plural = "precios de cartas"
+        verbose_name = "card price"
+        verbose_name_plural = "card prices"
 
 
 class PricePoint(models.Model):
@@ -186,5 +186,5 @@ class PricePoint(models.Model):
     class Meta:
         ordering = ["card", "date"]
         constraints = [models.UniqueConstraint(fields=["card", "date"], name="unique_price_point")]
-        verbose_name = "precio histórico"
-        verbose_name_plural = "historial de precios"
+        verbose_name = "historical price"
+        verbose_name_plural = "price history"

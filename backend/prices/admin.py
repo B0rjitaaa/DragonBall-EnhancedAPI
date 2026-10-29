@@ -120,7 +120,7 @@ class PriceReviewAdmin(admin.ModelAdmin):
         } for p in pending] if tab in ("sin", "raros", "sinventas") else []
         context = {
             **self.admin_site.each_context(request),
-            "title": "Revisar emparejamientos con Cardmarket",
+            "title": "Review Cardmarket matches",
             "opts": self.model._meta,
             "tab": tab,
             "page": page,
@@ -165,7 +165,7 @@ class PriceReviewAdmin(admin.ModelAdmin):
                 review.set_price(card, price)
             elif choice == "fake":
                 n = review.mark_fake(card)
-                fakes.append(f"{label} ({n} {'copia' if n == 1 else 'copias'})")
+                fakes.append(f"{label} ({n} {'copy' if n == 1 else 'copies'})")
                 continue
             elif choice.startswith("print:"):
                 target = Card.objects.filter(pk=choice.split(":", 1)[1]).first()
@@ -173,7 +173,7 @@ class PriceReviewAdmin(admin.ModelAdmin):
                     wrong.append(label)
                     continue
                 n = review.change_print(card, target)
-                saved.append(f"{label} → {target.card_number} {target.rarity_code} ({n} {'copia' if n == 1 else 'copias'})")
+                saved.append(f"{label} → {target.card_number} {target.rarity_code} ({n} {'copy' if n == 1 else 'copies'})")
                 continue
             elif choice == "none":
                 review.choose(card, None)
@@ -185,14 +185,14 @@ class PriceReviewAdmin(admin.ModelAdmin):
                 review.choose(card, product)
             saved.append(label)
         if saved:
-            self.message_user(request, f"Guardadas {len(saved)} cartas (y sus reimpresiones idénticas): {', '.join(saved)}.")
+            self.message_user(request, f"Saved {len(saved)} cards (and their identical reprints): {', '.join(saved)}.")
         if fakes:
-            self.message_user(request, f"Marcadas como falsas (ya no cuentan en el valor): {', '.join(fakes)}.")
+            self.message_user(request, f"Marked as fake (no longer counted in the value): {', '.join(fakes)}.")
         if wrong:
-            self.message_user(request, f"Sin guardar, con un precio no válido: {', '.join(wrong)}. Escribe p. ej. 3,50.",
+            self.message_user(request, f"Not saved, invalid price: {', '.join(wrong)}. Write e.g. 3.50.",
                               messages.WARNING)
         if not saved and not wrong and not fakes:
-            self.message_user(request, "No había ninguna carta marcada.", messages.WARNING)
+            self.message_user(request, "No cards were marked.", messages.WARNING)
         return self._back(request)
 
     def group_view(self, request):
@@ -202,11 +202,11 @@ class PriceReviewAdmin(admin.ModelAdmin):
         card_ids = [int(i) for i in request.POST.getlist("cards")]
         if request.POST.get("action") == "confirm":
             review.confirm(card_ids)
-            self.message_user(request, "Emparejamientos confirmados.")
+            self.message_user(request, "Matches confirmed.")
             return self._back(request)
         for card in Card.objects.filter(id__in=card_ids):
             product_id = request.POST.get(f"product_{card.id}")
             if product_id:
                 review.choose(card, get_object_or_404(CardmarketProduct, pk=product_id))
-        self.message_user(request, "Emparejamientos corregidos.")
+        self.message_user(request, "Matches corrected.")
         return self._back(request)

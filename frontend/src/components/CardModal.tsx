@@ -56,11 +56,11 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <button className="icon-btn close" onClick={onClose} aria-label="Cerrar">
+        <button className="icon-btn close" onClick={onClose} aria-label="Close">
           ✕
         </button>
         {error && <p className="error">{error}</p>}
-        {!card && !error && <p className="muted">Cargando…</p>}
+        {!card && !error && <p className="muted">Loading…</p>}
         {card && (
           <div className="detail">
             <div className="detail-img">
@@ -68,16 +68,16 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
               {card.has_back && (
                 <div className="seg">
                   <button className={side === 'front' ? 'on' : ''} onClick={() => setSide('front')}>
-                    Cara frontal
+                    Front
                   </button>
                   <button className={side === 'back' ? 'on' : ''} onClick={() => setSide('back')}>
-                    Cara trasera
+                    Back
                   </button>
                 </div>
               )}
               {card.prints.length > 1 && (
                 <section className="card-prints">
-                  <strong className="small">Impresiones de {card.card_number}</strong>
+                  <strong className="small">Printings of {card.card_number}</strong>
                   <div>
                     {card.prints.map((p) => (
                       <button
@@ -107,28 +107,28 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
               {card.price && <PriceBox price={card.price} />}
               {card.legality !== 'legal' && (
                 <div className={`legal-banner ${card.legality}`}>
-                  <strong>{card.legality === 'banned' ? '⛔ Banned en torneos oficiales' : '⚠️ Limited: máximo 1 copia'}</strong>
+                  <strong>{card.legality === 'banned' ? '⛔ Banned in official tournaments' : '⚠️ Limited: 1 copy max'}</strong>
                   {card.legality === 'banned'
-                    ? ' — no puede incluirse en el mazo ni en el side deck.'
-                    : ' entre mazo y side deck.'}
+                    ? " — it can't be in the deck or the side deck."
+                    : ' across deck and side deck.'}
                   {card.legality_since && <small> {card.legality_since}</small>}
                 </div>
               )}
               {deckRules.length > 0 && (
                 <div className="legal-banner deck">
-                  <strong>🃏 Construcción de mazo:</strong> {deckRules.join(' · ')}
+                  <strong>🃏 Deck building:</strong> {deckRules.join(' · ')}
                 </div>
               )}
               {card.errata && (
                 <div className="legal-banner errata">
-                  <strong>✎ Errata oficial{card.errata.date && <small> {card.errata.date}</small>}</strong>
+                  <strong>✎ Official erratum{card.errata.date && <small> {card.errata.date}</small>}</strong>
                   <div className="errata-cols">
                     <div>
-                      <span className="errata-tag">Antes</span>
+                      <span className="errata-tag">Before</span>
                       <p>{card.errata.before}</p>
                     </div>
                     <div>
-                      <span className="errata-tag after">Después</span>
+                      <span className="errata-tag after">After</span>
                       <p>{card.errata.after}</p>
                     </div>
                   </div>
@@ -153,7 +153,7 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
 
               {cardSkills.some(([, names]) => names.length > 0) && (
                 <>
-                  <h3>Keyword skills de esta carta</h3>
+                  <h3>This card's keyword skills</h3>
                   <dl className="glossary">
                     {cardSkills.flatMap(([category, names]) =>
                       names.map((name) => {
@@ -161,14 +161,14 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
                         return (
                           <div key={`${category}-${name}`} className="glossary-item">
                             <dt>
-                              <Tooltip text={`Filtrar por [${name}]`}>
+                              <Tooltip text={`Filter by [${name}]`}>
                                 <button className="chip" onClick={() => onFilter(skills.fieldFor(name), name)}>
                                   {name}
                                 </button>
                               </Tooltip>
                               <small>{CATEGORY_LABEL[category]}</small>
                             </dt>
-                            <dd>{skill?.description ?? 'No aparece en la página oficial de keyword skills.'}</dd>
+                            <dd>{skill?.description ?? 'Not listed on the official keyword skills page.'}</dd>
                           </div>
                         )
                       }),
@@ -178,7 +178,7 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
               )}
               {card.special_traits.length > 0 && (
                 <>
-                  <h3>Rasgos</h3>
+                  <h3>Special traits</h3>
                   <div className="chips">
                     {card.special_traits.map((t) => (
                       <button key={t} className="chip" onClick={() => onFilter('special_trait', t)}>
@@ -191,14 +191,14 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
               {card.rulings.length > 0 && (
                 <details className="rulings">
                   <summary>
-                    Preguntas y respuestas <span className="count">{card.rulings.length}</span>
+                    Q&A <span className="count">{card.rulings.length}</span>
                   </summary>
                   <dl className="qa">
                     {card.rulings.map((r) => (
                       <div key={r.order} className="qa-item">
                         <dt>
-                          <span className="qa-q">P{r.order}</span>
-                          {r.is_new && <span className="qa-new">nueva</span>}
+                          <span className="qa-q">Q{r.order}</span>
+                          {r.is_new && <span className="qa-new">new</span>}
                           {r.question}
                         </dt>
                         <dd>{r.answer}</dd>
@@ -207,7 +207,7 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
                   </dl>
                 </details>
               )}
-              {card.notes && <p className="muted small">Notas: {card.notes.split('|').pop()}</p>}
+              {card.notes && <p className="muted small">Notes: {card.notes.split('|').pop()}</p>}
             </div>
           </div>
         )}
@@ -216,7 +216,7 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
   )
 }
 
-const SOURCE_LABEL = { cardmarket: 'Cardmarket', tcgplayer: 'TCGplayer', manual: 'a mano' } as const
+const SOURCE_LABEL = { cardmarket: 'Cardmarket', tcgplayer: 'TCGplayer', manual: 'set by hand' } as const
 
 /** Variación en tanto por uno → «▲ 12 %» / «▼ 5 %». */
 function Change({ label, value }: { label: string; value: number | null | undefined }) {
@@ -234,16 +234,16 @@ function Change({ label, value }: { label: string; value: number | null | undefi
  * las ofertas en España y Europa (Cardmarket) y en TCGplayer. Su evolución va bajo la foto (PriceChart). */
 function PriceBox({ price }: { price: CardPrice }) {
   const what = price.manual
-    ? 'precio puesto a mano'
+    ? 'price set by hand'
     : price.suspect && !price.counts
-      ? 'precio dudoso: un solo anuncio, sin ventas (no cuenta en el valor)'
+      ? 'doubtful price: a single listing, no sales (not counted in the value)'
       : !price.counts
-        ? 'solo lo que pide un vendedor: sin ventas (no cuenta en el valor)'
-        : `precio de mercado · ${SOURCE_LABEL[price.source]}`
+        ? "only a seller's asking price: no sales (not counted in the value)"
+        : `market price · ${SOURCE_LABEL[price.source]}`
   const sources = [
     price.cardmarket_eur != null && `Cardmarket ${formatEur(price.cardmarket_eur)}`,
-    price.tcgplayer_eur != null && `TCGplayer ${formatEur(price.tcgplayer_eur)} (EE. UU.)`,
-    price.low != null && `desde ${formatEur(price.low)} en Europa`,
+    price.tcgplayer_eur != null && `TCGplayer ${formatEur(price.tcgplayer_eur)} (US)`,
+    price.low != null && `from ${formatEur(price.low)} in Europe`,
   ].filter(Boolean)
   return (
     <div className={`price-box ${price.counts ? '' : 'is-low'}`}>
@@ -252,13 +252,13 @@ function PriceBox({ price }: { price: CardPrice }) {
       {!price.manual && sources.length > 0 && <span className="price-details muted small">{sources.join(' · ')}</span>}
       {(price.change_7 != null || price.change_30 != null) && (
         <span className="price-changes small">
-          <Change label="7 días" value={price.change_7} />
-          <Change label="30 días" value={price.change_30} />
+          <Change label="7 days" value={price.change_7} />
+          <Change label="30 days" value={price.change_30} />
         </span>
       )}
       <span className="price-links small">
-        <a href={price.url_es} target="_blank" rel="noreferrer">Ofertas en España ↗</a>
-        <a href={price.url} target="_blank" rel="noreferrer">Ofertas en Europa ↗</a>
+        <a href={price.url_es} target="_blank" rel="noreferrer">Offers in Spain ↗</a>
+        <a href={price.url} target="_blank" rel="noreferrer">Offers in Europe ↗</a>
         {price.tcg_url && <a href={price.tcg_url} target="_blank" rel="noreferrer">TCGplayer ↗</a>}
       </span>
     </div>
@@ -283,7 +283,7 @@ function CopyLink({ cardRef }: { cardRef: string }) {
   }
   return (
     <button type="button" className="link small copy-link" onClick={copy} title={link}>
-      {state === 'copied' ? 'Enlace copiado ✓' : '🔗 Copiar enlace'}
+      {state === 'copied' ? 'Link copied ✓' : '🔗 Copy link'}
     </button>
   )
 }

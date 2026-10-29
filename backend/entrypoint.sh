@@ -13,10 +13,10 @@ for i in range(60):
         ).close()
         break
     except psycopg.OperationalError:
-        print("Esperando a Postgres...", flush=True)
+        print("Waiting for Postgres...", flush=True)
         time.sleep(2)
 else:
-    raise SystemExit("Postgres no responde")
+    raise SystemExit("Postgres is not responding")
 PY
 
 if [ "$RUN_MIGRATIONS" = "1" ]; then
@@ -29,7 +29,7 @@ if [ "$RUN_MIGRATIONS" = "1" ]; then
   CARDS_FILE="${IMPORT_ON_START-/data/cartas_dbs.json}"
   [ -f "$CARDS_FILE" ] || CARDS_FILE=/data/seed/cartas_dbs.json.gz
   python manage.py import_cards "$CARDS_FILE" --if-empty
-  python manage.py import_prices --if-empty || echo "No se pudieron importar los precios"
+  python manage.py import_prices --if-empty || echo "Could not import the prices"
   # Sin ningún administrador (instalación nueva): admin / admin, o lo de DJANGO_SUPERUSER_*.
   python manage.py ensure_admin
 fi

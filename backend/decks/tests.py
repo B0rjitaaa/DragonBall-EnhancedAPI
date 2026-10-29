@@ -130,7 +130,7 @@ class RestoreVersionTests(TestCase):
         incoming = {r["bandai_id"]: r for r in plan["incoming"]}
         self.assertEqual((incoming[2]["quantity"], incoming[3]["quantity"]), (2, 3))
         # Primero «Sin ubicar», el otro mazo el último.
-        self.assertEqual([s["name"] for s in incoming[2]["sources"]], ["Sin ubicar", "Otro mazo"])
+        self.assertEqual([s["name"] for s in incoming[2]["sources"]], ["Unsorted", "Otro mazo"])
 
     def test_restore_moves_copies_and_side(self):
         r = self.client.post(f"/api/my-collection/deck-versions/{self.v1['id']}/restore/", {}, format="json")

@@ -4,4 +4,4 @@ from django.apps import AppConfig
 class DecksConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "decks"
-    verbose_name = "Mazos: versiones de lista y partidas"
+    verbose_name = "Decks: list versions and matches"

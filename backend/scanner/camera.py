@@ -10,17 +10,17 @@ class CameraUnavailable(Exception):
 
 def _get(path: str, timeout: float) -> bytes:
     if not settings.CAMERA_URL:
-        raise CameraUnavailable("CAMERA_URL no está configurado")
+        raise CameraUnavailable("CAMERA_URL is not set")
     try:
         response = requests.get(f"{settings.CAMERA_URL}{path}", timeout=timeout)
     except requests.RequestException as exc:
-        raise CameraUnavailable(f"No se pudo contactar con el servicio de cámara: {exc}") from exc
+        raise CameraUnavailable(f"Could not reach the camera service: {exc}") from exc
     if response.status_code == 503:
         raise CameraUnavailable(
-            "La cámara no está disponible: no llegan imágenes (¿webcam desconectada?)"
+            "The camera is not available: no images are coming in (webcam unplugged?)"
         )
     if not response.ok:
-        raise CameraUnavailable(f"Error del servicio de cámara: HTTP {response.status_code}")
+        raise CameraUnavailable(f"Camera service error: HTTP {response.status_code}")
     return response.content
 
 

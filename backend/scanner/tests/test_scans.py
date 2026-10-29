@@ -108,7 +108,7 @@ class ScanApiTests(TestCase):
                 response = self.client.post("/api/scanner/scans/", {}, format="json")
         scan = Scan.objects.get(pk=response.data["id"])
         self.assertEqual(scan.status, Scan.Status.FAILED)
-        self.assertIn("webcam desconectada", scan.error)
+        self.assertIn("webcam unplugged", scan.error)
 
     @override_settings(CAMERA_URL="http://camera:8080")
     def test_camera_preview_proxies_frame(self):
@@ -366,7 +366,7 @@ class BinderSessionTests(BurstFixture, TestCase):
         scan = self._slot(4, page=12, slot=6)
         self.assertTrue(scan["added_to_collection"])
         self.assertEqual((scan["binder_page"], scan["binder_slot"]), (12, 6))
-        self.assertEqual(self.entry(self.cards[4]).notes, "Pág. 12 · fila 2 · col 3")
+        self.assertEqual(self.entry(self.cards[4]).notes, "P. 12 · row 2 · col 3")
         session = self.client.get(f"/api/scanner/sessions/{self.session}/").data
         self.assertEqual(session["mode"], "binder")
 
@@ -377,16 +377,16 @@ class BinderSessionTests(BurstFixture, TestCase):
         self.assertFalse(second["repeat_suspect"])
         entry = self.entry(self.cards[4])
         self.assertEqual(entry.quantity, 2)
-        self.assertEqual(entry.notes.splitlines(), ["Pág. 1 · fila 1 · col 1", "Pág. 1 · fila 1 · col 2"])
+        self.assertEqual(entry.notes.splitlines(), ["P. 1 · row 1 · col 1", "P. 1 · row 1 · col 2"])
         self.client.post(f"/api/scanner/scans/{second['id']}/undo/", {}, format="json")
-        self.assertEqual((self.entry(self.cards[4]).quantity, self.entry(self.cards[4]).notes), (1, "Pág. 1 · fila 1 · col 1"))
+        self.assertEqual((self.entry(self.cards[4]).quantity, self.entry(self.cards[4]).notes), (1, "P. 1 · row 1 · col 1"))
 
     def test_recapturing_a_slot_replaces_the_previous_card(self):
         first = self._slot(4, page=3, slot=5)
         self._slot(6, page=3, slot=5)
         self.assertTrue(self.client.get(f"/api/scanner/scans/{first['id']}/").data["dismissed"])
         self.assertFalse(self.Entry.objects.filter(card=self.cards[4]).exists())
-        self.assertEqual(self.entry(self.cards[6]).notes, "Pág. 3 · fila 2 · col 2")
+        self.assertEqual(self.entry(self.cards[6]).notes, "P. 3 · row 2 · col 2")
 
     def test_webcam_capture_is_cropped_to_the_guide(self):
         import cv2

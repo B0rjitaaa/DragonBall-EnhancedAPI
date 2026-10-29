@@ -7,5 +7,5 @@ class Backup(models.Model):
 
     class Meta:
         managed = False
-        verbose_name = "copia de seguridad"
-        verbose_name_plural = "copias de seguridad"
+        verbose_name = "backup"
+        verbose_name_plural = "backups"

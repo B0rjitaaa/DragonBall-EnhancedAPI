@@ -22,47 +22,47 @@
 
 {% block breadcrumbs %}
 <div class="breadcrumbs">
-  <a href="{% url 'admin:index' %}">Inicio</a> › <a href="{% url 'admin:app_list' app_label='backups' %}">Copias de seguridad</a> › Copias de seguridad
+  <a href="{% url 'admin:index' %}">Home</a> › <a href="{% url 'admin:app_list' app_label='backups' %}">Backups</a> › Backups
 </div>
 {% endblock %}
 
 {% block content %}
 {% if not state.configured %}
-  <p>Las copias de seguridad no están configuradas en este equipo (solo en el servidor: <code>BACKUP_STATUS_FILE</code>).</p>
+  <p>Backups are not set up on this machine (only on the server: <code>BACKUP_STATUS_FILE</code>).</p>
 {% else %}
   {% with last=state.last %}
   <section class="bk-status {% if state.running or state.requested %}running{% elif last.status == 'ok' and last.remote != 'error' %}ok{% else %}error{% endif %}">
     {% if state.running %}
-      <h2>⏳ Copia en curso</h2>
-      <p>Empezó a las {{ state.running.started_at|time:"H:i" }} ({{ state.running.trigger }}). Suele tardar unos 15 minutos; esta página se actualiza sola.</p>
+      <h2>⏳ Backup in progress</h2>
+      <p>Started at {{ state.running.started_at|time:"H:i" }} ({{ state.running.trigger }}). It usually takes about 15 minutes; this page refreshes by itself.</p>
     {% elif state.requested %}
-      <h2>⏳ Copia pedida</h2>
-      <p>Empezará en unos segundos; esta página se actualiza sola.</p>
+      <h2>⏳ Backup requested</h2>
+      <p>It will start in a few seconds; this page refreshes by itself.</p>
     {% elif last %}
-      <h2>{% if last.status == 'ok' %}✅ Última copia correcta{% else %}❌ La última copia falló{% endif %}</h2>
+      <h2>{% if last.status == 'ok' %}✅ Last backup succeeded{% else %}❌ The last backup failed{% endif %}</h2>
     {% else %}
-      <h2>Aún no hay ninguna copia</h2>
+      <h2>No backups yet</h2>
     {% endif %}
     {% if last %}
       <p>
-        Última: <strong>{{ last.finished_at|date:"j M Y, H:i" }}</strong> (hace {{ last.finished_at|timesince }})
+        Last: <strong>{{ last.finished_at|date:"j M Y, H:i" }}</strong> ({{ last.finished_at|timesince }} ago)
         {% if last.size %}· {{ last.size }}{% endif %}
         {% if last.trigger %}· {{ last.trigger }}{% endif %}
         {% if last.status != 'ok' %}· <strong>{{ last.message }}</strong>{% endif %}
       </p>
       <p>
-        Copia fuera del servidor:
-        {% if last.remote == 'ok' %}✅ copiada{% elif last.remote == 'error' %}❌ falló{% else %}<span class="bk-muted">no configurada</span>{% endif %}
+        Off-server copy:
+        {% if last.remote == 'ok' %}✅ copied{% elif last.remote == 'error' %}❌ failed{% else %}<span class="bk-muted">not configured</span>{% endif %}
       </p>
     {% endif %}
     <div class="bk-actions">
       {% if state.can_request %}
         <form method="post" action="{% url 'admin:backups_backup_request' %}">
           {% csrf_token %}
-          <input type="submit" class="default" value="Hacer copia ahora" {% if state.running or state.requested %}disabled{% endif %}>
+          <input type="submit" class="default" value="Back up now" {% if state.running or state.requested %}disabled{% endif %}>
         </form>
       {% endif %}
-      <p class="help">La copia diaria se hace sola a las 03:30. Se guardan 7 diarias y 4 semanales, y, si está configurada, otra fuera del servidor.</p>
+      <p class="help">The daily backup runs by itself at 03:30. 7 daily and 4 weekly backups are kept and, if configured, another copy off the server.</p>
     </div>
   </section>
   {% endwith %}
@@ -70,7 +70,7 @@
   {% for group, copies in groups %}
     <h2>{{ group }} <span class="bk-muted">({{ copies|length }})</span></h2>
     <table class="bk">
-      <thead><tr><th>Copia</th><th>Ficheros</th><th class="num">Tamaño</th></tr></thead>
+      <thead><tr><th>Backup</th><th>Files</th><th class="num">Size</th></tr></thead>
       <tbody>
       {% for copy in copies %}
         <tr>
@@ -80,7 +80,7 @@
             {% for f in copy.files %}
               <li>
                 {% if f.downloadable %}
-                  <a href="{% url 'admin:backups_backup_download' f.path %}" title="Base de datos (pg_restore)">⬇ {{ f.name }}</a>
+                  <a href="{% url 'admin:backups_backup_download' f.path %}" title="Database (pg_restore)">⬇ {{ f.name }}</a>
                 {% else %}
                   <span class="bk-muted">{{ f.name }}</span>
                 {% endif %}
@@ -95,8 +95,8 @@
       </tbody>
     </table>
   {% empty %}
-    <p>No hay copias guardadas.</p>
+    <p>No backups saved.</p>
   {% endfor %}
-  <p class="help">Se descargan las bases de datos (<code>.dump</code>). El <code>.tgz</code> lleva las imágenes propias de impresiones; las fotos de los escaneos no se copian (se borran al pasar un día).</p>
+  <p class="help">The databases (<code>.dump</code>) can be downloaded. The <code>.tgz</code> holds the images of custom printings; scan photos are not backed up (they are deleted after a day).</p>
 {% endif %}
 {% endblock %}

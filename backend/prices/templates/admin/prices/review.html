@@ -38,39 +38,39 @@
 
 {% block breadcrumbs %}
 <div class="breadcrumbs">
-  <a href="{% url 'admin:index' %}">Inicio</a> › <a href="{% url 'admin:app_list' app_label='prices' %}">Precios (Cardmarket)</a> › Revisar emparejamientos
+  <a href="{% url 'admin:index' %}">Home</a> › <a href="{% url 'admin:app_list' app_label='prices' %}">Prices (Cardmarket)</a> › Review matches
 </div>
 {% endblock %}
 
 {% block content %}
 <nav class="rv-tabs">
-  <a href="?tab=sin" class="{% if tab == 'sin' %}on{% endif %}">Tus cartas sin emparejar ({{ unmatched_count }})</a>
-  <a href="?tab=raros" class="{% if tab == 'raros' %}on{% endif %}">Precios dudosos ({{ suspect_count }})</a>
-  <a href="?tab=sinventas" class="{% if tab == 'sinventas' %}on{% endif %}">Cartas caras sin ventas ({{ listing_count }})</a>
-  <a href="?tab=dudosos" class="{% if tab == 'dudosos' %}on{% endif %}">Emparejados por orden ({{ doubtful_count }})</a>
+  <a href="?tab=sin" class="{% if tab == 'sin' %}on{% endif %}">Your unmatched cards ({{ unmatched_count }})</a>
+  <a href="?tab=raros" class="{% if tab == 'raros' %}on{% endif %}">Suspect prices ({{ suspect_count }})</a>
+  <a href="?tab=sinventas" class="{% if tab == 'sinventas' %}on{% endif %}">Expensive cards with no sales ({{ listing_count }})</a>
+  <a href="?tab=dudosos" class="{% if tab == 'dudosos' %}on{% endif %}">Matched by order ({{ doubtful_count }})</a>
 </nav>
 
 {% if tab == 'sin' or tab == 'raros' or tab == 'sinventas' %}
   {% if tab == 'sinventas' %}
   <p class="rv-help">
-    Cartas tuyas de al menos 10 € cuyo único dato en Cardmarket es lo que pide un vendedor: nunca se han vendido.
-    <strong>No cuentan en el valor</strong>. Muchas son ediciones raras (GDR, arte alternativo) que el escáner pudo
-    confundir con la normal: mira la carta física. Si es otra edición, elígela en «Tengo otra edición» y tus copias
-    pasan a ella (misma ubicación y notas). Si es esta y el precio te vale, elige su producto («precio actual») y
-    contará en el valor; o ponle un precio a mano.
+    Your cards worth at least €10 whose only Cardmarket data is a seller's asking price: they have never sold.
+    <strong>They don't count towards the value</strong>. Many are rare editions (GDR, alternate art) that the scanner
+    may have mistaken for the regular one: check the physical card. If it is another edition, pick it under
+    "I have another edition" and your copies move to it (same location and notes). If it is this one and the price
+    looks right, pick its product ("current price") and it will count towards the value; or set a price by hand.
   </p>
   {% elif tab == 'raros' %}
   <p class="rv-help">
-    Cartas cuyo único dato en Cardmarket es un anuncio (sin ventas) muy caro para su rareza: puede ser un precio
-    de relleno o el producto equivocado. <strong>No cuentan en el valor</strong> hasta que elijas: el mismo
-    producto («precio actual») si el precio es bueno, otro producto, «No está en Cardmarket» o un precio a mano.
+    Cards whose only Cardmarket data is a listing (no sales) that is very expensive for its rarity: it may be a
+    placeholder price or the wrong product. <strong>They don't count towards the value</strong> until you choose: the
+    same product ("current price") if the price is right, another product, "Not on Cardmarket" or a price by hand.
   </p>
   {% else %}
   <p class="rv-help">
-    Cartas de tu colección que no se han podido emparejar solas. En cada una, elige su producto en Cardmarket (↗ abre
-    la carta para comprobar la imagen), «No está en Cardmarket» o, si ninguna opción es la buena, el precio a mano.
-    Marca las que quieras y guárdalas todas a la vez con el botón de abajo; las que no marques se quedan como están.
-    Lo guardado queda fijo (la descarga diaria no lo cambia) y vale también para sus reimpresiones idénticas.
+    Cards in your collection that could not be matched automatically. For each one, pick its Cardmarket product
+    (↗ opens the card so you can check the image), "Not on Cardmarket" or, if no option is right, a price by hand.
+    Mark as many as you like and save them all at once with the button below; the ones you don't mark stay as they are.
+    What you save is kept (the daily download doesn't change it) and also applies to identical reprints.
   </p>
   {% endif %}
   <form id="rv-form" method="post" action="{% url 'admin:prices_pricereview_choose' %}">
@@ -86,53 +86,53 @@
             {% for c in row.candidates %}
               <label>
                 <input type="radio" name="choice_{{ row.card.id }}" value="{{ c.product.id }}">
-                <span class="rv-price">{% if c.product.price is not None %}{{ c.product.price }} €{% else %}sin precio{% endif %}</span>
-                <span>{{ c.product.name }}{% if c.product.id == row.current %} <strong class="rv-same">· precio actual</strong>{% endif %}</span>
-                <span class="rv-set">· {% if c.same_set %}<span class="rv-same">su set</span>{% else %}{{ c.product.expansion.card_set|default:"expansión sin emparejar" }}{% endif %}</span>
-                <a href="{{ c.url }}" target="_blank" rel="noreferrer" title="Abrir en Cardmarket">↗</a>
+                <span class="rv-price">{% if c.product.price is not None %}{{ c.product.price }} €{% else %}no price{% endif %}</span>
+                <span>{{ c.product.name }}{% if c.product.id == row.current %} <strong class="rv-same">· current price</strong>{% endif %}</span>
+                <span class="rv-set">· {% if c.same_set %}<span class="rv-same">its set</span>{% else %}{{ c.product.expansion.card_set|default:"unmatched expansion" }}{% endif %}</span>
+                <a href="{{ c.url }}" target="_blank" rel="noreferrer" title="Open on Cardmarket">↗</a>
               </label>
             {% empty %}
-              <p class="rv-meta">No hay ningún producto en Cardmarket con este nombre.</p>
+              <p class="rv-meta">There is no Cardmarket product with this name.</p>
             {% endfor %}
             <label>
               <input type="radio" name="choice_{{ row.card.id }}" value="none">
-              <span class="rv-price">—</span><span>No está en Cardmarket</span>
+              <span class="rv-price">—</span><span>Not on Cardmarket</span>
             </label>
             {% if row.prints %}
               <div class="rv-prints">
-                <span class="rv-meta">Tengo otra edición:</span>
+                <span class="rv-meta">I have another edition:</span>
                 {% for pr in row.prints %}
                   <label class="rv-print">
                     <input type="radio" name="choice_{{ row.card.id }}" value="print:{{ pr.card.id }}">
                     {% if pr.thumb %}<img src="{{ pr.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
                     <span><strong>{{ pr.card.card_number }} · {{ pr.card.rarity_code }}</strong><br>
                       <span class="rv-set">{{ pr.card.card_set|truncatechars:40 }}</span><br>
-                      {% if pr.price %}{{ pr.price.eur }} €{% if not pr.price.counts %} (sin ventas){% endif %}{% else %}sin precio{% endif %}</span>
+                      {% if pr.price %}{{ pr.price.eur }} €{% if not pr.price.counts %} (no sales){% endif %}{% else %}no price{% endif %}</span>
                   </label>
                 {% endfor %}
               </div>
             {% endif %}
             <label class="rv-fake">
               <input type="radio" name="choice_{{ row.card.id }}" value="fake">
-              <span class="rv-price">falsa</span><span>Mis copias son falsas <span class="rv-set">· pasan a falsas y no cuentan en el valor</span></span>
+              <span class="rv-price">fake</span><span>My copies are fake <span class="rv-set">· marked as fake, they don't count towards the value</span></span>
             </label>
             <label>
               <input type="radio" name="choice_{{ row.card.id }}" value="price" class="rv-price-radio">
-              <span class="rv-price">a mano</span>
-              <input type="text" name="price_{{ row.card.id }}" inputmode="decimal" placeholder="p. ej. 3,50" size="10"
-                     aria-label="Precio a mano en euros" class="rv-price-input"> €
+              <span class="rv-price">by hand</span>
+              <input type="text" name="price_{{ row.card.id }}" inputmode="decimal" placeholder="e.g. 3.50" size="10"
+                     aria-label="Price by hand in euros" class="rv-price-input"> €
             </label>
           </div>
         </div>
       </fieldset>
     {% empty %}
-      <p>✅ {% if tab == 'raros' %}No hay precios dudosos.{% else %}Todas tus cartas están emparejadas (o revisadas).{% endif %}</p>
+      <p>✅ {% if tab == 'raros' %}No suspect prices.{% else %}All your cards are matched (or reviewed).{% endif %}</p>
     {% endfor %}
     {% if rows %}
       <div class="rv-savebar">
-        <span id="rv-count">Ninguna carta marcada</span>
-        <button type="button" class="button" id="rv-clear">Desmarcar todo</button>
-        <input type="submit" class="default" id="rv-save" value="Guardar los cambios" disabled>
+        <span id="rv-count">No cards marked</span>
+        <button type="button" class="button" id="rv-clear">Clear all</button>
+        <input type="submit" class="default" id="rv-save" value="Save changes" disabled>
       </div>
     {% endif %}
   </form>
@@ -143,9 +143,9 @@
       var count = document.getElementById('rv-count'), save = document.getElementById('rv-save');
       function update() {
         var n = new Set(Array.from(form.querySelectorAll('input[type=radio]:checked')).map(function (r) { return r.name; })).size;
-        count.textContent = n ? n + (n === 1 ? ' carta marcada' : ' cartas marcadas') : 'Ninguna carta marcada';
+        count.textContent = n ? n + (n === 1 ? ' card marked' : ' cards marked') : 'No cards marked';
         save.disabled = !n;
-        save.value = n ? 'Guardar los cambios (' + n + ')' : 'Guardar los cambios';
+        save.value = n ? 'Save changes (' + n + ')' : 'Save changes';
       }
       // Escribir un precio marca «a mano» en esa carta.
       form.addEventListener('input', function (e) {
@@ -170,16 +170,16 @@
   </script>
   {% if pages > 1 %}
     <div class="rv-pages">
-      {% if page > 1 %}<a href="?tab={{ tab }}&page={{ page|add:'-1' }}">← Anterior</a>{% endif %}
-      <span>Página {{ page }} de {{ pages }}</span>
-      {% if page < pages %}<a href="?tab={{ tab }}&page={{ page|add:'1' }}">Siguiente →</a>{% endif %}
+      {% if page > 1 %}<a href="?tab={{ tab }}&page={{ page|add:'-1' }}">← Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a href="?tab={{ tab }}&page={{ page|add:'1' }}">Next →</a>{% endif %}
     </div>
   {% endif %}
 {% else %}
   <p class="rv-help">
-    Impresiones de una misma carta (normal, SPR, SCR, GDR…) emparejadas por orden, donde una rareza mayor sale más
-    barata que una menor: puede que estén cruzadas; y cartas de su set normal con varios productos en Cardmarket
-    (normal, foil, alt-art…), a las que se les ha dado el más barato. Comprueba con ↗ y confirma o elige el producto.
+    Printings of the same card (regular, SPR, SCR, GDR…) matched by order where a higher rarity comes out cheaper
+    than a lower one: they may be swapped; and cards from their regular set with several Cardmarket products
+    (regular, foil, alt-art…) that were given the cheapest one. Check with ↗ and confirm or pick the product.
   </p>
   {% for group in groups %}
     <form class="rv-group" method="post" action="{% url 'admin:prices_pricereview_group' %}">
@@ -195,22 +195,22 @@
               <select name="product_{{ item.link.card.id }}">
                 {% for p in group.products %}
                   <option value="{{ p.id }}" {% if p.id == item.link.product_id %}selected{% endif %}>
-                    {% if p.price is not None %}{{ p.price }} €{% else %}sin precio{% endif %} · producto {{ p.id }}
+                    {% if p.price is not None %}{{ p.price }} €{% else %}no price{% endif %} · product {{ p.id }}
                   </option>
                 {% endfor %}
               </select>
-              <a href="{{ item.url }}" target="_blank" rel="noreferrer" title="Abrir el producto actual en Cardmarket">↗</a>
+              <a href="{{ item.url }}" target="_blank" rel="noreferrer" title="Open the current product on Cardmarket">↗</a>
             </td>
           </tr>
         {% endfor %}
       </table>
       <div class="rv-actions">
-        <button type="submit" name="action" value="confirm" class="button">Están bien así</button>
-        <input type="submit" class="default" value="Guardar cambios">
+        <button type="submit" name="action" value="confirm" class="button">They are fine as they are</button>
+        <input type="submit" class="default" value="Save changes">
       </div>
     </form>
   {% empty %}
-    <p>✅ No hay emparejamientos dudosos.</p>
+    <p>✅ No doubtful matches.</p>
   {% endfor %}
 {% endif %}
 {% endblock %}

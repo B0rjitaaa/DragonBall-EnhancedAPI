@@ -21,10 +21,13 @@ from django.db.models import Max
 from cards.models import Card
 from decks.models import SideCard
 
-from .models import CollectionEntry, Location
+from .models import OLD_DEFAULT_LOCATION_NAME, CollectionEntry, Location
 
 FORMAT = "dbs-collection"
-KINDS = {"mazo": Location.Kind.DECK, "archivador": Location.Kind.BINDER, "almacén": Location.Kind.STORAGE,
+KINDS = {"deck": Location.Kind.DECK, "binder": Location.Kind.BINDER, "storage": Location.Kind.STORAGE,
+         "other": Location.Kind.OTHER,
+         # Copias anteriores (en español)
+         "mazo": Location.Kind.DECK, "archivador": Location.Kind.BINDER, "almacén": Location.Kind.STORAGE,
          "almacen": Location.Kind.STORAGE, "otro": Location.Kind.OTHER}
 MAX_CHANGES = 300  # cambios carta a carta que se listan en la vista previa
 
@@ -50,19 +53,21 @@ class Plan:
 
 def _plan(doc: dict) -> Plan:
     if not isinstance(doc, dict) or doc.get("format") != FORMAT:
-        raise RestoreError("No es una copia de Mi colección (falta «format»: «dbs-collection»)")
+        raise RestoreError("This is not a My collection backup (missing \"format\": \"dbs-collection\")")
     cards_in = doc.get("cards")
     if not isinstance(cards_in, list):
-        raise RestoreError("La copia no tiene la lista de cartas")
+        raise RestoreError("The backup has no card list")
     plan = Plan()
     existing = {_key(loc.name): loc for loc in Location.objects.all()}
     default = Location.default()
     for key, loc in existing.items():
         plan.names[key] = loc.name
     default_key = _key(default.name)
+    # Copias anteriores: la ubicación por defecto se llamaba «Sin ubicar».
+    aliases = {} if _key(OLD_DEFAULT_LOCATION_NAME) in existing else {_key(OLD_DEFAULT_LOCATION_NAME): default_key}
     for place in doc.get("locations") or []:
         name = str(place.get("name") or "").strip()[:80]
-        key = _key(name)
+        key = aliases.get(_key(name), _key(name))
         if not name or key in existing or key in plan.create:
             continue
         plan.create[key] = {"name": name, "kind": KINDS.get(_key(place.get("kind", "")), Location.Kind.OTHER),
@@ -76,13 +81,13 @@ def _plan(doc: dict) -> Plan:
         card_id, qty = row.get("id"), row.get("qty")
         label = f"{row.get('number') or card_id} {row.get('name') or ''}".strip()
         if card_id not in known:
-            plan.skipped.append({"card": label, "reason": "no está en el catálogo"})
+            plan.skipped.append({"card": label, "reason": "not in the catalog"})
             continue
         if not isinstance(qty, int) or qty < 1:
-            plan.skipped.append({"card": label, "reason": f"cantidad no válida: {qty!r}"})
+            plan.skipped.append({"card": label, "reason": f"invalid quantity: {qty!r}"})
             continue
         name = str(row.get("location") or "").strip()
-        key = _key(name) if name else default_key
+        key = aliases.get(_key(name), _key(name)) if name else default_key
         if key not in plan.names:  # ubicación que no viene en la lista de la copia: se crea igual
             plan.create[key] = {"name": name[:80], "kind": Location.Kind.OTHER, "notes": ""}
             plan.names[key] = name[:80]

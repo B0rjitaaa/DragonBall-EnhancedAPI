@@ -787,16 +787,23 @@ details.deck-check ul { margin: 0.4rem 0 0.1rem; padding-left: 1.1rem; display: 
 .deck-card img { display: block; width: 100%; aspect-ratio: 63 / 88; object-fit: contain; border-radius: 9px; background: var(--bg-3); -webkit-user-drag: none; user-select: none; }
 .deck-card:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45); }
 .deck-card.flagged img { outline: 2px solid var(--danger); outline-offset: 2px; }
+.deck-card.flag-limited img { outline-color: #d97706; }
+.deck-card.flag-banned img { filter: grayscale(0.7) brightness(0.75); }
 .deck-qty {
   position: absolute; top: -7px; right: -7px; min-width: 1.7rem; height: 1.7rem; padding: 0 0.35rem;
   display: grid; place-items: center; border-radius: 999px;
   font-weight: 800; font-size: 0.9rem; font-variant-numeric: tabular-nums;
   color: #1a1205; background: var(--accent); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); border: 2px solid var(--bg);
 }
+/* Aviso de la carta (Banned, Limited, demasiadas copias…): etiqueta arriba a la izquierda, sobre la
+   imagen, para no tapar el nombre de debajo (como .legal-badge en el buscador). */
 .deck-flag {
-  position: absolute; left: 4px; right: 4px; bottom: 4px; padding: 0.15rem 0.3rem; border-radius: 6px;
-  font-size: 0.68rem; font-weight: 700; text-align: center; color: #fff; background: color-mix(in srgb, var(--danger) 85%, black);
+  position: absolute; top: 6px; left: 6px; z-index: 2; max-width: calc(100% - 2.6rem);
+  padding: 0.14rem 0.45rem; border-radius: 4px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em;
+  line-height: 1.25; text-align: left; text-transform: uppercase; color: #fff;
+  background: var(--danger); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
+.deck-flag.limited { background: #d97706; }
 .deck-card-name {
   display: flex; flex-direction: column; margin-top: 0.3rem; font-size: 0.74rem; line-height: 1.2; color: var(--muted);
   text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1303,6 +1310,17 @@ button.deck-chip:hover { border-color: var(--accent); }
 .wiki-shell code {
   background: var(--w-sunken); color: #8a3a05; padding: 0.12em 0.4em; border-radius: 5px; font-size: 0.88em;
 }
+/* Botón de idioma ES / EN, arriba a la derecha */
+.wiki-lang {
+  display: flex; width: fit-content; margin: 0 0 1rem auto; padding: 3px; gap: 2px;
+  background: var(--w-surface); border: 1px solid var(--w-line); border-radius: 999px; box-shadow: var(--w-shadow);
+}
+.wiki-lang button {
+  border: 0; background: transparent; color: var(--w-muted); font-weight: 700; font-size: 0.85rem;
+  letter-spacing: 0.04em; padding: 0.35rem 0.9rem; border-radius: 999px; cursor: pointer;
+}
+.wiki-lang button:hover { color: var(--w-text); }
+.wiki-lang button.active { background: var(--w-accent); color: #fff; }
 .wiki-eyebrow {
   margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--w-accent);
 }

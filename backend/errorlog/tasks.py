@@ -20,7 +20,7 @@ def notify_error(group_id: int, news: str) -> bool:
     group = ErrorGroup.objects.filter(pk=group_id).first()
     if group is None:
         return False
-    title = "🐞 Error nuevo" if news == "nuevo" else "🐞 Vuelve un error resuelto"
+    title = "🐞 New error" if news == "nuevo" else "🐞 A resolved error is back"
     lines = [
         f"<b>{title}</b> · {escape(group.get_source_display())}",
         f"<b>{escape(group.kind)}</b>: {escape(group.message.splitlines()[0][:300] if group.message else '')}",
@@ -29,7 +29,7 @@ def notify_error(group_id: int, news: str) -> bool:
         lines.append(f"<code>{escape(group.where[:200])}</code>")
     if group.request:
         lines.append(escape(group.request[:200]))
-    lines.append(f"Detalles: /admin/errorlog/errorgroup/{group.pk}/change/")
+    lines.append(f"Details: /admin/errorlog/errorgroup/{group.pk}/change/")
     return send_telegram("\n".join(lines), silent=True)
 
 

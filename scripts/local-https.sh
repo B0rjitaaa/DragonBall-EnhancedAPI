@@ -22,7 +22,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [ $# -lt 1 ]; then
-    echo "Uso: $0 <ip-o-nombre.local> [más IPs o nombres .local]" >&2
+    echo "Usage: $0 <ip-or-name.local> [more IPs or .local names]" >&2
     exit 1
 fi
 
@@ -34,7 +34,7 @@ mkdir -p "$DIR"
 chmod 755 "$DIR"
 
 if [ ! -f "$DIR/ca.key" ]; then
-    echo "→ Creando la CA local…"
+    echo "→ Creating the local CA…"
     openssl req -x509 -newkey rsa:3072 -nodes -sha256 -days 3650 \
         -keyout "$DIR/ca.key" -out "$DIR/ca.crt" \
         -subj "/CN=DBS Card Identifier CA ($(hostname))" \
@@ -44,7 +44,7 @@ if [ ! -f "$DIR/ca.key" ]; then
         2>/dev/null
     chmod 600 "$DIR/ca.key"
 else
-    echo "→ Reutilizando la CA existente ($DIR/ca.crt)"
+    echo "→ Reusing the existing CA ($DIR/ca.crt)"
 fi
 
 SAN=""
@@ -53,7 +53,7 @@ for name in "$@"; do
 done
 SAN="${SAN%,}"
 
-echo "→ Generando el certificado del servidor para: $SAN"
+echo "→ Generating the server certificate for: $SAN"
 openssl req -newkey rsa:2048 -nodes -sha256 \
     -keyout "$DIR/server.key" -out "$DIR/server.csr" -subj "/CN=$1" 2>/dev/null
 # iOS exige SAN, extendedKeyUsage=serverAuth y validez <= 825 días.
@@ -68,10 +68,10 @@ rm -f "$DIR/server.csr"
 chmod 600 "$DIR/server.key"
 chmod 644 "$DIR/ca.crt" "$DIR/server.crt"
 
-openssl verify -CAfile "$DIR/ca.crt" "$DIR/server.crt" >/dev/null && echo "→ Certificado verificado con la CA"
+openssl verify -CAfile "$DIR/ca.crt" "$DIR/server.crt" >/dev/null && echo "→ Certificate verified against the CA"
 
 if command -v docker >/dev/null 2>&1 && docker compose ps --services 2>/dev/null | grep -qx frontend; then
-    echo "→ Reiniciando el frontend para activar HTTPS…"
+    echo "→ Restarting the frontend to enable HTTPS…"
     docker compose up -d --force-recreate frontend >/dev/null
 fi
 
@@ -83,8 +83,8 @@ suffix() { [ "$1" = "$2" ] && echo "" || echo ":$1"; }
 
 cat <<MSG
 
-✔ HTTPS listo: https://$1$(suffix "$HTTPS_PORT" 443)/scan
-  Instala la CA en cada dispositivo desde http://$1$(suffix "$HTTP_PORT" 80)/ca.crt
-  (iPhone: Safari → Instalar perfil → Ajustes → General → Información →
-   Confianza de certificados → activar "DBS Card Identifier CA").
+✔ HTTPS ready: https://$1$(suffix "$HTTPS_PORT" 443)/scan
+  Install the CA on each device from http://$1$(suffix "$HTTP_PORT" 80)/ca.crt
+  (iPhone: Safari → install the profile → Settings → General → About →
+   Certificate Trust Settings → turn on "DBS Card Identifier CA").
 MSG

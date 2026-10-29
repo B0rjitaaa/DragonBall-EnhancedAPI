@@ -7,13 +7,13 @@ import { markNewsSeen, newsSeenAt } from './lib/news'
 import { SkillIndex } from './lib/skills'
 import type { CardChange, ChangesResponse } from './lib/types'
 
-const dayFormat = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+const dayFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
 /** Detalle de un cambio: qué había y qué hay ahora. */
 function ChangeDetail({ change }: { change: CardChange }) {
   switch (change.kind) {
     case 'new':
-      return <p className="muted small">Nueva en el catálogo.</p>
+      return <p className="muted small">New in the catalogue.</p>
     case 'ruling':
       return <p className="news-text">{change.after}</p>
     case 'text':
@@ -21,11 +21,11 @@ function ChangeDetail({ change }: { change: CardChange }) {
       return (
         <div className="errata-cols">
           <div>
-            <span className="errata-tag">Antes</span>
+            <span className="errata-tag">Before</span>
             <p>{change.before}</p>
           </div>
           <div>
-            <span className="errata-tag after">Después</span>
+            <span className="errata-tag after">After</span>
             <p>{change.after}</p>
           </div>
         </div>
@@ -89,10 +89,10 @@ export default function NewsPage() {
   return (
     <main className="news-page">
       <div className="news-head">
-        <h1>Novedades</h1>
+        <h1>News</h1>
         <p className="muted">
-          Cambios detectados al sincronizar con Bandai y la web oficial: cartas nuevas, cambios de texto o imagen, banlist,
-          erratas y preguntas oficiales.
+          Changes picked up when syncing with Bandai and the official site: new cards, text or image changes, ban list,
+          errata and official Q&As.
         </p>
       </div>
 
@@ -118,15 +118,15 @@ export default function NewsPage() {
                 setKinds([])
               }}
             >
-              ver todo
+              show all
             </button>
           )}
         </div>
       )}
 
       {error && <p className="error">{error}</p>}
-      {!data && !error && <p className="muted">Cargando…</p>}
-      {data && data.count === 0 && <div className="empty">Aún no hay novedades: aparecerán tras el próximo sync.</div>}
+      {!data && !error && <p className="muted">Loading…</p>}
+      {data && data.count === 0 && <div className="empty">No news yet: it will show up after the next sync.</div>}
 
       {days.map(([day, changes]) => (
         <section key={day} className="news-day">
@@ -138,14 +138,14 @@ export default function NewsPage() {
                   className="news-thumb"
                   onClick={() => c.card_id && setOpenId(c.card_id)}
                   disabled={!c.card_id}
-                  aria-label={`Ver ${c.card_number} ${c.card_name}`}
+                  aria-label={`View ${c.card_number} ${c.card_name}`}
                 >
                   {c.thumb_url ? <img src={c.thumb_url} alt="" loading="lazy" /> : <span>{c.card_number}</span>}
                 </button>
                 <div className="news-body">
                   <div className="news-title">
                     <span className={`news-kind ${c.kind}`}>{c.kind_label}</span>
-                    {unseen(c) && <span className="qa-new">nuevo</span>}
+                    {unseen(c) && <span className="qa-new">new</span>}
                     <button className="link" onClick={() => c.card_id && setOpenId(c.card_id)}>
                       {c.card_number} · {c.card_name}
                     </button>

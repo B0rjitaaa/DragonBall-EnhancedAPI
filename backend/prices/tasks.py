@@ -21,7 +21,7 @@ def sync_prices() -> dict:
     result["tcgplayer_links"] = tcgplayer.match_all()
     result["prices"] = pricing.refresh()
     snapshot.refresh_file(settings.PRICES_SNAPSHOT)
-    logger.info("Precios: %s", result)
+    logger.info("Prices: %s", result)
     return result
 
 
@@ -40,10 +40,10 @@ def bootstrap_prices() -> bool:
     source = snapshot.source_file()
     if source:
         try:
-            logger.info("Sin precios: se cargan del volcado %s: %s", source, snapshot.load(source))
+            logger.info("No prices: loading them from the dump %s: %s", source, snapshot.load(source))
             return True
         except (OSError, ValueError):
-            logger.warning("Volcado de precios ilegible: se descargan", exc_info=True)
+            logger.warning("Unreadable price dump: downloading them", exc_info=True)
     sync_prices.delay()
-    logger.info("Sin precios: se lanza la primera descarga")
+    logger.info("No prices: starting the first download")
     return True

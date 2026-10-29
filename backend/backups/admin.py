@@ -35,7 +35,7 @@ class BackupAdmin(admin.ModelAdmin):
         copies = services.list_copies()
         context = {
             **self.admin_site.each_context(request),
-            "title": "Copias de seguridad",
+            "title": "Backups",
             "opts": self.model._meta,
             "state": state,
             "groups": [(name, list(items)) for name, items in groupby(copies, key=lambda c: c.group)],
@@ -50,14 +50,14 @@ class BackupAdmin(admin.ModelAdmin):
         try:
             services.request_backup()
         except (RuntimeError, OSError) as exc:
-            self.message_user(request, f"No se pudo pedir la copia: {exc}", messages.ERROR)
+            self.message_user(request, f"Could not request the backup: {exc}", messages.ERROR)
         else:
-            self.message_user(request, "Copia pedida: empezará en unos segundos. Tarda unos 15 minutos.")
+            self.message_user(request, "Backup requested: it will start in a few seconds and takes about 15 minutes.")
         return redirect("admin:backups_backup_changelist")
 
     def download_view(self, request, relative):
         try:
             path = services.download_path(relative)
         except FileNotFoundError:
-            raise Http404("Esa copia no existe")
+            raise Http404("That backup does not exist")
         return FileResponse(path.open("rb"), as_attachment=True, filename=f"{path.parent.name}_{path.name}")

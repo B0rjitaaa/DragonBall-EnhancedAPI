@@ -31,22 +31,22 @@ PING_TIMEOUT = 1.5
 
 def _ago(when) -> str:
     if when is None:
-        return "nunca"
+        return "never"
     hours = (timezone.now() - when).total_seconds() / 3600
-    return f"hace {hours:.0f} h" if hours < 48 else f"hace {hours / 24:.0f} días"
+    return f"{hours:.0f} h ago" if hours < 48 else f"{hours / 24:.0f} days ago"
 
 
 def _database():
     with connection.cursor() as cursor:
         cursor.execute("SELECT 1")
-    return True, "responde"
+    return True, "responding"
 
 
 def _redis():
     value = timezone.now().isoformat()
     cache.set("health-probe", value, 30)
     ok = cache.get("health-probe") == value
-    return ok, "responde" if ok else "no guarda ni devuelve datos"
+    return ok, "responding" if ok else "does not store or return data"
 
 
 def _workers() -> dict[str, bool]:
@@ -64,10 +64,10 @@ def _cards_sync():
         .order_by("-started_at").values_list("finished_at", flat=True).first()
     latest = SyncRun.objects.order_by("-started_at").first()
     ok = last_ok is not None and timezone.now() - last_ok <= SYNC_MAX_AGE
-    detail = f"último correcto {_ago(last_ok)}"
+    detail = f"last success {_ago(last_ok)}"
     if latest is not None and latest.status == SyncRun.Status.FAILED:
         ok = False
-        detail += f"; el último falló: {latest.error[:120]}"
+        detail += f"; the last one failed: {latest.error[:120]}"
     return ok, detail
 
 
@@ -80,58 +80,58 @@ def _prices_model():
 def _official(model, max_age):
     fetched = model.objects.aggregate(last=Max("fetched_at"))["last"]
     ok = fetched is not None and timezone.now() - fetched <= max_age
-    return ok, f"actualizada {_ago(fetched)}"
+    return ok, f"updated {_ago(fetched)}"
 
 
 def _backup():
     """Última copia de seguridad, según el estado que deja scripts/backup.sh (fuera de Docker)."""
     path = settings.BACKUP_STATUS_FILE
     if not path:
-        return None, "no configurada en este equipo"
+        return None, "not configured on this machine"
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             status = json.load(fh)
     except FileNotFoundError:
-        return False, "no hay registro de ninguna copia"
+        return False, "no backup on record"
     finished = datetime.fromisoformat(status["finished_at"])
     size = (status.get("size") or "").strip()
     if status.get("status") != "ok":
-        return False, f"la última copia falló ({_ago(finished)}): {status.get('message', '')}"
+        return False, f"the last backup failed ({_ago(finished)}): {status.get('message', '')}"
     if timezone.now() - finished > BACKUP_MAX_AGE:
-        return False, f"la última copia es de {_ago(finished)}"
-    detail = f"última copia {_ago(finished)}" + (f", {size}" if size else "")
+        return False, f"the last backup is from {_ago(finished)}"
+    detail = f"last backup {_ago(finished)}" + (f", {size}" if size else "")
     if status.get("remote") == "error":
-        return False, detail + "; la copia fuera del servidor falló"
+        return False, detail + "; the off-server copy failed"
     if status.get("remote") == "ok":
-        detail += "; copiada fuera del servidor"
+        detail += "; copied off the server"
     return True, detail
 
 
 def _camera():
     if not settings.CAMERA_URL:
-        return None, "no configurada"
+        return None, "not configured"
     try:
         response = requests.get(f"{settings.CAMERA_URL}/health", timeout=2)
     except requests.RequestException:
-        return False, "el servicio de cámara no responde"
+        return False, "the camera service is not responding"
     if response.ok:
-        return True, "webcam conectada"
-    return False, "sin webcam conectada (la estación fija es opcional)"
+        return True, "webcam connected"
+    return False, "no webcam connected (the fixed station is optional)"
 
 
 CHECKS = [
     # clave, nombre, tipo, función
-    ("database", "Base de datos", "critical", _database),
-    ("redis", "Redis (caché y colas)", "critical", _redis),
-    ("worker", "Worker de Celery", "critical", None),
-    ("scanner_worker", "Worker del escáner", "critical", None),
-    ("cards_sync", "Sync de cartas con Bandai", "warning", _cards_sync),
-    ("banlist", "Banlist oficial", "warning", lambda: _official(BanListEntry, SYNC_MAX_AGE)),
-    ("errata", "Erratas oficiales", "warning", lambda: _official(CardErrata, WEEKLY_MAX_AGE)),
-    ("rulings", "Card Q&A oficial", "warning", lambda: _official(CardRuling, WEEKLY_MAX_AGE)),
-    ("prices", "Precios de Cardmarket", "warning", lambda: _official(_prices_model(), SYNC_MAX_AGE)),
-    ("backup", "Copia de seguridad", "warning", _backup),
-    ("camera", "Cámara de la estación fija", "optional", _camera),
+    ("database", "Database", "critical", _database),
+    ("redis", "Redis (cache and queues)", "critical", _redis),
+    ("worker", "Celery worker", "critical", None),
+    ("scanner_worker", "Scanner worker", "critical", None),
+    ("cards_sync", "Bandai card sync", "warning", _cards_sync),
+    ("banlist", "Official banlist", "warning", lambda: _official(BanListEntry, SYNC_MAX_AGE)),
+    ("errata", "Official errata", "warning", lambda: _official(CardErrata, WEEKLY_MAX_AGE)),
+    ("rulings", "Official Card Q&A", "warning", lambda: _official(CardRuling, WEEKLY_MAX_AGE)),
+    ("prices", "Cardmarket prices", "warning", lambda: _official(_prices_model(), SYNC_MAX_AGE)),
+    ("backup", "Backup", "warning", _backup),
+    ("camera", "Fixed station camera", "optional", _camera),
 ]
 
 
@@ -140,13 +140,13 @@ def system_health() -> dict:
         workers = _workers()
         workers_error = None
     except Exception as exc:  # noqa: BLE001 - sin broker no hay forma de preguntar a los workers
-        workers, workers_error = {}, f"no se pudo preguntar: {exc}"
+        workers, workers_error = {}, f"could not ask: {exc}"
 
     checks = []
     for key, label, kind, func in CHECKS:
         if func is None:  # workers: ya preguntados de una vez
             ok = workers.get(key, False)
-            detail = workers_error or ("responde" if ok else "no responde")
+            detail = workers_error or ("responding" if ok else "not responding")
         else:
             try:
                 ok, detail = func()

@@ -1,12 +1,12 @@
-# Copias de seguridad (systemd, en el servidor)
+# Backups (systemd, on the server)
 
-Plantillas: `@USER@`, `@HOME@` y `@REPO@` se rellenan al instalar con el usuario y la carpeta del proyecto.
+Templates: `@USER@`, `@HOME@` and `@REPO@` are filled in at install time with the user and the project folder.
 
-- `dbs-backup.service`: lanza `scripts/backup.sh` como ese usuario.
-- `dbs-backup.timer`: a diario a las 03:30 (si el equipo estaba apagado, al encenderlo).
-- `dbs-backup-request.path`: cuando el admin pide una copia («Hacer copia ahora»).
+- `dbs-backup.service`: runs `scripts/backup.sh` as that user.
+- `dbs-backup.timer`: daily at 03:30 (if the machine was off, when it is turned on).
+- `dbs-backup-request.path`: when a backup is requested from the admin ("Back up now").
 
-Instalar o actualizar (pide la contraseña de sudo):
+Install or update (asks for the sudo password):
 
 ```sh
 make backups        # = bash scripts/systemd/install.sh

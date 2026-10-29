@@ -28,7 +28,7 @@ class BackupAdminTests(TestCase):
         (base / "secreto.txt").write_text("no")
         (base / "last_status.json").write_text(json.dumps({
             "status": "ok", "finished_at": "2026-10-27T03:49:16+01:00", "size": "1,5G", "remote": "ok",
-            "message": "copia completa", "trigger": "programada",
+            "message": "backup complete", "trigger": "scheduled",
         }))
         settings = override_settings(BACKUP_DIR=str(base), BACKUP_REQUEST_DIR=str(self.requests))
         settings.enable()
@@ -40,8 +40,8 @@ class BackupAdminTests(TestCase):
     def test_lists_copies_newest_first_by_group(self):
         copies = services.list_copies()
         self.assertEqual([(c.group, c.name) for c in copies], [
-            ("Diarias", "2026-10-27_0334"), ("Diarias", "2026-10-26_0331"),
-            ("Semanales", "2026-10-25_0332"), ("Otras · pre-migracion", "DBS_2026-10-26_1239_antes.dump"),
+            ("Daily", "2026-10-27_0334"), ("Daily", "2026-10-26_0331"),
+            ("Weekly", "2026-10-25_0332"), ("Other · pre-migracion", "DBS_2026-10-26_1239_antes.dump"),
         ])
         self.assertEqual(copies[0].size, 6000)
         self.assertEqual(copies[-1].when.strftime("%d/%m %H:%M"), "26/10 12:39")  # la fecha del nombre
@@ -49,8 +49,8 @@ class BackupAdminTests(TestCase):
 
     def test_page(self):
         page = self.client.get(PAGE).content.decode()
-        self.assertIn("Última copia correcta", page)
-        self.assertIn("Hacer copia ahora", page)
+        self.assertIn("Last backup succeeded", page)
+        self.assertIn("Back up now", page)
         self.assertIn("daily/2026-10-27_0334/DBS.dump", page)
         self.assertNotIn('http-equiv="refresh"', page)
 
@@ -60,14 +60,14 @@ class BackupAdminTests(TestCase):
         self.assertRedirects(r, PAGE)
         self.assertTrue((self.requests / "now").exists())
         page = self.client.get(PAGE).content.decode()
-        self.assertIn("Copia pedida", page)
+        self.assertIn("Backup requested", page)
         self.assertIn('http-equiv="refresh"', page)  # se recarga sola hasta que acabe
 
     def test_running(self):
-        (self.base / "running.json").write_text('{"started_at": "2026-10-27T14:02:00+01:00", "trigger": "pedida desde el admin"}')
+        (self.base / "running.json").write_text('{"started_at": "2026-10-27T14:02:00+01:00", "trigger": "requested from the admin"}')
         page = self.client.get(PAGE).content.decode()
-        self.assertIn("Copia en curso", page)
-        self.assertIn("pedida desde el admin", page)
+        self.assertIn("Backup in progress", page)
+        self.assertIn("requested from the admin", page)
 
     def test_download_only_dumps_inside_the_folder(self):
         r = self.client.get(f"{PAGE}download/daily/2026-10-27_0334/DBS.dump")
@@ -83,4 +83,4 @@ class BackupAdminTests(TestCase):
 
     def test_not_configured(self):
         with override_settings(BACKUP_DIR=""):
-            self.assertIn("no están configuradas", self.client.get(PAGE).content.decode())
+            self.assertIn("are not set up", self.client.get(PAGE).content.decode())

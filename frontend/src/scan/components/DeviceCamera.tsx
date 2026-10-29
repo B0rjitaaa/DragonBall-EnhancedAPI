@@ -23,23 +23,23 @@ function ErrorMessage({ error, detail }: { error: CameraError; detail: string })
     case "insecure":
       return (
         <>
-          El navegador solo permite la cámara en directo con HTTPS.{" "}
-          <a href={httpsUrl}>Abrir la versión segura</a>
+          The browser only allows the live camera over HTTPS.{" "}
+          <a href={httpsUrl}>Open the secure version</a>
         </>
       );
     case "unsupported":
-      return <>Este navegador no permite usar la cámara en directo. Usa «Subir foto».</>;
+      return <>This browser doesn't support the live camera. Use “Upload photo”.</>;
     case "denied":
       return (
         <>
-          Permiso de cámara denegado. En el iPhone: Ajustes → Chrome (o Safari) → Cámara → Permitir, y recarga la
-          página.
+          Camera permission denied. On iPhone: Settings → Chrome (or Safari) → Camera → Allow, then reload the
+          page.
         </>
       );
     case "notfound":
-      return <>No se ha encontrado ninguna cámara en este dispositivo.</>;
+      return <>No camera found on this device.</>;
     default:
-      return <>No se pudo abrir la cámara: {detail}</>;
+      return <>Couldn't open the camera: {detail}</>;
   }
 }
 

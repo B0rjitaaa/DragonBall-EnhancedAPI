@@ -14,9 +14,9 @@ const MAIN_MAX = 60
 const MAX_COPIES = 4
 // Límites de keyword skills (los mismos textos que publica Bandai en su página de keyword skills).
 const SKILL_LIMITS: { skill: string; max: number; scope: 'card' | 'deck'; label: string }[] = [
-  { skill: 'Ultimate', max: 1, scope: 'card', label: 'Ultimate: máx. 1 copia' },
-  { skill: 'Super Combo', max: 4, scope: 'deck', label: 'Super Combo: máx. 4 en el mazo' },
-  { skill: 'Dragon Ball', max: 7, scope: 'deck', label: 'Dragon Ball: máx. 7 en total' },
+  { skill: 'Ultimate', max: 1, scope: 'card', label: 'Ultimate: 1 copy max' },
+  { skill: 'Super Combo', max: 4, scope: 'deck', label: 'Super Combo: 4 max in the deck' },
+  { skill: 'Dragon Ball', max: 7, scope: 'deck', label: 'Dragon Ball: 7 max in total' },
 ]
 const TYPE_LABELS: Record<string, string> = { BATTLE: 'Battle', EXTRA: 'Extra', UNISON: 'Unison' }
 const COLOR_ORDER = ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White']
@@ -202,7 +202,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
         change: (c, d) => setQty(c.id, 'deck', qtyOf(c.id, 'deck') + d),
         move: {
           label: '→ Side',
-          title: 'Pasar una copia al side deck',
+          title: 'Move a copy to the side deck',
           run: (c) => {
             setQty(c.id, 'deck', qtyOf(c.id, 'deck') - 1)
             setQty(c.id, 'side', qtyOf(c.id, 'side') + 1)
@@ -215,8 +215,8 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
     ? {
         change: (c, d) => setQty(c.id, 'side', qtyOf(c.id, 'side') + d),
         move: {
-          label: '↩ Mazo',
-          title: 'Devolver una copia al mazo',
+          label: '↩ Deck',
+          title: 'Return a copy to the deck',
           run: (c) => {
             setQty(c.id, 'side', qtyOf(c.id, 'side') - 1)
             setQty(c.id, 'deck', qtyOf(c.id, 'deck') + 1)
@@ -254,13 +254,13 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
   const { issues, flagged } = useMemo(() => {
     const issues: Issue[] = []
     const flagged = new Map<number, string>()
-    if (!leader) issues.push({ level: 'error', text: 'Falta la carta Leader' })
+    if (!leader) issues.push({ level: 'error', text: 'The Leader card is missing' })
     if (stats.total < MAIN_MIN) {
       const n = MAIN_MIN - stats.total
-      issues.push({ level: 'error', text: `Faltan ${n} ${n === 1 ? 'carta' : 'cartas'} para llegar a ${MAIN_MIN}` })
+      issues.push({ level: 'error', text: `${n} ${n === 1 ? 'card' : 'cards'} short of ${MAIN_MIN}` })
     } else if (stats.total > MAIN_MAX) {
       const n = stats.total - MAIN_MAX
-      issues.push({ level: 'error', text: `Sobran ${n} ${n === 1 ? 'carta' : 'cartas'} (máximo ${MAIN_MAX})` })
+      issues.push({ level: 'error', text: `${n} ${n === 1 ? 'card' : 'cards'} too many (max ${MAIN_MAX})` })
     }
     // Copias por número de carta (las distintas impresiones de una carta cuentan juntas).
     const byNumber = new Map<string, { n: number; ids: number[]; name: string }>()
@@ -272,16 +272,16 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
     }
     for (const [num, e] of byNumber) {
       if (e.n > MAX_COPIES) {
-        issues.push({ level: 'error', text: `${num} ${e.name}: ${e.n} copias (máx. ${MAX_COPIES})` })
-        e.ids.forEach((id) => flagged.set(id, `Más de ${MAX_COPIES} copias`))
+        issues.push({ level: 'error', text: `${num} ${e.name}: ${e.n} copies (max ${MAX_COPIES})` })
+        e.ids.forEach((id) => flagged.set(id, `More than ${MAX_COPIES} copies`))
       }
     }
     for (const c of [...main, ...zDeck]) {
       if (c.legality === 'banned') {
-        issues.push({ level: 'error', text: `${c.card_number} ${c.name} está Banned` })
+        issues.push({ level: 'error', text: `${c.card_number} ${c.name} is Banned` })
         flagged.set(c.id, 'Banned')
       } else if (c.legality === 'limited' && (byNumber.get(c.card_number)?.n ?? 0) > 1) {
-        issues.push({ level: 'error', text: `${c.card_number} ${c.name} es Limited: máximo 1 copia` })
+        issues.push({ level: 'error', text: `${c.card_number} ${c.name} is Limited: 1 copy max` })
         flagged.set(c.id, 'Limited')
       }
     }
@@ -297,12 +297,12 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
       } else {
         const n = withSkill.reduce((s, c) => s + copies(c), 0)
         if (n > rule.max) {
-          issues.push({ level: 'error', text: `${rule.label} (tienes ${n})` })
+          issues.push({ level: 'error', text: `${rule.label} (you have ${n})` })
           withSkill.forEach((c) => flagged.set(c.id, rule.label))
         }
       }
     }
-    if (leaders.length > 1) issues.push({ level: 'warn', text: `Hay ${leaders.length} cartas Leader en el mazo` })
+    if (leaders.length > 1) issues.push({ level: 'warn', text: `There are ${leaders.length} Leader cards in the deck` })
     return { issues, flagged }
   }, [main, zDeck, leader, leaders.length, stats.total])
 
@@ -346,26 +346,26 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
             <button
               className="deck-leader-card"
               onClick={() => leader.back_image_url && setShowFront(!showFront)}
-              title={leader.back_image_url ? 'Pulsa para girar la carta' : leader.name}
+              title={leader.back_image_url ? 'Click to flip the card' : leader.name}
             >
               <img src={leaderImage} alt={`Leader: ${leader.name}`} referrerPolicy="no-referrer" />
               {leader.back_image_url && <span className="deck-flip">{showFront ? 'Front' : 'Awaken'} ⟲</span>}
             </button>
           ) : (
-            <div className="deck-leader-card empty">Sin Leader</div>
+            <div className="deck-leader-card empty">No Leader</div>
           )}
           {leader && (
             <span className="deck-leader-links">
               <button className="link small" onClick={() => onOpen(leader.id)}>
-                {leader.card_number} · ficha
+                {leader.card_number} · details
               </button>
               {viewingCurrent && (
                 <button
                   className="link small danger"
                   onClick={() => setQty(leader.id, 'deck', 0)}
-                  title="Quitar el Leader de la lista (añade otro con «Añadir carta»)"
+                  title="Remove the Leader from the list (add another with “Add card”)"
                 >
-                  Quitar
+                  Remove
                 </button>
               )}
             </span>
@@ -373,7 +373,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
         </div>
 
         <div className="deck-summary">
-          <p className="deck-eyebrow">Mazo{version ? ` · ${versionLabel(version)}` : ''}</p>
+          <p className="deck-eyebrow">Deck{version ? ` · ${versionLabel(version)}` : ''}</p>
           <h2 className="deck-title">{deck.name}</h2>
           {leader && <p className="deck-leader-name">{showFront || !leader.back_name ? leader.name : leader.back_name}</p>}
           <div className="deck-counts">
@@ -393,12 +393,12 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
             )}
           </div>
           {issues.length === 0 ? (
-            <span className="deck-check ok">✓ Cumple las reglas de construcción</span>
+            <span className="deck-check ok">✓ Meets the deck-building rules</span>
           ) : issues.length === 1 ? (
             <span className={`deck-check ${issues[0].level}`}>⚠ {issues[0].text}</span>
           ) : (
             <details className={`deck-check ${issues.some((i) => i.level === 'error') ? 'error' : 'warn'}`}>
-              <summary>⚠ {issues.length} avisos de construcción</summary>
+              <summary>⚠ {issues.length} deck-building warnings</summary>
               <ul>
                 {issues.map((i) => (
                   <li key={i.text}>{i.text}</li>
@@ -423,14 +423,14 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
         )}
 
         <div className="deck-stats">
-          <figure className="deck-curve" aria-label="Curva de Energy del Main Deck">
-            <figcaption>Curva de Energy</figcaption>
+          <figure className="deck-curve" aria-label="Main Deck Energy curve">
+            <figcaption>Energy curve</figcaption>
             <div className="deck-bars">
               {stats.bars.map((b) => (
                 <button
                   key={b.cost}
                   className={`deck-bar ${onClass(filter.cost.includes(b.cost))}`}
-                  title={`Energy ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cartas · pulsa para filtrar`}
+                  title={`Energy ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cards · click to filter`}
                   aria-pressed={filter.cost.includes(b.cost)}
                   onClick={() => toggle('cost', b.cost)}
                 >
@@ -442,7 +442,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
             </div>
           </figure>
           <div className="deck-mix">
-            <p className="deck-mix-title">Tipos</p>
+            <p className="deck-mix-title">Types</p>
             <div className="deck-chips">
               {[...stats.types].map(([t, n]) => (
                 <button
@@ -456,7 +456,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
               ))}
             </div>
             <p className="deck-mix-title">Colors</p>
-            <div className="deck-colorbar" aria-label="Reparto por Colors">
+            <div className="deck-colorbar" aria-label="Split by Colors">
               {[...stats.colors]
                 .sort((a, b) => COLOR_ORDER.indexOf(a[0]) - COLOR_ORDER.indexOf(b[0]))
                 .map(([col, n]) => (
@@ -477,7 +477,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
             </div>
             {filtering && (
               <button className="link small deck-filter-clear" onClick={() => setFilter(NO_FILTER)}>
-                ✕ Quitar filtros
+                ✕ Clear filters
               </button>
             )}
           </div>
@@ -503,18 +503,18 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
           }}
         />
       ) : historyError ? (
-        <p className="muted small">No se pudieron cargar las versiones del mazo: {historyError}</p>
+        <p className="muted small">Couldn't load the deck versions: {historyError}</p>
       ) : null}
       {restored && (
         <p className={`deck-check ${restored.missing.length ? 'warn' : 'ok'} restore-done`}>
-          {restored.missing.length ? '⚠' : '✓'} Lista principal actualizada: {restored.moved_out} copias fuera del mazo y{' '}
-          {restored.moved_in} dentro.
+          {restored.missing.length ? '⚠' : '✓'} Main list updated: {restored.moved_out} copies out of the deck and{' '}
+          {restored.moved_in} in.
           {restored.missing.length > 0 &&
-            ` Faltan ${restored.missing
+            ` Missing ${restored.missing
               .map((m) => `${m.quantity}× ${catalog[m.bandai_id]?.card_number ?? m.bandai_id}`)
               .join(', ')}.`}{' '}
           <button className="link small" onClick={() => setRestored(null)}>
-            Cerrar
+            Close
           </button>
         </p>
       )}
@@ -553,14 +553,14 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
           controls={sideControls}
           empty={
             filtering
-              ? 'Ninguna carta del side con estos filtros.'
+              ? 'No side cards match these filters.'
               : viewingCurrent
-                ? 'Sin cartas en el side. Usa «→ Side» en una carta del mazo para apartar copias.'
+                ? 'No cards in the side. Use “→ Side” on a deck card to set copies aside.'
                 : undefined
           }
         />
       )}
-      {canReorderNow && !filtering && <p className="reorder-hint">Arrastra las cartas para ordenarlas dentro de su sección (en el móvil, mantén pulsada una carta).</p>}
+      {canReorderNow && !filtering && <p className="reorder-hint">Drag the cards to reorder them within their section (on mobile, press and hold a card).</p>}
 
       {picking && <CardPicker onPick={addCard} quantityOf={(id) => qtyOf(id, 'deck')} onClose={() => setPicking(false)} />}
       {saving && detail && (
@@ -595,7 +595,7 @@ function DeckSection({
   controls,
   onAdd,
   shown,
-  empty = shown != null ? 'Ninguna carta con estos filtros.' : 'Sin cartas.',
+  empty = shown != null ? 'No cards match these filters.' : 'No cards.',
 }: {
   title: string
   count: number
@@ -628,9 +628,9 @@ function DeckSection({
       )}
       {onAdd && (
         <li>
-          <button className="deck-add" onClick={onAdd} title="Añadir una carta a la lista">
+          <button className="deck-add" onClick={onAdd} title="Add a card to the list">
             <span aria-hidden>+</span>
-            Añadir carta
+            Add card
           </button>
         </li>
       )}
@@ -639,7 +639,7 @@ function DeckSection({
   return (
     <section className="deck-section">
       <h3>
-        {title} <span>{shown != null ? `${shown} de ${count}` : count} cartas</span>
+        {title} <span>{shown != null ? `${shown} of ${count}` : count} cards</span>
       </h3>
       {cards.length === 0 && !onAdd ? (
         <p className="muted small">{empty}</p>
@@ -700,19 +700,25 @@ function DeckCard({
   const n = copies(card)
   const delta = controls?.deltaOf(card) ?? 0
   const stop = (e: React.PointerEvent) => e.stopPropagation()
+  // Banned y Limited llevan su color (rojo / ámbar); el resto de avisos, rojo.
+  const kind = flag === 'Banned' ? 'banned' : flag === 'Limited' ? 'limited' : undefined
   return (
     <div className={`deck-card-wrap ${delta > 0 ? 'added' : delta < 0 ? 'removed' : ''}`}>
-      <button className={`deck-card ${flag ? 'flagged' : ''}`} onClick={() => onOpen(card.id)} title={`${card.card_number} · ${card.name}`}>
+      <button
+        className={`deck-card ${flag ? 'flagged' : ''} ${kind ? `flag-${kind}` : ''}`}
+        onClick={() => onOpen(card.id)}
+        title={`${card.card_number} · ${card.name}`}
+      >
         <img src={cardThumb(card)} alt={card.name} loading="lazy" referrerPolicy="no-referrer" draggable={false} />
-        <span className="deck-qty" aria-label={`${n} copias`}>
+        <span className="deck-qty" aria-label={`${n} copies`}>
           {n}
         </span>
         {delta !== 0 && (
-          <span className="deck-delta" title="Cambio sin guardar respecto a lo que hay en la caja">
+          <span className="deck-delta" title="Unsaved change compared with what's in the box">
             {delta > 0 ? `+${delta}` : `−${-delta}`}
           </span>
         )}
-        {flag && <span className="deck-flag">{flag}</span>}
+        {flag && <span className={`deck-flag ${kind ?? ''}`}>{flag}</span>}
         <span className="deck-card-name">
           <small>{card.card_number}</small>
           {card.name}
@@ -720,13 +726,13 @@ function DeckCard({
       </button>
       {controls && (
         <div className="deck-card-controls" onPointerDown={stop}>
-          <button onClick={() => controls.change(card, -1)} title="Quitar una copia" aria-label={`Quitar una copia de ${card.name}`}>
+          <button onClick={() => controls.change(card, -1)} title="Remove a copy" aria-label={`Remove a copy of ${card.name}`}>
             −
           </button>
           <button className="deck-card-move" onClick={() => controls.move.run(card)} title={controls.move.title}>
             {controls.move.label}
           </button>
-          <button onClick={() => controls.change(card, 1)} title="Añadir una copia" aria-label={`Añadir una copia de ${card.name}`}>
+          <button onClick={() => controls.change(card, 1)} title="Add a copy" aria-label={`Add a copy of ${card.name}`}>
             +
           </button>
         </div>

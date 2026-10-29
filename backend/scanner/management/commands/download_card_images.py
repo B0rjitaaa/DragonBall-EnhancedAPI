@@ -5,7 +5,7 @@ from cards.models import Card
 
 
 class Command(BaseCommand):
-    help = "Descarga a CARD_IMAGES_DIR las imágenes oficiales (anverso y reverso) que falten."
+    help = "Downloads the missing official images (front and back) to CARD_IMAGES_DIR."
 
     def add_arguments(self, parser):
         parser.add_argument("--workers", type=int, default=8)
@@ -16,9 +16,9 @@ class Command(BaseCommand):
             urls += [front, back]
 
         def progress(done, total, errors):
-            self.stdout.write(f"  {done}/{total} ({errors} errores)")
+            self.stdout.write(f"  {done}/{total} ({errors} errors)")
 
         ok, cached, errors = download_missing(urls, workers=workers, progress=progress)
         self.stdout.write(
-            self.style.SUCCESS(f"Imágenes: {ok} descargadas, {cached} ya en caché, {errors} errores")
+            self.style.SUCCESS(f"Images: {ok} downloaded, {cached} already cached, {errors} errors")
         )

@@ -31,10 +31,10 @@ ALERT_AFTER = timedelta(minutes=10)
 TIMEOUT = 20
 
 MESSAGES = {
-    "server": "El servidor no responde",
-    "backend": "El backend no responde (la web carga, pero sin datos)",
-    "redis": "Redis caído (escáner y tareas parados)",
-    "worker": "Worker de Celery caído (sync y avisos parados)",
+    "server": "The server is not responding",
+    "backend": "The backend is not responding (the web loads, but without data)",
+    "redis": "Redis is down (scanner and tasks stopped)",
+    "worker": "Celery worker is down (sync and alerts stopped)",
 }
 
 
@@ -61,7 +61,7 @@ def problems(url):
     try:
         checks = {c["key"]: c for c in json.loads(body)["checks"]}
     except (ValueError, KeyError, TypeError):  # el 503 de nginx no trae las comprobaciones
-        return {"backend": "nginx contesta, Django no"}
+        return {"backend": "nginx answers, Django does not"}
     return {k: checks[k]["detail"] for k in ("redis", "worker") if k in checks and not checks[k]["ok"]}
 
 
@@ -85,7 +85,7 @@ def duration(since, now):
         return f"{minutes} min"
     if minutes < 48 * 60:
         return f"{minutes // 60} h {minutes % 60:02d} min"
-    return f"{minutes // 1440} días"
+    return f"{minutes // 1440} days"
 
 
 def escape(text):
@@ -105,21 +105,21 @@ def main():
     now = datetime.now(timezone.utc)
     current = problems(config["HEALTH_URL"])
     if "--test" in sys.argv:
-        print(current or "todo en orden")
-        sys.exit(0 if send(config, "👀 <b>Vigilante activo</b>\nComprueba el servidor cada 5 minutos.", silent=True) else 1)
+        print(current or "all good")
+        sys.exit(0 if send(config, "👀 <b>Watchdog active</b>\nIt checks the server every 5 minutes.", silent=True) else 1)
 
     for key, detail in current.items():
         entry = state.setdefault(key, {"since": now.isoformat(), "alerted": False})
         since = datetime.fromisoformat(entry["since"])
         if not entry["alerted"] and now - since >= ALERT_AFTER:
-            text = f"🔴 <b>{MESSAGES[key]}</b> desde hace {duration(since, now)}\n{escape(detail)}\n<i>(aviso del vigilante)</i>"
+            text = f"🔴 <b>{MESSAGES[key]}</b> for {duration(since, now)}\n{escape(detail)}\n<i>(watchdog alert)</i>"
             entry["alerted"] = send(config, text)
 
     for key in [k for k in state if k not in current]:
         entry = state.pop(key)
         if entry["alerted"]:
             since = datetime.fromisoformat(entry["since"])
-            send(config, f"✅ <b>Vuelve a funcionar: {MESSAGES[key]}</b>\nEstuvo fallando {duration(since, now)}.\n<i>(aviso del vigilante)</i>")
+            send(config, f"✅ <b>Working again: {MESSAGES[key]}</b>\nIt was failing for {duration(since, now)}.\n<i>(watchdog alert)</i>")
 
     with open(state_path, "w", encoding="utf-8") as fh:
         json.dump(state, fh)

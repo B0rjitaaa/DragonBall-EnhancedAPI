@@ -13,5 +13,5 @@ for unit in dbs-backup.service dbs-backup.timer dbs-backup-request.path; do
 done
 sudo systemctl daemon-reload
 sudo systemctl enable --now dbs-backup.timer dbs-backup-request.path
-echo "✔ Copias diarias a las 03:30 para $USER_NAME (copias en $HOME_DIR/backups/dbs)"
+echo "✔ Daily backups at 03:30 for $USER_NAME (stored in $HOME_DIR/backups/dbs)"
 systemctl list-timers dbs-backup.timer --no-pager | head -3

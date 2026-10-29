@@ -18,7 +18,7 @@ from django.conf import settings
 from django.utils import timezone
 
 # Grupos conocidos, en este orden; el resto de carpetas van al final como «Otras».
-GROUPS = {"daily": "Diarias", "weekly": "Semanales"}
+GROUPS = {"daily": "Daily", "weekly": "Weekly"}
 DOWNLOADABLE = (".dump",)
 
 
@@ -108,7 +108,7 @@ def list_copies() -> list[Copy]:
     folders = sorted(p for p in base.iterdir() if p.is_dir() and p.name != "request")
     folders.sort(key=lambda p: (list(GROUPS).index(p.name) if p.name in GROUPS else len(GROUPS)))
     for folder in folders:
-        group = GROUPS.get(folder.name, f"Otras · {folder.name}")
+        group = GROUPS.get(folder.name, f"Other · {folder.name}")
         items = []
         for entry in folder.iterdir():
             if entry.is_dir():
@@ -129,7 +129,7 @@ def request_backup() -> None:
     """Pide una copia: el servidor la lanza en unos segundos (dbs-backup-request.path)."""
     folder = Path(settings.BACKUP_REQUEST_DIR)
     if not folder.is_dir():
-        raise RuntimeError("Este equipo no puede lanzar copias desde aquí")
+        raise RuntimeError("This machine cannot start backups from here")
     (folder / "now").write_text(datetime.now().isoformat(), encoding="utf-8")
 
 

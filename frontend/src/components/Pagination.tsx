@@ -19,9 +19,9 @@ export default function Pagination({ page, pages, onPage }: { page: number; page
   const narrow = useNarrow()
   const items = pageItems(page, pages, narrow ? 1 : 2)
   return (
-    <nav className="pagination" aria-label={`Página ${page} de ${pages}`}>
-      <button className="btn ghost page-step" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Página anterior">
-        {narrow ? '‹' : '← Anterior'}
+    <nav className="pagination" aria-label={`Page ${page} of ${pages}`}>
+      <button className="btn ghost page-step" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page">
+        {narrow ? '‹' : '← Previous'}
       </button>
       <ol className="page-list">
         {items.map((item, i) =>
@@ -34,7 +34,7 @@ export default function Pagination({ page, pages, onPage }: { page: number; page
               <button
                 className={`page-num ${item === page ? 'current' : ''}`}
                 aria-current={item === page ? 'page' : undefined}
-                aria-label={`Página ${item}`}
+                aria-label={`Page ${item}`}
                 onClick={() => item !== page && onPage(item)}
               >
                 {item}
@@ -43,8 +43,8 @@ export default function Pagination({ page, pages, onPage }: { page: number; page
           ),
         )}
       </ol>
-      <button className="btn ghost page-step" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Página siguiente">
-        {narrow ? '›' : 'Siguiente →'}
+      <button className="btn ghost page-step" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Next page">
+        {narrow ? '›' : 'Next →'}
       </button>
     </nav>
   )

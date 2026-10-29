@@ -18,15 +18,15 @@ Kind = CardChange.Kind
 
 # Campo de la carta -> (tipo de cambio, nombre que se muestra)
 CARD_FIELDS = {
-    "name": (Kind.TEXT, "nombre"),
-    "text": (Kind.TEXT, "texto"),
-    "back_name": (Kind.TEXT, "nombre (cara trasera)"),
-    "back_text": (Kind.TEXT, "texto (cara trasera)"),
-    "image_url": (Kind.IMAGE, "imagen"),
+    "name": (Kind.TEXT, "name"),
+    "text": (Kind.TEXT, "text"),
+    "back_name": (Kind.TEXT, "name (back side)"),
+    "back_text": (Kind.TEXT, "text (back side)"),
+    "image_url": (Kind.IMAGE, "image"),
     "energy": (Kind.STATS, "energy"),
     "color_cost": (Kind.STATS, "color cost"),
     "power": (Kind.STATS, "power"),
-    "back_power": (Kind.STATS, "power (cara trasera)"),
+    "back_power": (Kind.STATS, "power (back side)"),
     "combo_energy": (Kind.STATS, "combo energy"),
     "combo_power": (Kind.STATS, "combo power"),
     "z_energy_cost": (Kind.STATS, "z-energy cost"),
@@ -123,7 +123,7 @@ def record_ruling_changes(old: set[tuple[str, str]], new_entries: list[dict]) ->
     fresh = [e for e in new_entries if (e["card_number"], e["question"]) not in old]
     cards = _cards_by_number(e["card_number"] for e in fresh)
     changes = [
-        _change(Kind.RULING, e["card_number"], cards, e.get("card_name", ""), field=f"P{e['order']}",
+        _change(Kind.RULING, e["card_number"], cards, e.get("card_name", ""), field=f"Q{e['order']}",
                 after=f"{e['question']}\n→ {e['answer']}")
         for e in fresh
     ]

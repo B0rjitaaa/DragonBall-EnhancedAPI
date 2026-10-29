@@ -11,8 +11,8 @@ const queryClient = new QueryClient({
 });
 
 const TABS = {
-  scanner: { label: "Escanear", view: Scanner },
-  history: { label: "Historial", view: History },
+  scanner: { label: "Scan", view: Scanner },
+  history: { label: "History", view: History },
 } as const;
 
 type TabKey = keyof typeof TABS;
@@ -39,11 +39,11 @@ export default function ScanPage() {
       <div className="scan-app">
         {newVersion && (
           <div className="update-banner" role="status">
-            Hay una versión nueva de la web.
-            <button onClick={() => window.location.reload()}>Recargar</button>
+            A new version of the site is available.
+            <button onClick={() => window.location.reload()}>Reload</button>
           </div>
         )}
-        <nav className="scan-tabs" aria-label="Escáner">
+        <nav className="scan-tabs" aria-label="Scanner">
           {(Object.keys(TABS) as TabKey[]).map((key) => (
             <a key={key} href={`#${key}`} className={key === tab ? "active" : ""}>
               {TABS[key].label}

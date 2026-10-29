@@ -87,7 +87,7 @@ def fetch_official() -> str:
 
     resp = http.get(settings.BANLIST_URL, impersonate="chrome", timeout=30)
     if resp.status_code != 200:
-        raise BanListError(f"{resp.status_code} al descargar {settings.BANLIST_URL}")
+        raise BanListError(f"{resp.status_code} downloading {settings.BANLIST_URL}")
     return resp.text
 
 
@@ -134,7 +134,7 @@ def sync_banlist() -> dict:
     updated, entries = parse_banlist_html(page)
     banned = sum(e["status"] == Legality.BANNED for e in entries)
     if banned < MIN_EXPECTED_BANNED:
-        raise BanListError(f"Solo se han encontrado {banned} prohibidas: ¿ha cambiado la web oficial?")
+        raise BanListError(f"Only {banned} banned cards found: has the official website changed?")
     old = dict(BanListEntry.objects.values_list("card_number", "status"))
     store_entries(entries, updated, "official")
     from .changes import record_banlist_changes
@@ -146,5 +146,5 @@ def sync_banlist() -> dict:
     invalidate_facets()
     result = {"updated": updated, "entries": len(entries), "banned": banned,
               "limited": len(entries) - banned, "cards_marked": cards}
-    logger.info("Banlist sincronizada: %s", result)
+    logger.info("Banlist synced: %s", result)
     return result

@@ -4,7 +4,7 @@ from django.apps import AppConfig
 class PricesConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "prices"
-    verbose_name = "Precios (Cardmarket)"
+    verbose_name = "Prices (Cardmarket)"
 
     def ready(self):
         import os

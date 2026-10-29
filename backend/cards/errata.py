@@ -82,7 +82,7 @@ def fetch_official() -> str:
 
     resp = http.get(settings.ERRATA_URL, impersonate="chrome", timeout=30)
     if resp.status_code != 200:
-        raise ErrataError(f"{resp.status_code} al descargar {settings.ERRATA_URL}")
+        raise ErrataError(f"{resp.status_code} downloading {settings.ERRATA_URL}")
     return resp.text
 
 
@@ -115,7 +115,7 @@ def sync_errata() -> dict:
     page = fetch_official()
     updated, entries = parse_errata_html(page)
     if len(entries) < MIN_EXPECTED:
-        raise ErrataError(f"Solo se han encontrado {len(entries)} erratas: ¿ha cambiado la web oficial?")
+        raise ErrataError(f"Only {len(entries)} errata found: has the official website changed?")
     old = dict(CardErrata.objects.values_list("card_number", "after"))
     store_entries(entries, updated, "official")
     from .changes import record_errata_changes
@@ -126,5 +126,5 @@ def sync_errata() -> dict:
 
     invalidate_facets()
     result = {"updated": updated, "entries": len(entries), "cards_marked": cards}
-    logger.info("Erratas sincronizadas: %s", result)
+    logger.info("Errata synced: %s", result)
     return result

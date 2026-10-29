@@ -91,7 +91,7 @@ def fetch_official() -> str:
 
     resp = http.get(settings.CARD_FAQ_URL, impersonate="chrome", timeout=30)
     if resp.status_code != 200:
-        raise RulingsError(f"{resp.status_code} al descargar {settings.CARD_FAQ_URL}")
+        raise RulingsError(f"{resp.status_code} downloading {settings.CARD_FAQ_URL}")
     return resp.text
 
 
@@ -131,7 +131,7 @@ def sync_rulings() -> dict:
     page = fetch_official()
     updated, entries = parse_faq_html(page)
     if len(entries) < MIN_EXPECTED:
-        raise RulingsError(f"Solo se han encontrado {len(entries)} Q&A: ¿ha cambiado la web oficial?")
+        raise RulingsError(f"Only {len(entries)} Q&A found: has the official website changed?")
     old = set(CardRuling.objects.values_list("card_number", "question"))
     store_entries(entries, updated, "official")
     from .changes import record_ruling_changes
@@ -143,5 +143,5 @@ def sync_rulings() -> dict:
     invalidate_facets()
     result = {"entries": len(entries), "cards_with_qa": len(set(e["card_number"] for e in entries)),
               "cards_marked": cards}
-    logger.info("Card Q&A sincronizado: %s", result)
+    logger.info("Card Q&A synced: %s", result)
     return result

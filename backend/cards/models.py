@@ -18,7 +18,7 @@ class Card(models.Model):
     """Una carta (una impresión concreta: las alt-art tienen su propio id en Bandai)."""
 
     # Identificación
-    id = models.PositiveIntegerField(primary_key=True, help_text="ID de Bandai TCG+")
+    id = models.PositiveIntegerField(primary_key=True, help_text="Bandai TCG+ ID")
     card_number = models.CharField(max_length=32, db_index=True)
     name = models.CharField(max_length=255, db_index=True)
     text = models.TextField(blank=True)
@@ -74,13 +74,13 @@ class Card(models.Model):
     rulings_count = models.PositiveSmallIntegerField(default=0, db_index=True)
 
     # Texto normalizado para búsquedas (sin corchetes/HTML, minúsculas). Ver parsing.normalize_search
-    effect_text = models.TextField(blank=True, help_text="Texto de ambas caras normalizado")
-    search_text = models.TextField(blank=True, help_text="Nombre + número + texto normalizados")
+    effect_text = models.TextField(blank=True, help_text="Normalized text of both sides")
+    search_text = models.TextField(blank=True, help_text="Normalized name + number + text")
 
     # Datos originales
-    config = models.JSONField(default=dict, blank=True, help_text="card_config original {nombre: valor}")
+    config = models.JSONField(default=dict, blank=True, help_text="Original card_config {name: value}")
     back_config = models.JSONField(default=dict, blank=True)
-    raw = models.JSONField(default=dict, blank=True, help_text="Respuesta completa de la API")
+    raw = models.JSONField(default=dict, blank=True, help_text="Full API response")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -116,15 +116,15 @@ class Card(models.Model):
 
 class SyncRun(models.Model):
     class Status(models.TextChoices):
-        RUNNING = "running", "En curso"
-        SUCCESS = "success", "Correcto"
-        PARTIAL = "partial", "Con fallos"
-        FAILED = "failed", "Error"
+        RUNNING = "running", "Running"
+        SUCCESS = "success", "Succeeded"
+        PARTIAL = "partial", "With failures"
+        FAILED = "failed", "Failed"
 
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.RUNNING)
-    full = models.BooleanField(default=False, help_text="Refrescar todas las cartas, no solo las nuevas")
+    full = models.BooleanField(default=False, help_text="Refresh all cards, not only new ones")
     listed = models.PositiveIntegerField(default=0)
     fetched = models.PositiveIntegerField(default=0)
     created = models.PositiveIntegerField(default=0)
@@ -143,21 +143,21 @@ class CardChange(models.Model):
     """Un cambio real detectado al sincronizar: carta nueva, texto, imagen, banlist, errata o Q&A."""
 
     class Kind(models.TextChoices):
-        NEW = "new", "Carta nueva"
-        TEXT = "text", "Cambio de texto"
-        IMAGE = "image", "Imagen nueva"
-        STATS = "stats", "Cambio de atributos"
+        NEW = "new", "New card"
+        TEXT = "text", "Text change"
+        IMAGE = "image", "New image"
+        STATS = "stats", "Attribute change"
         BANNED = "banned", "Banned"
         LIMITED = "limited", "Limited"
-        LEGAL = "legal", "Vuelve a ser legal"
-        ERRATA = "errata", "Errata oficial"
-        RULING = "ruling", "Nueva pregunta (Q&A)"
+        LEGAL = "legal", "Legal again"
+        ERRATA = "errata", "Official errata"
+        RULING = "ruling", "New question (Q&A)"
 
     kind = models.CharField(max_length=8, choices=Kind.choices, db_index=True)
     card = models.ForeignKey(Card, null=True, blank=True, on_delete=models.SET_NULL, related_name="changes")
     card_number = models.CharField(max_length=32, db_index=True)
     card_name = models.CharField(max_length=255, blank=True)
-    field = models.CharField(max_length=32, blank=True, help_text="Qué cambió (texto, power…)")
+    field = models.CharField(max_length=32, blank=True, help_text="What changed (text, power…)")
     before = models.TextField(blank=True)
     after = models.TextField(blank=True)
     run = models.ForeignKey(SyncRun, null=True, blank=True, on_delete=models.SET_NULL, related_name="changes")
@@ -165,8 +165,8 @@ class CardChange(models.Model):
 
     class Meta:
         ordering = ["-created_at", "card_number"]
-        verbose_name = "Cambio"
-        verbose_name_plural = "Novedades"
+        verbose_name = "Change"
+        verbose_name_plural = "News"
 
     def __str__(self) -> str:
         return f"{self.get_kind_display()} {self.card_number}"
@@ -178,16 +178,16 @@ class BanListEntry(models.Model):
     card_number = models.CharField(max_length=32, primary_key=True)
     status = models.CharField(max_length=8, choices=[(Legality.LIMITED, "Limited"), (Legality.BANNED, "Banned")])
     card_name = models.CharField(max_length=255, blank=True)
-    limit = models.PositiveSmallIntegerField(default=0, help_text="Copias permitidas (limitadas)")
-    since = models.CharField(max_length=255, blank=True, help_text="Desde cuándo (Norteamérica/Europa)")
-    list_updated = models.CharField(max_length=64, blank=True, help_text="'last updated on …' de la web oficial")
+    limit = models.PositiveSmallIntegerField(default=0, help_text="Allowed copies (limited)")
+    since = models.CharField(max_length=255, blank=True, help_text="Since when (North America/Europe)")
+    list_updated = models.CharField(max_length=64, blank=True, help_text="'last updated on …' from the official website")
     source = models.CharField(max_length=16, default="official", help_text="official | snapshot")
     fetched_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["status", "card_number"]
-        verbose_name = "Carta prohibida/limitada"
-        verbose_name_plural = "Lista Banned/Limited"
+        verbose_name = "Banned/limited card"
+        verbose_name_plural = "Banned/Limited list"
 
     def __str__(self) -> str:
         return f"{self.card_number} ({self.status})"
@@ -198,19 +198,19 @@ class CardErrata(models.Model):
 
     card_number = models.CharField(max_length=32, primary_key=True)
     card_name = models.CharField(max_length=255, blank=True)
-    before = models.TextField(blank=True, help_text="Texto anterior")
-    after = models.TextField(blank=True, help_text="Texto corregido")
+    before = models.TextField(blank=True, help_text="Previous text")
+    after = models.TextField(blank=True, help_text="Corrected text")
     notes = models.TextField(blank=True, help_text="Errata Notes")
     image_url = models.URLField(max_length=500, blank=True)
-    date = models.CharField(max_length=16, blank=True, help_text="Fecha de la errata, p. ej. 2025.02.28")
-    list_updated = models.CharField(max_length=64, blank=True, help_text="'updated on …' de la web oficial")
+    date = models.CharField(max_length=16, blank=True, help_text="Errata date, e.g. 2025.02.28")
+    list_updated = models.CharField(max_length=64, blank=True, help_text="'updated on …' from the official website")
     source = models.CharField(max_length=16, default="official", help_text="official | snapshot")
     fetched_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["card_number"]
-        verbose_name = "Errata de carta"
-        verbose_name_plural = "Erratas"
+        verbose_name = "Card errata"
+        verbose_name_plural = "Errata"
 
     def __str__(self) -> str:
         return f"Errata {self.card_number}"
@@ -220,11 +220,11 @@ class CardRuling(models.Model):
     """Pregunta/respuesta oficial (Card Q&A, dbs-cardgame.com). Varias por carta."""
 
     card_number = models.CharField(max_length=32, db_index=True)
-    order = models.PositiveSmallIntegerField(default=0, help_text="Orden dentro de la carta (Q1, Q2…)")
+    order = models.PositiveSmallIntegerField(default=0, help_text="Order within the card (Q1, Q2…)")
     card_name = models.CharField(max_length=255, blank=True)
     question = models.TextField()
     answer = models.TextField()
-    is_new = models.BooleanField(default=False, help_text="Marcada como nueva en la web oficial")
+    is_new = models.BooleanField(default=False, help_text="Marked as new on the official website")
     set_label = models.CharField(max_length=255, blank=True)
     list_updated = models.CharField(max_length=64, blank=True)
     source = models.CharField(max_length=16, default="official")
@@ -233,7 +233,7 @@ class CardRuling(models.Model):
     class Meta:
         ordering = ["card_number", "order"]
         constraints = [models.UniqueConstraint(fields=["card_number", "order"], name="unique_ruling_order")]
-        verbose_name = "Pregunta/respuesta"
+        verbose_name = "Question/answer"
         verbose_name_plural = "Card Q&A"
 
     def __str__(self) -> str:
@@ -248,7 +248,7 @@ class KeywordSkill(models.Model):
         SKILL = "skill", "Keyword Skills"
         KEYWORD = "keyword", "Keywords"
 
-    name = models.CharField(max_length=96, primary_key=True, help_text="Nombre oficial: 'Over Realm X'")
+    name = models.CharField(max_length=96, primary_key=True, help_text="Official name: 'Over Realm X'")
     category = models.CharField(max_length=8, choices=Category.choices)
     description = models.TextField()
     order = models.PositiveSmallIntegerField(default=0)

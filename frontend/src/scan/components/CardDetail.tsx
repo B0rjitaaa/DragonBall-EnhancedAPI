@@ -14,7 +14,7 @@ export default function CardDetail({ card, showAddButton = true }: { card: Card;
   });
 
   const stats: [string, string][] = [
-    ["Número", card.card_number],
+    ["Number", card.card_number],
     ["Set", [card.set_code, card.set_name].filter(Boolean).join(" · ")],
     ["Rarity", card.rarity],
     ["Type", card.card_type],
@@ -41,14 +41,14 @@ export default function CardDetail({ card, showAddButton = true }: { card: Card;
         {card.text && <p className="scan-card-text">{stripHtml(card.text)}</p>}
         {card.back_name && (
           <div className="card-back">
-            <h3>Reverso: {card.back_name}</h3>
+            <h3>Back: {card.back_name}</h3>
             {card.back_text && <p className="scan-card-text">{stripHtml(card.back_text)}</p>}
             {card.image_back_url && <img src={card.image_back_url} alt={card.back_name} loading="lazy" />}
           </div>
         )}
         {showAddButton && (
           <button onClick={() => add.mutate()} disabled={add.isPending}>
-            {add.isSuccess ? "Añadida ✓ (añadir otra)" : "Añadir a la colección"}
+            {add.isSuccess ? "Added ✓ (add another)" : "Add to collection"}
           </button>
         )}
         {add.isError && <p className="error">{add.error.message}</p>}

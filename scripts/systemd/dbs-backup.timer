@@ -1,5 +1,5 @@
 [Unit]
-Description=Copia de seguridad diaria (03:30)
+Description=Daily backup (03:30)
 
 [Timer]
 OnCalendar=*-*-* 03:30:00

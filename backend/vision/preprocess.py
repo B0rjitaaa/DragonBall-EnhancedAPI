@@ -14,7 +14,7 @@ _MIN_AREA_RATIO = 0.08
 def decode_image(data: bytes) -> np.ndarray:
     img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     if img is None:
-        raise ValueError("No se pudo decodificar la imagen")
+        raise ValueError("Could not decode the image")
     return img
 
 
@@ -27,7 +27,7 @@ def decode_reference(data: bytes) -> np.ndarray:
     """
     img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_UNCHANGED)
     if img is None:
-        raise ValueError("No se pudo decodificar la imagen")
+        raise ValueError("Could not decode the image")
     if img.ndim == 2:
         return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     if img.shape[2] == 4:
@@ -49,7 +49,7 @@ def crop_region(img: np.ndarray, region: dict) -> np.ndarray:
 def encode_jpeg(img: np.ndarray, quality: int = 90) -> bytes:
     ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, quality])
     if not ok:
-        raise ValueError("No se pudo codificar la imagen")
+        raise ValueError("Could not encode the image")
     return buf.tobytes()
 
 

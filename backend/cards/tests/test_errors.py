@@ -32,14 +32,14 @@ class ErrorPagesTests(SimpleTestCase):
         r = self.client.get("/api/no-existe/")
         self.assertEqual(r.status_code, 404)
         self.assertEqual(r.json()["status"], 404)
-        self.assertIn("no existe", r.json()["detail"])
+        self.assertIn("does not exist", r.json()["detail"])
 
     def test_page_404_is_friendly_html(self):
         r = self.client.get("/admin-no-existe/")
         self.assertEqual(r.status_code, 404)
         html = r.content.decode()
-        self.assertIn("Página no encontrada", html)
-        self.assertIn("Volver al buscador", html)
+        self.assertIn("Page not found", html)
+        self.assertIn("Back to the search", html)
         self.assertNotIn("URLconf", html)  # nada de la página de depuración
 
     def test_500_hides_the_error(self):
@@ -49,4 +49,4 @@ class ErrorPagesTests(SimpleTestCase):
         page = self.client.get("/boom/")
         self.assertEqual(page.status_code, 500)
         self.assertNotIn("fallo de prueba", page.content.decode())
-        self.assertIn("Error del servidor", page.content.decode())
+        self.assertIn("Server error", page.content.decode())

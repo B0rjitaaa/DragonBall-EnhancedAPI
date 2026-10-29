@@ -41,10 +41,10 @@ chmod 700 "$BACKUP_DIR"
 
 # Pedida desde el admin: se quita la petición (si no, dbs-backup-request.path la volvería a lanzar).
 # La carpeta la monta el backend con escritura (docker-compose.prod.yml).
-TRIGGER="programada"
+TRIGGER="scheduled"
 mkdir -p "$BACKUP_DIR/request"
 if [ -e "$BACKUP_DIR/request/now" ]; then
-    TRIGGER="pedida desde el admin"
+    TRIGGER="requested from the admin"
     rm -f "$BACKUP_DIR/request/now"
 fi
 # Mientras dura, el admin la enseña como «en curso».
@@ -54,7 +54,7 @@ printf '{"started_at": "%s", "trigger": "%s"}\n' "$(date -Iseconds)" "$TRIGGER" 
 # Estado de la última copia, para /api/health/ (el backend monta esta carpeta en solo lectura).
 STATUS_FILE="$BACKUP_DIR/last_status.json"
 REMOTE_STATUS="off"
-STEP="inicio"
+STEP="start"
 write_status() {  # write_status <ok|error> <mensaje>
     local q="'" msg="${2//\\//}"   # el mensaje va dentro de un JSON: sin \, comillas dobles ni saltos de línea
     msg="${msg//\"/$q}"
@@ -68,7 +68,7 @@ write_status() {  # write_status <ok|error> <mensaje>
 ERR_LOG="$(mktemp)"
 exec 2> >(tee -a "$ERR_LOG" >&2)
 FAILED_CMD=""
-trap 'FAILED_CMD="línea $LINENO: $BASH_COMMAND"' ERR
+trap 'FAILED_CMD="line $LINENO: $BASH_COMMAND"' ERR
 on_exit() {
     local code=$? detail=""
     rm -f "$RUNNING_FILE"
@@ -77,8 +77,8 @@ on_exit() {
         local errors
         errors="$(tail -n 3 "$ERR_LOG" 2>/dev/null | tr '\n' ' ' | cut -c1-300 || true)"
         [ -n "${errors// /}" ] && detail="$detail · $errors"
-        write_status error "falló en: $STEP (código $code)$detail"
-        log "copia FALLIDA en: $STEP (código $code)$detail"
+        write_status error "failed at: $STEP (code $code)$detail"
+        log "backup FAILED at: $STEP (code $code)$detail"
     fi
     rm -f "$ERR_LOG"
 }
@@ -90,29 +90,29 @@ for dir in $BACKUP_PROJECTS; do
     user="$(env_value POSTGRES_USER)"; user="${user:-dbs}"
     db="$(env_value POSTGRES_DB)"; db="${db:-dbs}"
 
-    STEP="base de datos de $name"
+    STEP="database of $name"
     # Base de datos: formato custom de pg_dump (comprimido, restaurable con pg_restore).
     docker compose exec -T db pg_dump -U "$user" -d "$db" -Fc > "$TARGET/$name.dump"
     # Verificación: el volcado se puede leer entero.
     docker compose exec -T db pg_restore -l < "$TARGET/$name.dump" > /dev/null
-    log "$name: base de datos $(du -h "$TARGET/$name.dump" | cut -f1)"
+    log "$name: database $(du -h "$TARGET/$name.dump" | cut -f1)"
 
     # Volúmenes de datos (p. ej. imágenes propias de impresiones). La BD y Redis no: la BD
     # ya va en el volcado y Redis solo tiene datos temporales.
     project="$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')"
     for vol in $(docker compose config --volumes); do
         case "$vol" in pgdata|redisdata) continue ;; esac
-        STEP="volumen $vol de $name"
+        STEP="volume $vol of $name"
         # Sin las fotos de los escaneos (scans/): duran un día y solo sirven para revisar un
         # escaneo reciente. Sí van las imágenes propias de impresiones (printings/), que no están en otro sitio.
         docker run --rm -v "${project}_${vol}:/data:ro" alpine:3.20 tar czf - -C /data --exclude=./scans . > "$TARGET/$name-$vol.tgz"
         tar tzf "$TARGET/$name-$vol.tgz" > /dev/null
-        log "$name: volumen $vol $(du -h "$TARGET/$name-$vol.tgz" | cut -f1)"
+        log "$name: volume $vol $(du -h "$TARGET/$name-$vol.tgz" | cut -f1)"
     done
 done
 
 # Copia semanal (domingos), con enlaces duros: no ocupa espacio extra.
-STEP="copia semanal"
+STEP="weekly copy"
 if [ "$(date +%u)" = "7" ]; then
     mkdir -p "$BACKUP_DIR/weekly"
     cp -al "$TARGET" "$BACKUP_DIR/weekly/$STAMP"
@@ -120,7 +120,7 @@ fi
 
 # Rotación. Con find, no con ls: un ls sobre una carpeta vacía sale con error y, con
 # pipefail, daba la copia por fallida (pasó el 28/10/2026 con weekly/ vacía).
-STEP="rotación"
+STEP="rotation"
 prune() {
     local keep="$1" folder="$2"
     [ -d "$folder" ] || return 0
@@ -132,27 +132,27 @@ prune "$KEEP_WEEKLY" "$BACKUP_DIR/weekly"
 # Copia fuera del equipo. Si falla, la copia local sigue siendo buena: se anota en el estado
 # (y /api/health/ lo avisa) en vez de dar toda la copia por fallida.
 if [ -n "$BACKUP_REMOTE" ]; then
-    STEP="copia remota"
+    STEP="remote copy"
     if rsync -aH --delete --exclude /running.json --exclude /request/ -e "ssh -i $BACKUP_SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
         "$BACKUP_DIR/" "$BACKUP_REMOTE"; then
         REMOTE_STATUS="ok"
-        log "copia remota a $BACKUP_REMOTE"
+        log "remote copy to $BACKUP_REMOTE"
     else
         REMOTE_STATUS="error"
-        log "copia remota a $BACKUP_REMOTE FALLIDA"
+        log "remote copy to $BACKUP_REMOTE FAILED"
     fi
 fi
 # Copia en la nube (Backblaze B2, Google Drive, Dropbox, S3…). Como la remota: si falla, se anota.
 if [ -n "$BACKUP_RCLONE" ]; then
-    STEP="copia en la nube"
+    STEP="cloud copy"
     if rclone sync "$BACKUP_DIR/" "$BACKUP_RCLONE" --exclude /running.json --exclude "/request/**" --links --quiet; then
         [ "$REMOTE_STATUS" = "error" ] || REMOTE_STATUS="ok"
-        log "copia en la nube a $BACKUP_RCLONE"
+        log "cloud copy to $BACKUP_RCLONE"
     else
         REMOTE_STATUS="error"
-        log "copia en la nube a $BACKUP_RCLONE FALLIDA"
+        log "cloud copy to $BACKUP_RCLONE FAILED"
     fi
 fi
 
-log "copia completa: $TARGET ($(du -sh "$TARGET" | cut -f1))"
-write_status ok "copia completa"
+log "backup complete: $TARGET ($(du -sh "$TARGET" | cut -f1))"
+write_status ok "backup complete"

@@ -27,7 +27,7 @@ def _where(exc_tb) -> str:
         return ""
     path = Path(frame.filename)
     name = str(path.relative_to(base)) if frame.filename.startswith(base) else path.name
-    return f"{name}:{frame.lineno} en {frame.name}"
+    return f"{name}:{frame.lineno} in {frame.name}"
 
 
 class DatabaseHandler(logging.Handler):
@@ -62,7 +62,7 @@ class DatabaseHandler(logging.Handler):
             else:
                 # Sin excepción, la causa es el texto sin los datos (la plantilla del mensaje).
                 kind, trace = record.name, ""
-                where = f"{Path(record.pathname).name} en {record.funcName} · {record.msg}"[:300]
+                where = f"{Path(record.pathname).name} in {record.funcName} · {record.msg}"[:300]
             record_kwargs = {}
             if request is not None and hasattr(request, "get_full_path"):
                 record_kwargs = {

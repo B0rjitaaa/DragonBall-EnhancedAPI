@@ -27,7 +27,7 @@ class CollectionAdjustTests(TestCase):
     def test_add_goes_to_unplaced_by_default(self):
         self.assertEqual(self.adjust(delta=1).data["quantity"], 1)
         data = self.adjust(delta=2).data
-        self.assertEqual((data["quantity"], self.by_location(data)), (3, {"Sin ubicar": 3}))
+        self.assertEqual((data["quantity"], self.by_location(data)), (3, {"Unsorted": 3}))
 
     def test_add_to_a_location(self):
         data = self.adjust(delta=2, location=self.deck.id).data
@@ -70,7 +70,7 @@ class CollectionAdjustTests(TestCase):
         move(source=self.Location.default().id, target=self.deck.id, quantity=4)
         data = move(source=self.Location.default().id, target=self.binder.id, quantity=1).data
         self.assertEqual(data["quantity"], 6)
-        self.assertEqual(self.by_location(data), {"Sin ubicar": 1, "Mazo rojo": 4, "Archivador": 1})
+        self.assertEqual(self.by_location(data), {"Unsorted": 1, "Mazo rojo": 4, "Archivador": 1})
         too_many = move(source=self.binder.id, target=self.deck.id, quantity=2)
         self.assertEqual(too_many.status_code, 400)
 
@@ -135,7 +135,7 @@ class FakeCopiesTests(TestCase):
         self.client.delete(f"/api/my-collection/locations/{self.deck.id}/")
         self.assertEqual(
             sorted(self.Entry.objects.values_list("location__name", "fake", "quantity")),
-            [("Sin ubicar", False, 3), ("Sin ubicar", True, 1)],
+            [("Unsorted", False, 3), ("Unsorted", True, 1)],
         )
 
     def test_marking_a_specific_binder_copy_as_fake_takes_its_position(self):
@@ -203,7 +203,7 @@ class LocationTests(TestCase):
         deck = self.client.post("/api/my-collection/locations/", {"name": "Mazo rojo", "kind": "deck"}, format="json").data
         self.Entry.objects.create(card=self.card, location_id=deck["id"], quantity=4)
         data = self.client.get("/api/my-collection/locations/").data
-        self.assertEqual([(loc["name"], loc["copies"]) for loc in data], [("Sin ubicar", 0), ("Mazo rojo", 4)])
+        self.assertEqual([(loc["name"], loc["copies"]) for loc in data], [("Unsorted", 0), ("Mazo rojo", 4)])
         self.assertTrue(data[0]["is_default"])
 
     def test_deleting_a_location_sends_its_copies_to_unplaced(self):
@@ -211,7 +211,7 @@ class LocationTests(TestCase):
         self.Entry.objects.create(card=self.card, location=self.Location.default(), quantity=2)
         self.Entry.objects.create(card=self.card, location=deck, quantity=4)
         self.assertEqual(self.client.delete(f"/api/my-collection/locations/{deck.id}/").status_code, 204)
-        self.assertEqual(list(self.Entry.objects.values_list("location__name", "quantity")), [("Sin ubicar", 6)])
+        self.assertEqual(list(self.Entry.objects.values_list("location__name", "quantity")), [("Unsorted", 6)])
 
     def test_unplaced_cannot_be_deleted(self):
         default = self.Location.default()
@@ -263,7 +263,7 @@ class RestoreBackupTests(TestCase):
         self.assertEqual((data["added"], data["removed"]), (6, 5))  # +4 Goku +2 Cell nueva · −3 Vegeta −2 Cell caja
         self.assertEqual(data["create_locations"], ["Caja nueva"])
         self.assertEqual(data["emptied_locations"], ["Caja 1"])
-        self.assertEqual(data["skipped"], [{"card": "XX-1 Inventada", "reason": "no está en el catálogo"}])
+        self.assertEqual(data["skipped"], [{"card": "XX-1 Inventada", "reason": "not in the catalog"}])
         self.assertIn({"card_id": 1, "number": "BT1-001", "name": "Goku", "location": "Mazo rojo", "fake": False,
                        "before": 0, "after": 4}, data["changes"])
 
@@ -278,6 +278,17 @@ class RestoreBackupTests(TestCase):
         # Side deck: en el mazo sigue (hay 1 Vegeta); en la caja ya no hay Vegeta.
         self.assertEqual(list(self.Side.objects.values_list("deck__name", "quantity")), [("Mazo rojo", 1)])
         self.assertEqual(self.restore().json()["changes_total"], 0)  # restaurada: ya no hay diferencias
+
+    def test_old_backups_in_spanish_use_the_default_location(self):
+        # Copias anteriores: la ubicación por defecto se llamaba «Sin ubicar» y los tipos iban en español.
+        backup = {"format": "dbs-collection", "locations": [{"name": "Sin ubicar", "kind": "otro"},
+                                                            {"name": "Archivador azul", "kind": "archivador"}],
+                  "cards": [{"id": 1, "qty": 2, "location": "Sin ubicar"},
+                            {"id": 2, "qty": 1, "location": "Archivador azul"}]}
+        self.restore(apply=True, backup=backup)
+        self.assertEqual(self.state(), {(1, "Unsorted", False): 2, (2, "Archivador azul", False): 1})
+        self.assertFalse(self.Location.objects.filter(name="Sin ubicar").exists())
+        self.assertEqual(self.Location.objects.get(name="Archivador azul").kind, "binder")
 
     def test_rejects_other_files(self):
         response = self.restore(backup={"cards": []})

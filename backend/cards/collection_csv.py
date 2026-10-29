@@ -20,7 +20,7 @@ from collection.services import add_copies
 from .collection import fetch_export
 from .models import Card
 
-COLUMNS = ["id", "número", "nombre", "edición", "ubicación", "cantidad", "falsa", "notas"]
+COLUMNS = ["id", "number", "name", "set", "location", "quantity", "fake", "notes"]
 MAX_BYTES = 2 * 1024 * 1024
 MAX_ROWS = 20_000
 
@@ -58,7 +58,7 @@ def export_csv() -> str:
     for r in rows:
         writer.writerow([
             r["bandai_id"], r["card_number"], r["name"], sets.get(r["bandai_id"], ""),
-            r["location"], r["quantity"], "sí" if r["fake"] else "no", r["notes"] or "",
+            r["location"], r["quantity"], "yes" if r["fake"] else "no", r["notes"] or "",
         ])
     return out.getvalue()
 
@@ -71,17 +71,17 @@ def _reader(text: str) -> tuple[list[str | None], "csv._reader"]:
     try:
         header = next(reader)
     except StopIteration as exc:
-        raise CsvImportError("El CSV está vacío") from exc
+        raise CsvImportError("The CSV is empty") from exc
     keys = [HEADER_ALIASES.get(_plain(h)) for h in header]
     if "qty" not in keys or not ({"id", "number"} & set(keys)):
-        raise CsvImportError("Faltan columnas: hace falta «cantidad» y «id» o «número»")
+        raise CsvImportError("Missing columns: \"quantity\" and \"id\" or \"number\" are required")
     return keys, reader
 
 
 def parse_import(text: str) -> dict:
     """Vista previa: qué filas entran, cuáles no se reconocen y cuáles son ambiguas."""
     if len(text.encode("utf-8")) > MAX_BYTES:
-        raise CsvImportError("El CSV pasa de 2 MB")
+        raise CsvImportError("The CSV is larger than 2 MB")
     keys, reader = _reader(text)
 
     raw_rows = []
@@ -89,7 +89,7 @@ def parse_import(text: str) -> dict:
         if not any(v.strip() for v in values):
             continue
         if len(raw_rows) >= MAX_ROWS:
-            raise CsvImportError(f"Más de {MAX_ROWS} filas")
+            raise CsvImportError(f"More than {MAX_ROWS} rows")
         raw_rows.append((line_no, {k: (v or "").strip() for k, v in zip(keys, values) if k}))
 
     ids = {int(r["id"]) for _, r in raw_rows if r.get("id", "").isdigit()}
@@ -106,10 +106,10 @@ def parse_import(text: str) -> dict:
         try:
             qty = int(r.get("qty") or "")
         except ValueError:
-            errors.append({"line": line_no, "reason": f"Cantidad no válida: «{r.get('qty', '')}»"})
+            errors.append({"line": line_no, "reason": f"Invalid quantity: “{r.get('qty', '')}”"})
             continue
         if qty < 1:
-            errors.append({"line": line_no, "reason": "La cantidad tiene que ser 1 o más"})
+            errors.append({"line": line_no, "reason": "The quantity must be 1 or more"})
             continue
 
         card = cards_by_id.get(int(r["id"])) if r.get("id", "").isdigit() else None
@@ -126,7 +126,7 @@ def parse_import(text: str) -> dict:
                 continue
         if card is None:
             label = r.get("id") or r.get("number") or "?"
-            errors.append({"line": line_no, "reason": f"Carta no encontrada: «{label}»"})
+            errors.append({"line": line_no, "reason": f"Card not found: “{label}”"})
             continue
 
         wanted = r.get("location", "")

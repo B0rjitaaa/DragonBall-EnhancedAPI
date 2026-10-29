@@ -1,5 +1,5 @@
 [Unit]
-Description=Copia de seguridad de DragonBall-EnhancedAPI (catálogo, colección, mazos y escáner)
+Description=DragonBall-EnhancedAPI backup (catalog, collection, decks and scanner)
 After=docker.service network-online.target
 Wants=network-online.target
 

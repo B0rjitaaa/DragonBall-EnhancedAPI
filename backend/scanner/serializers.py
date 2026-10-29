@@ -82,9 +82,9 @@ class ScanSerializer(serializers.ModelSerializer):
         try:
             x, y, w, h = (float(value[k]) for k in ("x", "y", "w", "h"))
         except (KeyError, TypeError, ValueError):
-            raise serializers.ValidationError("Debe ser {x, y, w, h} en fracciones 0-1") from None
+            raise serializers.ValidationError("Must be {x, y, w, h} as fractions 0-1") from None
         if not (0 <= x < 1 and 0 <= y < 1 and 0.05 <= w <= 1 and 0.05 <= h <= 1 and x + w <= 1.001 and y + h <= 1.001):
-            raise serializers.ValidationError("Zona fuera de la imagen")
+            raise serializers.ValidationError("Area outside the image")
         return {"x": x, "y": y, "w": w, "h": h}
 
 

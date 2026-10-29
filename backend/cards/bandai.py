@@ -62,7 +62,7 @@ class Throttle:
             wait = self.cooldown
             self.paused_until = now + wait
             self.cooldown = min(self.cooldown * 2, self.max_cooldown)
-        logger.warning("Bandai devolvió %s: pausa de %.0fs", status, wait)
+        logger.warning("Bandai returned %s: pausing for %.0fs", status, wait)
 
     def ok(self) -> None:
         self.cooldown = self.base_cooldown
@@ -92,7 +92,7 @@ class BandaiClient:
                 resp = self._session().get(url, params=params, timeout=TIMEOUT)
             except Exception as exc:  # noqa: BLE001
                 if attempt == MAX_ATTEMPTS:
-                    raise BandaiError(f"Error de red en {url}: {exc}") from exc
+                    raise BandaiError(f"Network error on {url}: {exc}") from exc
                 time.sleep(2 ** attempt)
                 continue
             if resp.status_code in BLOCK_STATUS:
@@ -102,13 +102,13 @@ class BandaiClient:
                 time.sleep(2 ** attempt + random.random())
                 continue
             if resp.status_code >= 400:
-                raise BandaiError(f"{resp.status_code} en {url}")
+                raise BandaiError(f"{resp.status_code} on {url}")
             self.throttle.ok()
             payload = resp.json()
             if "success" not in payload:
-                raise BandaiError(f"Respuesta inesperada en {url}: {str(payload)[:200]}")
+                raise BandaiError(f"Unexpected response on {url}: {str(payload)[:200]}")
             return payload["success"]
-        raise BandaiError(f"Sin respuesta válida tras {MAX_ATTEMPTS} intentos: {url}")
+        raise BandaiError(f"No valid response after {MAX_ATTEMPTS} attempts: {url}")
 
     def list_card_ids(self) -> list[int]:
         ids: dict[int, None] = {}
@@ -141,7 +141,7 @@ class BandaiClient:
                 try:
                     card = fut.result()
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("Carta %s: %s", cid, exc)
+                    logger.warning("Card %s: %s", cid, exc)
                     failed.append(cid)
                     continue
                 results.append(card)

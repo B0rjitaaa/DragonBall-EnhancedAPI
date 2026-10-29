@@ -15,12 +15,12 @@ class CardFingerprint(models.Model):
     """Huella de una impresión (pHash, dHash y descriptores ORB) para reconocerla en una foto."""
 
     class Face(models.TextChoices):
-        FRONT = "front", "Anverso"
-        BACK = "back", "Reverso"
+        FRONT = "front", "Front"
+        BACK = "back", "Back"
         # Foto propia confirmada por el usuario: sirve para impresiones que no
         # están en Bandai TCG+ (promos, premios de torneo) y para afinar el
         # reconocimiento con la cámara e iluminación reales.
-        SCAN = "scan", "Foto confirmada"
+        SCAN = "scan", "Confirmed photo"
 
     card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="fingerprints")
     face = models.CharField(max_length=8, choices=Face.choices, default=Face.FRONT)
@@ -54,8 +54,8 @@ class ScanSession(models.Model):
     las identificadas con confianza suficiente se añaden solas a la colección."""
 
     class Mode(models.TextChoices):
-        BURST = "burst", "Ráfaga"  # cámara quieta, cada carta nueva se detecta sola
-        BINDER = "binder", "Archivador"  # carta a carta por las casillas de cada página
+        BURST = "burst", "Burst"  # cámara quieta, cada carta nueva se detecta sola
+        BINDER = "binder", "Binder"  # carta a carta por las casillas de cada página
 
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
@@ -69,19 +69,19 @@ class ScanSession(models.Model):
         ordering = ["-started_at"]
 
     def __str__(self):
-        return f"Sesión #{self.pk} ({self.started_at:%Y-%m-%d %H:%M})"
+        return f"Session #{self.pk} ({self.started_at:%Y-%m-%d %H:%M})"
 
 
 class Scan(models.Model):
     class Status(models.TextChoices):
-        PENDING = "pending", "Pendiente"
-        PROCESSING = "processing", "Procesando"
-        DONE = "done", "Completado"
-        FAILED = "failed", "Error"
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        DONE = "done", "Done"
+        FAILED = "failed", "Failed"
 
     class Source(models.TextChoices):
-        UPLOAD = "upload", "Imagen subida"
-        CAMERA = "camera", "Cámara"
+        UPLOAD = "upload", "Uploaded image"
+        CAMERA = "camera", "Camera"
 
     source = models.CharField(max_length=8, choices=Source.choices, default=Source.UPLOAD)
     status = models.CharField(
@@ -141,4 +141,4 @@ class Scan(models.Model):
         if not self.binder_page or not self.binder_slot:
             return ""
         row, col = divmod(self.binder_slot - 1, 3)
-        return f"Pág. {self.binder_page} · fila {row + 1} · col {col + 1}"
+        return f"P. {self.binder_page} · row {row + 1} · col {col + 1}"

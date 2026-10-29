@@ -38,30 +38,30 @@ function GroupEditor({ group, ctx, root = false }: { group: Group; ctx: Ctx; roo
         <button
           className={`not-toggle ${group.not ? 'on' : ''}`}
           onClick={() => ctx.update(group.id, (g) => ({ ...g, not: !(g as Group).not }))}
-          title="Negar el grupo completo"
+          title="Negate the whole group"
         >
-          NO
+          NOT
         </button>
-        <div className="seg" role="group" aria-label="Operador del grupo">
+        <div className="seg" role="group" aria-label="Group operator">
           {(['and', 'or'] as const).map((op) => (
             <button
               key={op}
               className={group.op === op ? 'on' : ''}
               onClick={() => ctx.update(group.id, (g) => ({ ...g, op }))}
             >
-              {op === 'and' ? 'Y (todas)' : 'O (alguna)'}
+              {op === 'and' ? 'AND (all)' : 'OR (any)'}
             </button>
           ))}
         </div>
         <span className="spacer" />
         <button className="btn ghost small" onClick={() => add(newCondition(defaultField))}>
-          + Condición
+          + Condition
         </button>
         <button className="btn ghost small" onClick={() => add(newGroup(group.op === 'and' ? 'or' : 'and'))}>
-          + Grupo
+          + Group
         </button>
         {!root && (
-          <button className="icon-btn" onClick={() => ctx.update(group.id, () => null)} title="Eliminar grupo">
+          <button className="icon-btn" onClick={() => ctx.update(group.id, () => null)} title="Remove group">
             ✕
           </button>
         )}
@@ -69,13 +69,13 @@ function GroupEditor({ group, ctx, root = false }: { group: Group; ctx: Ctx; roo
 
       {group.children.length === 0 ? (
         <p className="muted small qb-empty">
-          {root ? 'Añade condiciones para refinar la búsqueda. Puedes anidar grupos Y / O.' : 'Grupo vacío'}
+          {root ? 'Add conditions to refine the search. You can nest AND / OR groups.' : 'Empty group'}
         </p>
       ) : (
         <ol className="qb-children">
           {group.children.map((child, i) => (
             <li key={child.id}>
-              {i > 0 && <span className="qb-connector">{group.op === 'and' ? 'Y' : 'O'}</span>}
+              {i > 0 && <span className="qb-connector">{group.op === 'and' ? 'AND' : 'OR'}</span>}
               {isGroup(child) ? <GroupEditor group={child} ctx={ctx} /> : <ConditionEditor cond={child} ctx={ctx} />}
             </li>
           ))}
@@ -98,8 +98,8 @@ function ConditionEditor({ cond, ctx }: { cond: Condition; ctx: Ctx }) {
 
   return (
     <div className={`qb-cond ${cond.not ? 'negated' : ''}`}>
-      <button className={`not-toggle ${cond.not ? 'on' : ''}`} onClick={() => set({ not: !cond.not })} title="Negar">
-        NO
+      <button className={`not-toggle ${cond.not ? 'on' : ''}`} onClick={() => set({ not: !cond.not })} title="Negate">
+        NOT
       </button>
       <select
         className="input"
@@ -131,7 +131,7 @@ function ConditionEditor({ cond, ctx }: { cond: Condition; ctx: Ctx }) {
         ))}
       </select>
       <ValueEditor field={field} operator={cond.operator} value={cond.value} facet={ctx.facets[field.key]} onChange={(value) => set({ value })} />
-      <button className="icon-btn" onClick={() => ctx.update(cond.id, () => null)} title="Eliminar condición">
+      <button className="icon-btn" onClick={() => ctx.update(cond.id, () => null)} title="Remove condition">
         ✕
       </button>
     </div>
@@ -153,7 +153,7 @@ function ValueEditor({ field, operator, value, facet, onChange }: ValueProps) {
   if (operator === 'isnull' || operator === 'is_empty' || field.type === 'boolean') {
     return (
       <select className="input" value={String(value)} onChange={(e) => onChange(e.target.value === 'true')}>
-        <option value="true">Sí</option>
+        <option value="true">Yes</option>
         <option value="false">No</option>
       </select>
     )
@@ -164,9 +164,9 @@ function ValueEditor({ field, operator, value, facet, onChange }: ValueProps) {
     const num = (v: string) => (v === '' ? '' : Number(v))
     return (
       <span className="qb-range">
-        <input className="input" type="number" placeholder="mín" value={lo as string} onChange={(e) => onChange([num(e.target.value), hi])} />
-        <span>y</span>
-        <input className="input" type="number" placeholder="máx" value={hi as string} onChange={(e) => onChange([lo, num(e.target.value)])} />
+        <input className="input" type="number" placeholder="min" value={lo as string} onChange={(e) => onChange([num(e.target.value), hi])} />
+        <span>and</span>
+        <input className="input" type="number" placeholder="max" value={hi as string} onChange={(e) => onChange([lo, num(e.target.value)])} />
       </span>
     )
   }
@@ -192,13 +192,13 @@ function ValueEditor({ field, operator, value, facet, onChange }: ValueProps) {
         className="input grow"
         list={options.length ? listId : undefined}
         value={value as string}
-        placeholder={field.type === 'text' ? 'texto…' : 'valor…'}
+        placeholder={field.type === 'text' ? 'text…' : 'value…'}
         onChange={(e) => onChange(e.target.value)}
       />
       {options.length > 0 && (
         <datalist id={listId}>
           {options.map((o) => (
-            <option key={String(o.value)} value={String(o.value)}>{`${o.count} cartas`}</option>
+            <option key={String(o.value)} value={String(o.value)}>{`${o.count} cards`}</option>
           ))}
         </datalist>
       )}
@@ -219,7 +219,7 @@ function MultiValue({ value, options, onChange }: { value: string[]; options: st
       {value.map((v) => (
         <span key={v} className="tag">
           {v}
-          <button onClick={() => onChange(value.filter((x) => x !== v))} aria-label={`Quitar ${v}`}>
+          <button onClick={() => onChange(value.filter((x) => x !== v))} aria-label={`Remove ${v}`}>
             ×
           </button>
         </span>
@@ -228,7 +228,7 @@ function MultiValue({ value, options, onChange }: { value: string[]; options: st
         className="input"
         list={listId}
         value={draft}
-        placeholder="añadir…"
+        placeholder="add…"
         onChange={(e) => {
           const v = e.target.value
           // Al elegir una opción del datalist se añade directamente

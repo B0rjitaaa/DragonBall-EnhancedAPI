@@ -26,7 +26,7 @@ def add_printing(base: Card, image_url: str, card_set: str, card_id: int | None 
         last = Card.objects.filter(id__gte=CUSTOM_ID_START).order_by("-id").values_list("id", flat=True).first()
         card_id = (last or CUSTOM_ID_START) + 1
     elif not is_custom(card_id):
-        raise ValueError(f"El id de una impresión propia debe ser >= {CUSTOM_ID_START}")
+        raise ValueError(f"The id of a custom printing must be >= {CUSTOM_ID_START}")
 
     raw = copy.deepcopy(base.raw)
     raw.update({

@@ -8,33 +8,33 @@ from prices.snapshot import load, source_file
 
 
 class Command(BaseCommand):
-    help = "Carga los precios de un volcado JSON (el de export_prices), sustituyendo los que hubiera."
+    help = "Loads prices from a JSON dump (the export_prices one), replacing any existing ones."
 
     def add_arguments(self, parser):
-        parser.add_argument("path", nargs="?", help="Por defecto, el del servidor (data/precios_dbs.json) o el "
-                                                         "del repositorio (data/seed/precios_dbs.json.gz)")
+        parser.add_argument("path", nargs="?", help="Defaults to the server one (data/precios_dbs.json) or the "
+                                                         "repository one (data/seed/precios_dbs.json.gz)")
         parser.add_argument("--if-empty", action="store_true",
-                            help="Solo si aún no hay precios (arranque inicial)")
+                            help="Only if there are no prices yet (first start)")
 
     def handle(self, *args, path, if_empty, **options):
         if if_empty and CardPrice.objects.exists():
-            self.stdout.write("Ya hay precios: no se importan.")
+            self.stdout.write("Prices already loaded: not importing.")
             return
         file = Path(path) if path else source_file()
         if file is None or not file.exists():
             if if_empty:
-                self.stdout.write(f"No existe {file}: se omite la importación inicial de precios.")
+                self.stdout.write(f"{file} does not exist: skipping the initial price import.")
                 return
-            raise CommandError(f"No existe {file}")
+            raise CommandError(f"{file} does not exist")
         if not Card.objects.exists():
             if if_empty:
-                self.stdout.write("Aún no hay cartas: los precios se cargarán al llegar el catálogo.")
+                self.stdout.write("No cards yet: prices will be loaded once the catalog arrives.")
                 return
-            raise CommandError("No hay cartas: importa antes el catálogo (import_cards o sync_cards).")
+            raise CommandError("No cards: import the catalog first (import_cards or sync_cards).")
         try:
             counts = load(file)
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
         self.stdout.write(self.style.SUCCESS(
-            f"Precios importados: {counts['prices.CardPrice']} cartas con precio, "
-            f"{counts['prices.PricePoint']} puntos de historial"))
+            f"Prices imported: {counts['prices.CardPrice']} cards with a price, "
+            f"{counts['prices.PricePoint']} history points"))

@@ -61,7 +61,7 @@ def apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
     desc = ordering.startswith("-")
     fields = ORDERINGS.get(ordering.lstrip("-"))
     if not fields:
-        raise ValidationError({"ordering": f"Valores válidos: {', '.join(ORDERINGS)} (prefijo - para descendente)"})
+        raise ValidationError({"ordering": f"Valid values: {', '.join(ORDERINGS)} (prefix - for descending)"})
     exprs = []
     for name in fields:
         field_desc = name.startswith("-") != desc
@@ -100,7 +100,7 @@ def parse_query_param(raw: str | None) -> dict | None:
     try:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise ValidationError({"query": f"JSON no válido: {exc}"}) from exc
+        raise ValidationError({"query": f"Invalid JSON: {exc}"}) from exc
 
 
 class CardViewSet(viewsets.ReadOnlyModelViewSet):
@@ -122,15 +122,15 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         parameters=[
-            OpenApiParameter("q", str, description="Búsqueda libre"),
-            OpenApiParameter("query", str, description="Árbol de condiciones en JSON"),
+            OpenApiParameter("q", str, description="Free-text search"),
+            OpenApiParameter("query", str, description="Condition tree as JSON"),
             OpenApiParameter("ordering", str, description="number, name, energy, power, newest (- = desc)"),
         ]
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(parameters=[OpenApiParameter("updated_since", str, description="ISO 8601: solo cartas creadas o cambiadas desde entonces")])
+    @extend_schema(parameters=[OpenApiParameter("updated_since", str, description="ISO 8601: only cards created or changed since then")])
     @action(detail=False)
     def export(self, request):
         """Registros originales de Bandai TCG+ (el mismo formato que cartas_dbs.json).
@@ -143,7 +143,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         if raw_since:
             since = parse_datetime(raw_since)
             if since is None:
-                raise ValidationError({"updated_since": "Fecha ISO 8601 no válida"})
+                raise ValidationError({"updated_since": "Invalid ISO 8601 date"})
             qs = qs.filter(updated_at__gte=since)
         return Response({
             "generated_at": timezone.now().isoformat(),
@@ -157,7 +157,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         """GET /api/cards/ref/BT20-149-2/ → el id de esa impresión (para los enlaces ?card=)."""
         card = card_from_ref(ref)
         if card is None:
-            return Response({"detail": "No hay ninguna carta con ese número"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "No card with that number"}, status=status.HTTP_404_NOT_FOUND)
         return Response({"id": card.id, "ref": card_ref(card)})
 
     @action(detail=False, methods=["post"])
@@ -235,7 +235,7 @@ class FacetsView(APIView):
         q, tree = request.data.get("q"), request.data.get("query")
         only = request.data.get("only") or None
         if only is not None and (not isinstance(only, list) or any(k not in FIELDS for k in only)):
-            raise ValidationError({"only": "Lista de campos no válida"})
+            raise ValidationError({"only": "Invalid field list"})
         scope = collection_scope(
             request.data.get("scope"), request.data.get("location"), request.data.get("fake"),
             request.data.get("include_fakes"),
@@ -382,7 +382,7 @@ def _bool(value, name: str) -> bool | None:
         return True
     if str(value).lower() in ("0", "false", "no"):
         return False
-    raise ValidationError({name: "Debe ser true o false"})
+    raise ValidationError({name: "Must be true or false"})
 
 
 def collection_scope(request_scope: str | None, location=None, fake=None, include_fakes=None) -> Scope | None:
@@ -399,7 +399,7 @@ def collection_scope(request_scope: str | None, location=None, fake=None, includ
         try:
             location_id = int(location)
         except (TypeError, ValueError):
-            raise ValidationError({"location": "Debe ser un id de ubicación"}) from None
+            raise ValidationError({"location": "Must be a location id"}) from None
     only_fakes = bool(_bool(fake, "fake"))
     return Scope(location_id, with_fakes=only_fakes or bool(_bool(include_fakes, "include_fakes")), only_fakes=only_fakes)
 
@@ -431,12 +431,12 @@ def _int(value, name: str, required: bool = True) -> int | None:
     try:
         return int(value)
     except (TypeError, ValueError):
-        raise ValidationError({name: "Debe ser un entero"}) from None
+        raise ValidationError({name: "Must be an integer"}) from None
 
 
 def _known_card(card_id: int) -> None:
     if not Card.objects.filter(id=card_id).exists():
-        raise ValidationError({"card_id": "Carta desconocida"})
+        raise ValidationError({"card_id": "Unknown card"})
 
 
 class MyCollectionAdjustView(APIView):
@@ -451,7 +451,7 @@ class MyCollectionAdjustView(APIView):
         location = _int(request.data.get("location"), "location", required=False)
         fake = _bool(request.data.get("fake"), "fake")
         if delta == 0 or abs(delta) > 10:
-            raise ValidationError({"delta": "Entre -10 y 10, distinto de 0"})
+            raise ValidationError({"delta": "Between -10 and 10, not 0"})
         _known_card(card_id)
         try:
             return Response({"card_id": card_id, **adjust_owned(card_id, delta, location, fake)})
@@ -470,7 +470,7 @@ class MyCollectionMoveView(APIView):
         source, target = _int(request.data.get("source"), "source"), _int(request.data.get("target"), "target")
         quantity = _int(request.data.get("quantity"), "quantity")
         if quantity < 1:
-            raise ValidationError({"quantity": "Al menos 1"})
+            raise ValidationError({"quantity": "At least 1"})
         _known_card(card_id)
         try:
             source_fake = bool(_bool(request.data.get("source_fake"), "source_fake"))
@@ -502,7 +502,7 @@ class MyCollectionReorderView(APIView):
         location = _int(request.data.get("location"), "location")
         ids = request.data.get("card_ids")
         if not isinstance(ids, list) or not ids or len(ids) > 500:
-            raise ValidationError({"card_ids": "Lista de ids de carta (1-500)"})
+            raise ValidationError({"card_ids": "List of card ids (1-500)"})
         card_ids = [_int(i, "card_ids") for i in ids]
         try:
             reorder_owned(location, card_ids)
@@ -622,7 +622,7 @@ class LocationDetailView(APIView):
     def patch(self, request, pk: int):
         location = Location.objects.filter(pk=pk).first()
         if location is None:
-            return Response({"detail": "Ubicación desconocida"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Unknown location"}, status=status.HTTP_404_NOT_FOUND)
         body = LocationSerializer(location, data={k: request.data[k] for k in LOCATION_FIELDS if k in request.data},
                                   partial=True)
         body.is_valid(raise_exception=True)
@@ -632,7 +632,7 @@ class LocationDetailView(APIView):
     def delete(self, request, pk: int):
         location = Location.objects.filter(pk=pk).first()
         if location is None:
-            return Response({"detail": "Ubicación desconocida"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Unknown location"}, status=status.HTTP_404_NOT_FOUND)
         try:
             delete_location(location)
         except ValueError as exc:
@@ -654,7 +654,7 @@ class MyCollectionBackupView(APIView):
         head = json.dumps({k: v for k, v in doc.items() if k not in ("locations", "cards")}, ensure_ascii=False)[:-1]
         body = f'{head},\n"locations": [\n{block(doc["locations"])}\n],\n"cards": [\n{block(doc["cards"])}\n]}}\n'
         response = HttpResponse(body, content_type="application/json; charset=utf-8")
-        response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.json"'
+        response["Content-Disposition"] = f'attachment; filename="my-collection-{now:%Y-%m-%d}.json"'
         return response
 
 
@@ -664,7 +664,7 @@ class MyCollectionCsvView(APIView):
     def get(self, request):
         now = timezone.localtime()
         response = HttpResponse(export_csv(), content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = f'attachment; filename="mi-coleccion-{now:%Y-%m-%d}.csv"'
+        response["Content-Disposition"] = f'attachment; filename="my-collection-{now:%Y-%m-%d}.csv"'
         return response
 
 
@@ -677,7 +677,7 @@ class MyCollectionImportView(APIView):
     def post(self, request):
         text = request.data.get("csv")
         if not isinstance(text, str) or not text.strip():
-            return Response({"detail": "Falta el contenido del CSV"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "The CSV content is missing"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             if request.data.get("apply"):
                 return Response({"applied": apply_import(text)})
@@ -714,7 +714,7 @@ def card_thumb(request, card_id: int, version: str):
     try:
         path = thumbs.make_thumb(card.id, card.image_url)
     except Exception:  # noqa: BLE001 - sin miniatura, la imagen de siempre
-        logger.warning("Miniatura de %s falló", card_id, exc_info=True)
+        logger.warning("Thumbnail of %s failed", card_id, exc_info=True)
         return HttpResponseRedirect(card.image_url)
     response = FileResponse(open(path, "rb"), content_type="image/webp")
     response["Cache-Control"] = "public, max-age=31536000, immutable"

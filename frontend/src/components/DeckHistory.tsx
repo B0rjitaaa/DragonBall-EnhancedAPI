@@ -8,12 +8,12 @@ import { cardThumb } from '../lib/types'
 
 /** Líderes rivales que se ven en la cabecera (los demás, en «Ver más»). */
 const RECENT = 5
-const RESULT_LABELS: Record<MatchResult, string> = { win: 'Victoria', loss: 'Derrota', draw: 'Empate' }
-const SECTION_LABELS = { main: 'Mazo', z: 'Z Deck', side: 'Side' } as const
+const RESULT_LABELS: Record<MatchResult, string> = { win: 'Win', loss: 'Loss', draw: 'Draw' }
+const SECTION_LABELS = { main: 'Deck', z: 'Z Deck', side: 'Side' } as const
 
 const today = () => new Date().toISOString().slice(0, 10)
 const fmtDate = (iso: string) =>
-  new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+  new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 const pct = (r: MatchRecord) => (r.win_rate == null ? '—' : `${Math.round(r.win_rate * 100)}%`)
 export const versionLabel = (v: { number: number; name: string }) => `v${v.number}${v.name ? ` · ${v.name}` : ''}`
 
@@ -50,14 +50,14 @@ export function VersionBar({
 
   const rename = async () => {
     if (!version) return
-    const name = window.prompt('Nombre de la lista', version.name)
+    const name = window.prompt('List name', version.name)
     if (name == null) return
     await api.updateDeckVersion(version.id, { name: name.trim() })
     onChanged()
   }
 
   const remove = async () => {
-    if (!version || !window.confirm(`¿Borrar ${versionLabel(version)}? Las cartas de la caja no se mueven.`)) return
+    if (!version || !window.confirm(`Delete ${versionLabel(version)}? The cards in the box don't move.`)) return
     try {
       await api.deleteDeckVersion(version.id)
       onSelect(null)
@@ -68,12 +68,12 @@ export function VersionBar({
   }
 
   return (
-    <section className="deck-versions" aria-label="Listas del mazo">
+    <section className="deck-versions" aria-label="Deck lists">
       <div className="deck-version-tabs" role="tablist">
         <button role="tab" aria-selected={selected == null} className={selected == null ? 'on' : ''} onClick={() => onSelect(null)}>
-          <strong>Principal</strong>
+          <strong>Main</strong>
           <small>
-            {draftChanges.length ? 'editando' : boxChanged ? 'la caja ha cambiado' : principal ? `★ ${versionLabel(principal)}` : 'lo que hay en la caja'}
+            {draftChanges.length ? 'editing' : boxChanged ? 'the box has changed' : principal ? `★ ${versionLabel(principal)}` : "what's in the box"}
           </small>
         </button>
         {detail.versions.map((v) => (
@@ -83,7 +83,7 @@ export function VersionBar({
             aria-selected={selected === v.id}
             className={`${selected === v.id ? 'on' : ''} ${v.principal ? 'principal' : ''}`}
             onClick={() => onSelect(v.id)}
-            title={`${versionLabel(v)} · ${fmtDate(v.created_at)}${v.principal ? ' · lista principal' : ''}${v.automatic ? ' · guardada al anotar una partida' : ''}`}
+            title={`${versionLabel(v)} · ${fmtDate(v.created_at)}${v.principal ? ' · main list' : ''}${v.automatic ? ' · saved when logging a match' : ''}`}
           >
             <strong>
               {v.principal && '★ '}
@@ -100,26 +100,26 @@ export function VersionBar({
       {selected == null ? (
         <div className="deck-version-info">
           {draftChanges.length > 0 ? (
-            <ChangeList title="Cambios sin guardar" changes={draftChanges} catalog={catalog} />
+            <ChangeList title="Unsaved changes" changes={draftChanges} catalog={catalog} />
           ) : boxChanged && principal ? (
             <ChangeList
-              title={`La caja no coincide con la principal (${versionLabel(principal)})`}
+              title={`The box doesn't match the main list (${versionLabel(principal)})`}
               changes={detail.changes}
               catalog={detail.catalog}
             />
           ) : (
             <p className="muted small">
               {principal
-                ? `En la caja está la lista principal, ${versionLabel(principal)}. Usa − / + en las cartas o «Añadir carta» para preparar una lista nueva.`
+                ? `The box holds the main list, ${versionLabel(principal)}. Use − / + on the cards or “Add card” to prepare a new list.`
                 : detail.versions.length
-                  ? 'Ninguna lista es la principal todavía: guarda la de la caja (pasará a serlo) o elige una lista guardada y pulsa «Hacer principal».'
-                  : 'Aún no hay listas guardadas: guarda la de la caja (o edítala antes con − / + y «Añadir carta»). Al guardarla pasa a ser la principal.'}
+                  ? 'No list is the main one yet: save the one in the box (it will become main) or pick a saved list and press “Make main”.'
+                  : 'No saved lists yet: save the one in the box (or edit it first with − / + and “Add card”). Once saved it becomes the main list.'}
             </p>
           )}
           <span className="deck-version-actions">
             {draftChanges.length > 0 && (
-              <button className="btn" onClick={() => window.confirm('¿Descartar los cambios de la lista?') && onDiscard()}>
-                Descartar
+              <button className="btn" onClick={() => window.confirm('Discard the changes to the list?') && onDiscard()}>
+                Discard
               </button>
             )}
             <button
@@ -128,11 +128,11 @@ export function VersionBar({
               disabled={!draftChanges.length && !boxChanged && principal != null}
               title={
                 !draftChanges.length && !boxChanged && principal
-                  ? 'No hay cambios respecto a la lista principal'
-                  : 'Guarda esta lista como una lista nueva del mazo'
+                  ? 'No changes compared with the main list'
+                  : 'Save this list as a new deck list'
               }
             >
-              Guardar lista
+              Save list
             </button>
           </span>
         </div>
@@ -140,26 +140,26 @@ export function VersionBar({
         <div className="deck-version-info">
           <div className="deck-version-head">
             <span>
-              <strong>{versionLabel(version)}</strong> · guardada el {fmtDate(version.created_at)}
-              {version.principal && <span className="deck-tag principal">★ principal</span>}
-              {version.automatic && <span className="deck-tag">automática</span>}
+              <strong>{versionLabel(version)}</strong> · saved {fmtDate(version.created_at)}
+              {version.principal && <span className="deck-tag principal">★ main</span>}
+              {version.automatic && <span className="deck-tag">automatic</span>}
             </span>
             <span className="deck-version-actions">
               {(!version.principal || boxChanged) && (
                 <button
                   className="btn primary small"
                   onClick={() => setRestoring(true)}
-                  title="Mueve las copias para que la caja del mazo tenga esta lista; las partidas se anotarán con ella"
+                  title="Moves the copies so the deck box holds this list; matches will be logged with it"
                 >
-                  {version.principal ? 'Recolocar la caja' : 'Hacer principal'}
+                  {version.principal ? 'Rearrange the box' : 'Make main'}
                 </button>
               )}
               <button className="link small" onClick={rename}>
-                Renombrar
+                Rename
               </button>
               {version.matches.length === 0 && (
                 <button className="link small danger" onClick={remove}>
-                  Borrar
+                  Delete
                 </button>
               )}
             </span>
@@ -167,16 +167,16 @@ export function VersionBar({
           {version.notes && <p className="small">{version.notes}</p>}
           {version.previous != null ? (
             version.changes.length ? (
-              <ChangeList title={`Cambios desde v${version.previous}`} changes={version.changes} catalog={version.catalog} />
+              <ChangeList title={`Changes since v${version.previous}`} changes={version.changes} catalog={version.catalog} />
             ) : (
-              <p className="muted small">Misma lista que v{version.previous}.</p>
+              <p className="muted small">Same list as v{version.previous}.</p>
             )
           ) : (
-            <p className="muted small">Primera versión del mazo.</p>
+            <p className="muted small">First version of the deck.</p>
           )}
         </div>
       ) : (
-        <p className="muted small">Cargando versión…</p>
+        <p className="muted small">Loading version…</p>
       )}
       {restoring && version && (
         <RestoreModal
@@ -195,7 +195,7 @@ export function VersionBar({
 }
 
 const sourceLabel = (s: RestoreSource) =>
-  `${s.name} (${s.authentic + s.fakes}${s.fakes ? `, ${s.fakes} falsa${s.fakes > 1 ? 's' : ''}` : ''})${s.kind === 'deck' ? ' · otro mazo' : ''}`
+  `${s.name} (${s.authentic + s.fakes}${s.fakes ? `, ${s.fakes} fake${s.fakes > 1 ? 's' : ''}` : ''})${s.kind === 'deck' ? ' · another deck' : ''}`
 
 /** De dónde se cogerían `need` copias en automático (el mismo orden que usa el servidor). */
 function autoTake(sources: RestoreSource[], need: number): { source: RestoreSource; n: number }[] {
@@ -262,10 +262,10 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
         <section className="restore-block">
           <header>
             <h3>
-              Salen de la caja <span>{out} copias</span>
+              Leaving the box <span>{out} copies</span>
             </h3>
             <label className="restore-target">
-              Llevarlas a
+              Move them to
               <select
                 className="input small"
                 value={choices.target ?? ''}
@@ -290,15 +290,15 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
                   </span>
                   <b>
                     −{r.quantity}
-                    {r.fakes > 0 && <small> ({r.fakes} falsa{r.fakes > 1 ? 's' : ''})</small>}
+                    {r.fakes > 0 && <small> ({r.fakes} fake{r.fakes > 1 ? 's' : ''})</small>}
                   </b>
                   <select
                     className="input small"
                     value={choices.targets[r.bandai_id] ?? ''}
                     onChange={(e) => pick('targets', r.bandai_id, e.target.value)}
-                    aria-label={`Adónde van las copias de ${c?.name ?? r.bandai_id}`}
+                    aria-label={`Where the copies of ${c?.name ?? r.bandai_id} go`}
                   >
-                    <option value="">Con el resto</option>
+                    <option value="">With the rest</option>
                     {locations.map((l) => (
                       <option key={l.id} value={l.id}>
                         {l.name}
@@ -316,7 +316,7 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
         <section className="restore-block">
           <header>
             <h3>
-              Entran en la caja <span>{inn} copias</span>
+              Entering the box <span>{inn} copies</span>
             </h3>
           </header>
           <ul className="restore-list">
@@ -330,8 +330,8 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
                     <small>{c?.card_number}</small> {c?.name ?? `#${r.bandai_id}`}
                     {r.missing > 0 && (
                       <em>
-                        {r.missing === r.quantity ? 'No tienes' : `Te faltan ${r.missing}`}: no {r.missing === 1 ? 'está' : 'están'}{' '}
-                        en ninguna otra ubicación
+                        {r.missing === r.quantity ? "You don't have it" : `You're missing ${r.missing}`}: not in any{' '}
+                        other location
                       </em>
                     )}
                   </span>
@@ -341,12 +341,12 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
                       className="input small"
                       value={choices.sources[r.bandai_id] ?? ''}
                       onChange={(e) => pick('sources', r.bandai_id, e.target.value)}
-                      aria-label={`De dónde se cogen las copias de ${c?.name ?? r.bandai_id}`}
+                      aria-label={`Where the copies of ${c?.name ?? r.bandai_id} come from`}
                     >
-                      <option value="">De: {auto.map((t) => `${t.source.name} ${t.n}`).join(' + ')}</option>
+                      <option value="">From: {auto.map((t) => `${t.source.name} ${t.n}`).join(' + ')}</option>
                       {r.sources.map((s) => (
                         <option key={s.id} value={s.id}>
-                          Primero de {sourceLabel(s)}
+                          First from {sourceLabel(s)}
                         </option>
                       ))}
                     </select>
@@ -361,11 +361,11 @@ function PlanEditor({ p }: { p: ReturnType<typeof usePlan> }) {
       )}
 
       {fromDecks.length > 0 && (
-        <p className="deck-check warn">⚠ Se sacarán copias de otros mazos: {[...new Set(fromDecks)].join(', ')}.</p>
+        <p className="deck-check warn">⚠ Copies will be taken from other decks: {[...new Set(fromDecks)].join(', ')}.</p>
       )}
       {missing > 0 && (
         <p className="deck-check error">
-          ⚠ Faltan {missing} {missing === 1 ? 'copia' : 'copias'}: la caja quedará incompleta hasta que las consigas.
+          ⚠ {missing} {missing === 1 ? 'copy' : 'copies'} missing: the box will be incomplete until you get them.
         </p>
       )}
     </>
@@ -406,29 +406,29 @@ function RestoreModal({
   }
 
   return (
-    <Modal title={`Hacer principal ${versionLabel(version)}`} onClose={onClose}>
+    <Modal title={`Make ${versionLabel(version)} main`} onClose={onClose}>
       {!p.plan ? (
-        p.error ? <p className="error">{p.error}</p> : <p className="muted">Calculando qué copias hay que mover…</p>
+        p.error ? <p className="error">{p.error}</p> : <p className="muted">Working out which copies need to move…</p>
       ) : (
         <div className="restore">
           <p className="muted small">
-            La lista principal es la que está físicamente en la caja del mazo y con la que se anotan las partidas. Para que
-            pase a ser {versionLabel(version)}, se mueven estas copias en tu colección (haz lo mismo con las cartas de verdad).
+            The main list is the one physically in the deck box and the one matches are logged with. To make
+            {versionLabel(version)} the main list, these copies move in your collection (do the same with the real cards).
           </p>
           {unsaved && (
             <p className="deck-check warn">
-              ⚠ Lo que hay ahora en la caja no está guardado como lista: guárdalo antes si quieres poder volver a ello.
+              ⚠ What's in the box right now isn't saved as a list: save it first if you want to be able to go back to it.
             </p>
           )}
-          {p.out === 0 && p.inn === 0 && <p>La caja ya tiene estas copias; solo se ajusta el side deck.</p>}
+          {p.out === 0 && p.inn === 0 && <p>The box already has these copies; only the side deck is adjusted.</p>}
           <PlanEditor p={p} />
           <div className="match-form-actions">
             {error && <span className="error small">{error}</span>}
             <button className="btn" onClick={onClose}>
-              Cancelar
+              Cancel
             </button>
             <button className="btn primary" onClick={run} disabled={busy}>
-              {busy ? 'Moviendo…' : p.moves > 0 ? `Mover ${p.moves} copias y hacer principal` : 'Hacer principal'}
+              {busy ? 'Moving…' : p.moves > 0 ? `Move ${p.moves} copies and make main` : 'Make main'}
             </button>
           </div>
         </div>
@@ -474,34 +474,34 @@ export function SaveListModal({
   }
 
   return (
-    <Modal title={`Guardar lista v${nextNumber}`} onClose={onClose}>
+    <Modal title={`Save list v${nextNumber}`} onClose={onClose}>
       <div className="restore">
         <div className="save-list-fields">
           <label>
-            <span className="match-label">Nombre</span>
+            <span className="match-label">Name</span>
             <input
               className="input"
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Opcional, p. ej. «Más removal»"
+              placeholder="Optional, e.g. “More removal”"
               maxLength={80}
             />
           </label>
           <label>
-            <span className="match-label">Notas</span>
-            <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" />
+            <span className="match-label">Notes</span>
+            <input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
           </label>
         </div>
         {!p.plan ? (
-          p.error ? <p className="error">{p.error}</p> : <p className="muted">Comprobando qué hay en la caja…</p>
+          p.error ? <p className="error">{p.error}</p> : <p className="muted">Checking what's in the box…</p>
         ) : inBox ? (
-          <p className="deck-check ok">✓ Estas cartas ya están en la caja del mazo: la lista pasará a ser la principal.</p>
+          <p className="deck-check ok">✓ These cards are already in the deck box: the list will become the main one.</p>
         ) : (
           <>
             <p className="small">
-              Para que sea la <strong>lista principal</strong> (la de la caja, con la que se anotan las partidas) habría que mover
-              estas copias. Puedes guardarla sin moverlas y hacerla principal más adelante.
+              To make it the <strong>main list</strong> (the one in the box, used to log matches) these copies would need to
+              move. You can save it without moving them and make it main later.
             </p>
             <PlanEditor p={p} />
           </>
@@ -509,15 +509,15 @@ export function SaveListModal({
         <div className="match-form-actions">
           {error && <span className="error small">{error}</span>}
           <button className="btn" onClick={onClose}>
-            Cancelar
+            Cancel
           </button>
           {p.plan && !inBox && (
             <button className="btn" onClick={() => save(false)} disabled={busy}>
-              Solo guardar
+              Just save
             </button>
           )}
           <button className="btn primary" onClick={() => save(true)} disabled={busy || !p.plan}>
-            {busy ? 'Guardando…' : inBox ? 'Guardar lista' : `Guardar y hacer principal (${p.moves} copias)`}
+            {busy ? 'Saving…' : inBox ? 'Save list' : `Save and make main (${p.moves} copies)`}
           </button>
         </div>
       </div>
@@ -563,20 +563,20 @@ export function CardPicker({
   }, [q])
 
   return (
-    <Modal title="Añadir carta a la lista" onClose={onClose}>
+    <Modal title="Add card to the list" onClose={onClose}>
       <div className="card-picker">
         <input
           className="input"
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Nombre, número (BT1-030) o texto de la carta…"
+          placeholder="Card name, number (BT1-030) or text…"
         />
         <p className="muted small">
-          Pulsa una carta para sumar una copia (puedes pulsar varias veces). Se añade al borrador: nada se mueve hasta que
-          guardes la lista y la hagas principal.
+          Click a card to add a copy (you can click several times). It goes into the draft: nothing moves until you
+          save the list and make it main.
         </p>
-        {q.trim().length >= 2 && !loading && results.length === 0 && <p className="muted">Ninguna carta coincide.</p>}
+        {q.trim().length >= 2 && !loading && results.length === 0 && <p className="muted">No cards match.</p>}
         <ul className="card-picker-grid">
           {results.map((c) => {
             const n = quantityOf(c.id)
@@ -602,7 +602,7 @@ export function CardPicker({
         </ul>
         <div className="match-form-actions">
           <button className="btn primary" onClick={onClose}>
-            Listo
+            Done
           </button>
         </div>
       </div>
@@ -684,35 +684,35 @@ export function MatchesPanel({
   }
 
   const remove = async (m: Match) => {
-    if (!window.confirm('¿Borrar esta partida?')) return
+    if (!window.confirm('Delete this match?')) return
     await api.deleteMatch(m.id)
     onChanged()
   }
 
   return (
-    <section className="deck-record" aria-label="Partidas">
+    <section className="deck-record" aria-label="Matches">
       <div className="deck-record-head">
-        <p className="deck-mix-title">Partidas{version ? ` con v${version.number}` : ''}</p>
+        <p className="deck-mix-title">Matches{version ? ` with v${version.number}` : ''}</p>
         <button className="btn primary small" onClick={() => setEditing('new')}>
-          + Resultado
+          + Result
         </button>
       </div>
 
       {record.played === 0 ? (
         <p className="muted small">
-          Sin partidas anotadas{version ? ' con esta versión' : ''}. Pulsa «+ Resultado» al terminar una.
+          No matches logged{version ? ' with this version' : ''}. Press “+ Result” when you finish one.
         </p>
       ) : (
         <>
           <div className="match-summary">
             <div className="match-rate">
               <strong>{pct(record)}</strong>
-              <small>{record.played === 1 ? '1 partida' : `${record.played} partidas`}</small>
+              <small>{record.played === 1 ? '1 match' : `${record.played} matches`}</small>
             </div>
-            <div className="match-wld" aria-label="Victorias, derrotas y empates">
-              <span className="win">{record.wins} V</span>
-              <span className="loss">{record.losses} D</span>
-              {record.draws > 0 && <span className="draw">{record.draws} E</span>}
+            <div className="match-wld" aria-label="Wins, losses and draws">
+              <span className="win">{record.wins} W</span>
+              <span className="loss">{record.losses} L</span>
+              {record.draws > 0 && <span className="draw">{record.draws} D</span>}
               <div className="match-bar">
                 <i className="win" style={{ flexGrow: record.wins }} />
                 <i className="draw" style={{ flexGrow: record.draws }} />
@@ -724,8 +724,8 @@ export function MatchesPanel({
           <table className="match-leaders">
             <thead>
               <tr>
-                <th>Contra</th>
-                <th>V-D-E</th>
+                <th>Against</th>
+                <th>W-L-D</th>
                 <th>%</th>
               </tr>
             </thead>
@@ -738,7 +738,7 @@ export function MatchesPanel({
                       <span className="match-leader">
                         {card && <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
                         <span>
-                          {r.leader_name || 'Sin indicar'}
+                          {r.leader_name || 'Not specified'}
                           {card && <small>{card.card_number}</small>}
                         </span>
                       </span>
@@ -754,20 +754,20 @@ export function MatchesPanel({
           </table>
 
           <button className="link small deck-record-more" onClick={() => setShowAll(true)}>
-            Ver todas las partidas ({record.played}) →
+            See all matches ({record.played}) →
           </button>
         </>
       )}
 
       {showAll && (
-        <Modal title={`Partidas${version ? ` con ${versionLabel(version)}` : ''} · ${record.wins}-${record.losses}-${record.draws}`} onClose={() => setShowAll(false)}>
-          <ul className="match-list" aria-label="Todas las partidas">
+        <Modal title={`Matches${version ? ` with ${versionLabel(version)}` : ''} · ${record.wins}-${record.losses}-${record.draws}`} onClose={() => setShowAll(false)}>
+          <ul className="match-list" aria-label="All matches">
             {matches.map((m) => {
               const card = leaderCard(m.opponent_leader_bandai_id)
               const details = [
                 m.opponent_name,
                 m.score,
-                m.went_first == null ? '' : m.went_first ? 'empecé yo' : 'empezó el Opponent',
+                m.went_first == null ? '' : m.went_first ? 'I went first' : 'Opponent went first',
                 m.event,
               ].filter(Boolean)
               return (
@@ -777,7 +777,7 @@ export function MatchesPanel({
                   </span>
                   {card ? <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="match-noimg" />}
                   <span className="match-main">
-                    <strong>vs {m.opponent_leader_name || 'Leader sin indicar'}</strong>
+                    <strong>vs {m.opponent_leader_name || 'Leader not specified'}</strong>
                     <small>
                       {fmtDate(m.played_on)}
                       {m.version_number != null && ` · v${m.version_number}`}
@@ -792,12 +792,12 @@ export function MatchesPanel({
                         setShowAll(false)
                         setEditing(m)
                       }}
-                      title="Editar"
-                      aria-label="Editar partida"
+                      title="Edit"
+                      aria-label="Edit match"
                     >
                       ✎
                     </button>
-                    <button className="icon-btn" onClick={() => remove(m)} title="Borrar" aria-label="Borrar partida">
+                    <button className="icon-btn" onClick={() => remove(m)} title="Delete" aria-label="Delete match">
                       🗑
                     </button>
                   </span>
@@ -809,7 +809,7 @@ export function MatchesPanel({
       )}
 
       {editing && (
-        <Modal title={editing === 'new' ? 'Anotar resultado' : 'Editar partida'} onClose={() => setEditing(null)}>
+        <Modal title={editing === 'new' ? 'Log result' : 'Edit match'} onClose={() => setEditing(null)}>
           <MatchForm
             initial={editing === 'new' ? null : editing}
             catalog={allCards}
@@ -820,8 +820,8 @@ export function MatchesPanel({
               editing !== 'new'
                 ? undefined
                 : version
-                  ? `Se anotará con ${versionLabel(version)}.`
-                  : 'Se anotará con la lista principal (si ha cambiado desde la última versión, se guarda una versión nueva).'
+                  ? `It will be logged with ${versionLabel(version)}.`
+                  : 'It will be logged with the main list (if it has changed since the last version, a new version is saved).'
             }
             onSubmit={submit}
             onCancel={() => setEditing(null)}
@@ -845,7 +845,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal match-modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <button className="icon-btn close" onClick={onClose} aria-label="Cerrar">
+        <button className="icon-btn close" onClick={onClose} aria-label="Close">
           ✕
         </button>
         <h2>{title}</h2>
@@ -923,7 +923,7 @@ function MatchForm({
               {leader && <small>{leader.card_number}</small>}
             </span>
             <button type="button" className="link small" onClick={() => pick(null)}>
-              Cambiar
+              Change
             </button>
           </span>
         ) : (
@@ -932,7 +932,7 @@ function MatchForm({
       </div>
 
       <label>
-        <span className="match-label">Resultado</span>
+        <span className="match-label">Result</span>
         <span className="seg">
           {(Object.keys(RESULT_LABELS) as MatchResult[]).map((r) => (
             <button type="button" key={r} className={`${m.result === r ? 'on' : ''} ${r}`} onClick={() => set({ result: r })}>
@@ -942,12 +942,12 @@ function MatchForm({
         </span>
       </label>
       <label>
-        <span className="match-label">Fecha</span>
+        <span className="match-label">Date</span>
         <input className="input" type="date" value={m.played_on} max={today()} onChange={(e) => set({ played_on: e.target.value })} required />
       </label>
       <label>
-        <span className="match-label">Oponente</span>
-        <input className="input" list="match-opponents" value={m.opponent_name} onChange={(e) => set({ opponent_name: e.target.value })} placeholder="Nombre del jugador" />
+        <span className="match-label">Opponent</span>
+        <input className="input" list="match-opponents" value={m.opponent_name} onChange={(e) => set({ opponent_name: e.target.value })} placeholder="Player name" />
         <datalist id="match-opponents">
           {opponents.map((o) => (
             <option key={o} value={o} />
@@ -955,10 +955,10 @@ function MatchForm({
         </datalist>
       </label>
       <label>
-        <span className="match-label">¿Quién empezó?</span>
+        <span className="match-label">Who went first?</span>
         <span className="seg">
           {([
-            [true, 'Yo'],
+            [true, 'Me'],
             [false, 'Opponent'],
             [null, '—'],
           ] as const).map(([v, label]) => (
@@ -969,12 +969,12 @@ function MatchForm({
         </span>
       </label>
       <label>
-        <span className="match-label">Marcador</span>
-        <input className="input" value={m.score} onChange={(e) => set({ score: e.target.value })} placeholder="p. ej. 2-1" maxLength={20} />
+        <span className="match-label">Score</span>
+        <input className="input" value={m.score} onChange={(e) => set({ score: e.target.value })} placeholder="e.g. 2-1" maxLength={20} />
       </label>
       <label>
-        <span className="match-label">Evento</span>
-        <input className="input" list="match-events" value={m.event} onChange={(e) => set({ event: e.target.value })} placeholder="Torneo, tienda, casual…" />
+        <span className="match-label">Event</span>
+        <input className="input" list="match-events" value={m.event} onChange={(e) => set({ event: e.target.value })} placeholder="Tournament, store, casual…" />
         <datalist id="match-events">
           {events.map((o) => (
             <option key={o} value={o} />
@@ -982,18 +982,18 @@ function MatchForm({
         </datalist>
       </label>
       <label className="match-form-notes">
-        <span className="match-label">Notas</span>
-        <textarea className="input" value={m.notes} onChange={(e) => set({ notes: e.target.value })} rows={2} placeholder="Qué funcionó, qué faltó…" />
+        <span className="match-label">Notes</span>
+        <textarea className="input" value={m.notes} onChange={(e) => set({ notes: e.target.value })} rows={2} placeholder="What worked, what was missing…" />
       </label>
 
       <div className="match-form-actions">
         {note && <span className="muted small">{note}</span>}
         {error && <span className="error small">{error}</span>}
         <button type="button" className="btn" onClick={onCancel}>
-          Cancelar
+          Cancel
         </button>
         <button className="btn primary" type="submit" disabled={busy}>
-          {busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Anotar partida'}
+          {busy ? 'Saving…' : initial ? 'Save changes' : 'Log match'}
         </button>
       </div>
     </form>
@@ -1042,7 +1042,7 @@ function LeaderPicker({
 
   return (
     <div className="leader-picker">
-      <input className="input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Busca el Leader: nombre o número (BT1-001)…" />
+      <input className="input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find the Leader: name or number (BT1-001)…" />
       {quick.length > 0 && !q && (
         <div className="leader-quick">
           {quick.map((r) => {
@@ -1074,7 +1074,7 @@ function LeaderPicker({
           {!loading && (
             <li>
               <button type="button" className="leader-free" onClick={() => onPick(null, q.trim())}>
-                Usar «{q.trim()}» sin carta
+                Use “{q.trim()}” without a card
               </button>
             </li>
           )}

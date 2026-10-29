@@ -9,8 +9,8 @@ function slotState(s: SessionScan | undefined): { label: string; tone: string } 
   if (!s) return { label: "", tone: "" };
   if (s.status === "pending" || s.status === "processing") return { label: "…", tone: "busy" };
   if (s.status === "failed") return { label: "Error", tone: "error" };
-  if (!s.card_detected && !s.card_number) return { label: "Vacía", tone: "muted" };
-  if (s.dismissed) return { label: "Vacía", tone: "muted" };
+  if (!s.card_detected && !s.card_number) return { label: "Empty", tone: "muted" };
+  if (s.dismissed) return { label: "Empty", tone: "muted" };
   const pct = s.confidence == null ? "" : ` ${Math.round(s.confidence * 100)}%`;
   return { label: `${s.card_number ?? "?"}${pct}`, tone: s.added_to_collection ? "ok" : "warn" };
 }
@@ -49,28 +49,28 @@ export default function BinderBar({ sessionId, page, slot, skipped, sending, onS
     <div className="binder-bar">
       <div className="binder-head">
         <span className="binder-page">
-          <button className="secondary" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Página anterior">
+          <button className="secondary" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous page">
             ‹
           </button>
-          <strong>Página {page}</strong>
-          <button className="secondary" onClick={() => onPage(page + 1)} aria-label="Página siguiente">
+          <strong>Page {page}</strong>
+          <button className="secondary" onClick={() => onPage(page + 1)} aria-label="Next page">
             ›
           </button>
         </span>
         <span className="muted small">
-          Destino: <strong>{session.data?.location_name ?? "…"}</strong>
+          Destination: <strong>{session.data?.location_name ?? "…"}</strong>
         </span>
       </div>
 
-      <div className="binder-grid" role="grid" aria-label={`Página ${page}`}>
+      <div className="binder-grid" role="grid" aria-label={`Page ${page}`}>
         {SLOTS.map((n) => {
-          const st = skipped.has(n) && !bySlot.has(n) ? { label: "Hueco", tone: "muted" } : slotState(bySlot.get(n));
+          const st = skipped.has(n) && !bySlot.has(n) ? { label: "Gap", tone: "muted" } : slotState(bySlot.get(n));
           return (
             <button
               key={n}
               className={`binder-slot ${st.tone} ${n === slot ? "current" : ""}`}
               onClick={() => onSelect(n)}
-              title={n === slot ? "Casilla actual" : "Capturar (o repetir) esta casilla"}
+              title={n === slot ? "Current slot" : "Capture (or redo) this slot"}
             >
               <small>{n}</small>
               <span>{st.label}</span>
@@ -81,12 +81,12 @@ export default function BinderBar({ sessionId, page, slot, skipped, sending, onS
 
       {slot != null ? (
         <p className="binder-hint">
-          Acerca la cámara a la carta de la <strong>fila {row}, columna {col}</strong> hasta que llene el marco. Si hay
-          reflejo, inclina un poco el móvil.
+          Move the camera close to the card in <strong>row {row}, column {col}</strong> until it fills the frame. If there's
+          glare, tilt the phone a little.
         </p>
       ) : (
         <p className="binder-hint">
-          Página {page} terminada. Revisa las cartas de la derecha y pasa a la siguiente.
+          Page {page} done. Check the cards on the right and move on to the next one.
         </p>
       )}
 
@@ -94,17 +94,17 @@ export default function BinderBar({ sessionId, page, slot, skipped, sending, onS
         {slot != null ? (
           <>
             <button onClick={onCapture} disabled={sending}>
-              {sending ? "Enviando…" : `Capturar casilla ${slot}`}
+              {sending ? "Sending…" : `Capture slot ${slot}`}
             </button>
             <button className="secondary" onClick={onSkip} disabled={sending}>
-              Hueco vacío
+              Empty slot
             </button>
           </>
         ) : (
-          <button onClick={() => onPage(page + 1)}>Página siguiente →</button>
+          <button onClick={() => onPage(page + 1)}>Next page →</button>
         )}
         <button className="stop" onClick={onStop}>
-          ■ Terminar
+          ■ Finish
         </button>
       </div>
     </div>

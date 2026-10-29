@@ -8,11 +8,11 @@ from .models import ErrorGroup
 class StatusFilter(admin.SimpleListFilter):
     """Por defecto, solo los pendientes."""
 
-    title = "estado"
+    title = "status"
     parameter_name = "estado"
 
     def lookups(self, request, model_admin):
-        return [("pendientes", "Pendientes"), ("resueltos", "Resueltos"), ("todos", "Todos")]
+        return [("pendientes", "Pending"), ("resueltos", "Resolved"), ("todos", "All")]
 
     def choices(self, changelist):
         current = self.value() or "pendientes"
@@ -50,27 +50,27 @@ class ErrorGroupAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
-    @admin.display(description="pendiente", boolean=True, ordering="resolved_at")
+    @admin.display(description="pending", boolean=True, ordering="resolved_at")
     def pending(self, obj):
         return obj.resolved_at is None
 
-    @admin.display(description="mensaje")
+    @admin.display(description="message")
     def short_message(self, obj):
         first = obj.message.splitlines()[0] if obj.message else ""
         return first[:120] + ("…" if len(first) > 120 else "")
 
-    @admin.display(description="traza")
+    @admin.display(description="traceback")
     def trace(self, obj):
         if not obj.traceback:
             return "—"
         return format_html('<pre style="white-space: pre-wrap; max-width: 100%; font-size: 12px">{}</pre>', obj.traceback)
 
-    @admin.action(description="Marcar como resueltos")
+    @admin.action(description="Mark as resolved")
     def mark_resolved(self, request, queryset):
         n = queryset.filter(resolved_at__isnull=True).update(resolved_at=timezone.now())
-        self.message_user(request, f"{n} errores marcados como resueltos. Si vuelven a pasar, se reabren solos.")
+        self.message_user(request, f"{n} errors marked as resolved. If they happen again, they reopen by themselves.")
 
-    @admin.action(description="Reabrir")
+    @admin.action(description="Reopen")
     def reopen(self, request, queryset):
         n = queryset.exclude(resolved_at__isnull=True).update(resolved_at=None)
-        self.message_user(request, f"{n} errores reabiertos.")
+        self.message_user(request, f"{n} errors reopened.")

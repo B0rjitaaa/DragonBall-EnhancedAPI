@@ -5,8 +5,8 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = ("Crea el administrador de /admin si no hay ninguno (DJANGO_SUPERUSER_USERNAME / _PASSWORD / _EMAIL; "
-            "por defecto admin / admin). Si ya hay alguno, no toca nada.")
+    help = ("Creates the /admin administrator if there is none (DJANGO_SUPERUSER_USERNAME / _PASSWORD / _EMAIL; "
+            "admin / admin by default). If there is one already, it changes nothing.")
 
     def handle(self, *args, **options):
         User = get_user_model()
@@ -17,4 +17,4 @@ class Command(BaseCommand):
         email = os.environ.get("DJANGO_SUPERUSER_EMAIL") or ""
         User.objects.create_superuser(username=username, email=email, password=password)
         self.stdout.write(self.style.WARNING(
-            f"Creado el administrador «{username}». Cambia su contraseña si este equipo no es solo tuyo."))
+            f"Created the administrator “{username}”. Change its password if this machine is not only yours."))

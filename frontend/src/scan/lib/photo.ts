@@ -109,18 +109,18 @@ export function guideFraction(media: HTMLImageElement, guide: HTMLElement): { x:
 
 /** Captura el fotograma actual de un <video> (o solo `region`) como JPEG (lado mayor ≤ MAX_SIDE). */
 export async function frameFromVideo(video: HTMLVideoElement, region?: Region | null): Promise<File> {
-  if (!video.videoWidth || !video.videoHeight) throw new Error("La cámara todavía no da imagen");
+  if (!video.videoWidth || !video.videoHeight) throw new Error("The camera isn't showing an image yet");
   const r = region ?? { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight };
   const scale = Math.min(1, MAX_SIDE / Math.max(r.width, r.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(r.width * scale);
   canvas.height = Math.round(r.height * scale);
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("No se pudo capturar la imagen");
+  if (!ctx) throw new Error("Couldn't capture the image");
   ctx.drawImage(video, r.x, r.y, r.width, r.height, 0, 0, canvas.width, canvas.height);
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
   );
-  if (!blob) throw new Error("No se pudo capturar la imagen");
+  if (!blob) throw new Error("Couldn't capture the image");
   return new File([blob], "captura.jpg", { type: "image/jpeg" });
 }

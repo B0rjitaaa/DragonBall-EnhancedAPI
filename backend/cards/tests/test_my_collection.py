@@ -40,7 +40,7 @@ class MyCollectionTests(TestCase):
         self.assertEqual(champa["quantity"], 3)
         self.assertEqual(
             [(loc["name"], loc["quantity"], loc["notes"]) for loc in champa["locations"]],
-            [("Sin ubicar", 2, ""), ("Mazo rojo", 1, "titular")],
+            [("Unsorted", 2, ""), ("Mazo rojo", 1, "titular")],
         )
         self.assertEqual(data["total_copies"], 4)  # por defecto, sin la falsa
         pr = next(r for r in data["results"] if r["id"] == 1088)
@@ -125,20 +125,20 @@ class MyCollectionTests(TestCase):
     def test_backup_downloads_every_entry_as_compact_json(self):
         response = self.client.get("/api/my-collection/backup/")
         self.assertEqual(response.status_code, 200)
-        self.assertRegex(response["Content-Disposition"], r'attachment; filename="mi-coleccion-\d{4}-\d{2}-\d{2}\.json"')
+        self.assertRegex(response["Content-Disposition"], r'attachment; filename="my-collection-\d{4}-\d{2}-\d{2}\.json"')
         doc = json.loads(response.content)
         self.assertEqual((doc["format"], doc["version"]), ("dbs-collection", 4))
         self.assertEqual(doc["total_fakes"], 1)
         self.assertIn({"id": 1088, "number": "BT1-005", "name": "Champa PR", "qty": 1, "location": "Mazo rojo", "fake": True}, doc["cards"])
         self.assertEqual(doc["locations"], [
-            {"name": "Sin ubicar", "kind": "otro", "cards": 2, "copies": 3},
-            {"name": "Caja vacía", "kind": "almacén", "cards": 0, "copies": 0},  # también las vacías
-            {"name": "Mazo rojo", "kind": "mazo", "cards": 2, "copies": 2, "fakes": 1, "notes": "funda roja"},
+            {"name": "Unsorted", "kind": "other", "cards": 2, "copies": 3},
+            {"name": "Caja vacía", "kind": "storage", "cards": 0, "copies": 0},  # también las vacías
+            {"name": "Mazo rojo", "kind": "deck", "cards": 2, "copies": 2, "fakes": 1, "notes": "funda roja"},
         ])
         self.assertEqual((doc["total_cards"], doc["total_copies"]), (2, 5))
         self.assertEqual(doc["cards"][:2], [
             {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 1, "location": "Mazo rojo", "notes": "titular"},
-            {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 2, "location": "Sin ubicar"},
+            {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 2, "location": "Unsorted"},
         ])
         # cabecera + una línea por ubicación y por carta + cierres
         self.assertEqual(len(response.content.decode().splitlines()), len(doc["locations"]) + len(doc["cards"]) + 5)
@@ -182,7 +182,7 @@ class MyCollectionTests(TestCase):
         z = Card.objects.create(id=50, card_number="EX21-19", name="Z Champa", card_type="Z-LEADER", colors=["Red"])
         CollectionEntry.objects.create(card=z, location=self.deck, quantity=1)
         data = {loc["name"]: loc for loc in self.client.get("/api/my-collection/locations/").data}
-        self.assertIsNone(data["Sin ubicar"]["leader"])  # no es un mazo
+        self.assertIsNone(data["Unsorted"]["leader"])  # no es un mazo
         self.assertEqual(data["Mazo rojo"]["leader"], {"id": 4, "card_number": "BT1-001", "name": "Champa, Fighting for Fun",
                                                        "image": "https://x/BT1-001_b.png", "awakened": True,
                                                        "colors": ["Red"]})
@@ -220,6 +220,6 @@ class SearchShowsOwnedCopiesTests(TestCase):
         self.assertEqual(results[4]["quantity"], 2)  # auténticas
         self.assertEqual(results[4]["total_quantity"], 3)
         self.assertEqual(results[4]["fakes"], 1)
-        self.assertEqual(sorted(loc["name"] for loc in results[4]["locations"]), ["Mazo rojo", "Sin ubicar"])
+        self.assertEqual(sorted(loc["name"] for loc in results[4]["locations"]), ["Mazo rojo", "Unsorted"])
         self.assertNotIn("quantity", results[7])  # no la tienes
         self.assertEqual(len(results), 2)  # el buscador sigue mostrando todo el catálogo

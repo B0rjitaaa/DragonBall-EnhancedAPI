@@ -40,7 +40,7 @@ function CameraPreview({ imgRef }: { imgRef: RefObject<HTMLImageElement | null> 
         ref={imgRef}
         className="preview"
         src={src}
-        alt="Vista previa"
+        alt="Preview"
         hidden={failed}
         onLoad={() => {
           setFailed(false);
@@ -53,8 +53,8 @@ function CameraPreview({ imgRef }: { imgRef: RefObject<HTMLImageElement | null> 
       />
       {failed && (
         <div className="preview placeholder">
-          Webcam del escáner no disponible (¿desconectada?). Reintentando… Prueba con la cámara de este dispositivo o
-          sube una foto.
+          Scanner webcam unavailable (disconnected?). Retrying… Try this device's camera or
+          upload a photo.
         </div>
       )}
     </div>
@@ -83,7 +83,7 @@ function initialSource(): Source {
 function UploadButton({ disabled, onPhoto }: { disabled: boolean; onPhoto: (file: File) => void }) {
   return (
     <label className={`button secondary${disabled ? " disabled" : ""}`}>
-      Subir foto
+      Upload photo
       <input
         type="file"
         accept="image/*"
@@ -100,10 +100,10 @@ function UploadButton({ disabled, onPhoto }: { disabled: boolean; onPhoto: (file
 }
 
 const DETECTOR_LABELS: Record<DetectorState, string> = {
-  learning: "Aprendiendo el fondo: deja la zona vacía…",
-  idle: "Esperando carta…",
-  moving: "Movimiento: deja la carta quieta",
-  settling: "Carta quieta…",
+  learning: "Learning the background: keep the area empty…",
+  idle: "Waiting for a card…",
+  moving: "Movement: hold the card still",
+  settling: "Card still…",
 };
 
 export default function Scanner() {
@@ -210,7 +210,7 @@ export default function Scanner() {
       const thumb = detector.current?.snapshot() ?? null;
       let created;
       if (source === "device") {
-        if (!videoRef.current) throw new Error("La cámara no está activa");
+        if (!videoRef.current) throw new Error("The camera isn't active");
         // Solo lo que está dentro del marco: lo de alrededor (alfombrilla, otras cartas) no cuenta.
         const region = guideRef.current ? guideRegion(videoRef.current, guideRef.current) : null;
         created = await api.createScan(await frameFromVideo(videoRef.current, region), session, afterEmpty);
@@ -315,7 +315,7 @@ export default function Scanner() {
     setCaptureError(null);
     try {
       if (source === "device") {
-        if (!videoRef.current) throw new Error("La cámara no está activa");
+        if (!videoRef.current) throw new Error("The camera isn't active");
         // Solo lo que está dentro del marco: las cartas vecinas del archivador no cuentan.
         const region = guideRef.current ? guideRegion(videoRef.current, guideRef.current) : null;
         await api.createScan(await frameFromVideo(videoRef.current, region), burstId, true, spot);
@@ -354,7 +354,7 @@ export default function Scanner() {
       return;
     }
     try {
-      if (!videoRef.current) throw new Error("La cámara no está activa");
+      if (!videoRef.current) throw new Error("The camera isn't active");
       create.mutate({ frame: await frameFromVideo(videoRef.current) });
     } catch (err) {
       create.reset();
@@ -365,14 +365,14 @@ export default function Scanner() {
   return (
     <div className="scanner">
       <section>
-        <div className="source-switch" role="tablist" aria-label="Fuente de la cámara">
+        <div className="source-switch" role="tablist" aria-label="Camera source">
           <button
             role="tab"
             aria-selected={source === "device"}
             className={source === "device" ? "active" : ""}
             onClick={() => chooseSource("device")}
           >
-            Cámara de este dispositivo
+            This device's camera
           </button>
           <button
             role="tab"
@@ -380,7 +380,7 @@ export default function Scanner() {
             className={source === "server" ? "active" : ""}
             onClick={() => chooseSource("server")}
           >
-            Webcam del escáner
+            Scanner webcam
           </button>
         </div>
 
@@ -394,7 +394,7 @@ export default function Scanner() {
           <div ref={guideRef} className="card-guide" aria-hidden="true" />
           {burstActive && (
             <div className={`burst-status ${sending ? "sending" : detectorState}`}>
-              {sending ? "Enviando…" : DETECTOR_LABELS[detectorState]}
+              {sending ? "Sending…" : DETECTOR_LABELS[detectorState]}
             </div>
           )}
         </div>
@@ -424,21 +424,21 @@ export default function Scanner() {
         <div className="actions">
           {burstActive ? (
             <button className="stop" onClick={() => void stopBurst()}>
-              ■ Terminar sesión
+              ■ End session
             </button>
           ) : (
             <>
-              <button onClick={() => void startBurst()}>▶ Modo ráfaga</button>
-              <button onClick={() => void startBinder()} title="Carta a carta por las casillas de cada página">
-                ▦ Modo archivador
+              <button onClick={() => void startBurst()}>▶ Burst mode</button>
+              <button onClick={() => void startBinder()} title="Card by card through the slots of each page">
+                ▦ Binder mode
               </button>
               <label className="burst-location">
-                <span>Guardar en</span>
+                <span>Save to</span>
                 <select
                   value={validLocation ?? ""}
                   onChange={(e) => chooseLocation(e.target.value ? Number(e.target.value) : null)}
                 >
-                  {(locations.data ?? [{ id: 0, name: "Sin ubicar", is_default: true }]).map((l) =>
+                  {(locations.data ?? [{ id: 0, name: "Unsorted", is_default: true }]).map((l) =>
                     l.is_default ? (
                       <option key={l.id} value="">
                         {l.name}
@@ -454,7 +454,7 @@ export default function Scanner() {
             </>
           )}
           <button className="secondary" onClick={() => void captureManual()} disabled={busy}>
-            {burstActive ? "Capturar ahora" : "Capturar e identificar"}
+            {burstActive ? "Capture now" : "Capture and identify"}
           </button>
           {source === "device" && (
             <button
@@ -462,7 +462,7 @@ export default function Scanner() {
               onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
               disabled={busy}
             >
-              Cambiar cámara
+              Switch camera
             </button>
           )}
           {!burstActive && <UploadButton disabled={busy} onPhoto={(file) => create.mutate({ file })} />}
@@ -470,12 +470,12 @@ export default function Scanner() {
         )}
         {burstActive && (
           <p className="muted small">
-            Empieza con la zona vacía (el fondo se aprende en 1 s) y ve poniendo las cartas de una en una dentro del
-            marco. Cada carta nueva se identifica sola cuando la dejas quieta.
+            Start with the area empty (the background is learned in 1 s), then place the cards one at a time inside the
+            frame. Each new card is identified on its own once you hold it still.
           </p>
         )}
-        {phase === "preparing" && <p className="muted">Preparando la foto…</p>}
-        {phase === "uploading" && <p className="muted">Enviando la imagen…</p>}
+        {phase === "preparing" && <p className="muted">Preparing the photo…</p>}
+        {phase === "uploading" && <p className="muted">Sending the image…</p>}
         {captureError && <p className="error">{captureError}</p>}
         {create.isError && <p className="error">{create.error.message}</p>}
       </section>
@@ -484,7 +484,7 @@ export default function Scanner() {
           <>
             {!burstActive && !binderActive && (
               <p className="muted small">
-                Sesión terminada. <button className="link" onClick={() => setBurstId(null)}>Cerrar resumen</button>
+                Session ended. <button className="link" onClick={() => setBurstId(null)}>Close summary</button>
               </p>
             )}
             <BurstPanel sessionId={burstId} active={burstActive || binderActive} />
@@ -493,8 +493,8 @@ export default function Scanner() {
           <ScanResult key={scan.data.id} scan={scan.data} />
         ) : (
           <p className="muted">
-            Coloca la carta dentro del marco y pulsa «Capturar e identificar», o usa el modo ráfaga para ir cambiando
-            cartas sin tocar la pantalla.
+            Place the card inside the frame and press “Capture and identify”, or use burst mode to swap
+            cards without touching the screen.
           </p>
         )}
       </section>

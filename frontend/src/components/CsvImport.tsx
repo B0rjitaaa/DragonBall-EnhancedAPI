@@ -73,68 +73,68 @@ export default function CsvImport({ onDone }: Props) {
         ...preview.errors.map((e) => ({ line: e.line, text: e.reason })),
         ...preview.ambiguous.map((a) => ({
           line: a.line,
-          text: `«${a.number}» es ambigua (${a.options.map((o) => o.card_set || o.id).join(' / ')}): añade la columna id o la edición`,
+          text: `“${a.number}” is ambiguous (${a.options.map((o) => o.card_set || o.id).join(' / ')}): add the id or set column`,
         })),
       ].sort((a, b) => a.line - b.line)
     : []
 
   return (
     <>
-      <button className="btn backup-link" onClick={() => setOpen(true)} title="Suma a tu colección las copias de un CSV (no borra nada)">
-        Importar CSV
+      <button className="btn backup-link" onClick={() => setOpen(true)} title="Adds the copies in a CSV to your collection (doesn't delete anything)">
+        Import CSV
       </button>
       {open && (
         <div className="modal-backdrop" onClick={() => !busy && close()}>
           <div className="modal csv-import" role="dialog" aria-modal="true" aria-labelledby="csv-import-title" onClick={(e) => e.stopPropagation()}>
-            <button className="icon-btn close" onClick={close} disabled={busy} aria-label="Cerrar">
+            <button className="icon-btn close" onClick={close} disabled={busy} aria-label="Close">
               ✕
             </button>
-            <h2 id="csv-import-title">Importar CSV</h2>
+            <h2 id="csv-import-title">Import CSV</h2>
             <p className="muted small">
-              Suma las copias del fichero a tu colección; no borra ni cambia nada de lo que ya tienes. Columnas:{' '}
-              <code>id</code> o <code>número</code> (y <code>edición</code> si hay varias impresiones), <code>cantidad</code>,
-              y opcionales <code>ubicación</code>, <code>falsa</code> y <code>notas</code>. Vale el CSV de «Descargar CSV».
+              Adds the file's copies to your collection; it doesn't delete or change anything you already have. Columns:{' '}
+              <code>id</code> or <code>number</code> (plus <code>set</code> if there are several printings), <code>quantity</code>,
+              and optionally <code>location</code>, <code>fake</code> and <code>notes</code>. The file from “Download CSV” works.
             </p>
 
             {applied === null && (
               <label className="csv-file">
                 <input type="file" accept=".csv,text/csv" disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
-                {fileName || 'Elegir fichero…'}
+                {fileName || 'Choose file…'}
               </label>
             )}
 
-            {busy && <p className="muted">Leyendo…</p>}
+            {busy && <p className="muted">Reading…</p>}
             {error && <p className="error">{error}</p>}
 
             {preview && applied === null && (
               <div className="csv-preview">
                 <p>
-                  <strong>{preview.totals.copies}</strong> copias en <strong>{preview.totals.rows}</strong> filas
-                  {preview.totals.fakes > 0 && <> (de ellas {preview.totals.fakes} falsas)</>}.
-                  {preview.totals.skipped > 0 && <> Se saltan {preview.totals.skipped} filas.</>}
+                  <strong>{preview.totals.copies}</strong> copies in <strong>{preview.totals.rows}</strong> rows
+                  {preview.totals.fakes > 0 && <> ({preview.totals.fakes} of them fake)</>}.
+                  {preview.totals.skipped > 0 && <> {preview.totals.skipped} rows will be skipped.</>}
                 </p>
                 {preview.totals.unknown_locations.length > 0 && (
                   <p className="csv-warn">
-                    Estas ubicaciones no existen y sus cartas irán a «Sin ubicar»:{' '}
-                    {preview.totals.unknown_locations.map((l) => `«${l}»`).join(', ')}
+                    These locations don't exist, so their cards will go to “Unsorted”:{' '}
+                    {preview.totals.unknown_locations.map((l) => `“${l}”`).join(', ')}
                   </p>
                 )}
                 {warnings.length > 0 && (
                   <ul className="csv-skips">
                     {warnings.slice(0, SHOWN).map((w) => (
                       <li key={`${w.line}-${w.text}`}>
-                        <span className="muted">Fila {w.line}:</span> {w.text}
+                        <span className="muted">Row {w.line}:</span> {w.text}
                       </li>
                     ))}
-                    {warnings.length > SHOWN && <li className="muted">… y {warnings.length - SHOWN} más</li>}
+                    {warnings.length > SHOWN && <li className="muted">… and {warnings.length - SHOWN} more</li>}
                   </ul>
                 )}
                 <div className="csv-actions">
                   <button className="btn ghost" onClick={close} disabled={busy}>
-                    Cancelar
+                    Cancel
                   </button>
                   <button className="btn primary" onClick={apply} disabled={busy || preview.totals.copies === 0}>
-                    Sumar {preview.totals.copies} copias
+                    Add {preview.totals.copies} copies
                   </button>
                 </div>
               </div>
@@ -143,11 +143,11 @@ export default function CsvImport({ onDone }: Props) {
             {applied !== null && (
               <div className="csv-preview">
                 <p>
-                  ✔ Añadidas <strong>{applied}</strong> copias a tu colección.
+                  ✔ Added <strong>{applied}</strong> copies to your collection.
                 </p>
                 <div className="csv-actions">
                   <button className="btn primary" onClick={close}>
-                    Cerrar
+                    Close
                   </button>
                 </div>
               </div>

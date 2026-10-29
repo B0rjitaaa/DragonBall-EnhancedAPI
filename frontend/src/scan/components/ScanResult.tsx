@@ -25,7 +25,7 @@ export default function ScanResult({ scan }: { scan: Scan }) {
   });
 
   if (scan.status === "pending" || scan.status === "processing") {
-    return <p className="muted">Identificando… ({scan.status})</p>;
+    return <p className="muted">Identifying… ({scan.status})</p>;
   }
   if (scan.status === "failed") {
     return <p className="error">Error: {scan.error}</p>;
@@ -41,33 +41,33 @@ export default function ScanResult({ scan }: { scan: Scan }) {
     <section className="scan-result">
       <div className="scan-meta">
         {current.confirmed ? (
-          <span className="scan-badge ok">Confirmada ✓</span>
+          <span className="scan-badge ok">Confirmed ✓</span>
         ) : (
           <span className={unsure ? "scan-badge warn" : "scan-badge ok"}>
-            {unsure ? "No estoy seguro" : "Identificada"} · {percent(scan.confidence)}
+            {unsure ? "Not sure" : "Identified"} · {percent(scan.confidence)}
           </span>
         )}
         <span className="muted">
           {scan.method} · {scan.duration_ms} ms
-          {!scan.card_detected && " · bordes de la carta no detectados"}
+          {!scan.card_detected && " · card edges not detected"}
         </span>
       </div>
 
       <div className="scan-body">
         {scan.cropped_image && (
           <figure className="crop">
-            <img src={scan.cropped_image} alt="Recorte" />
-            <figcaption>Tu foto</figcaption>
+            <img src={scan.cropped_image} alt="Crop" />
+            <figcaption>Your photo</figcaption>
           </figure>
         )}
         <div className="scan-main">
           {picking ? (
             <>
-              <h3>{unsure ? "¿Cuál de estas es?" : "Elige la carta correcta"}</h3>
+              <h3>{unsure ? "Which one is it?" : "Pick the right card"}</h3>
               <CardPicker candidates={scan.candidates} onPick={(id) => confirm.mutate(id)} busy={confirm.isPending} />
               {correcting && (
                 <button className="link" onClick={() => setCorrecting(false)}>
-                  Cancelar
+                  Cancel
                 </button>
               )}
             </>
@@ -77,12 +77,12 @@ export default function ScanResult({ scan }: { scan: Scan }) {
               <CardDetail card={current.matched_card} showAddButton={current.session == null} />
               {!current.confirmed && (
                 <button className="link" onClick={() => setCorrecting(true)}>
-                  ¿No es esta carta? Corregir
+                  Not this card? Fix it
                 </button>
               )}
             </>
           ) : (
-            <p className="muted">Sin coincidencias: ¿hay fingerprints calculados?</p>
+            <p className="muted">No matches: have the fingerprints been computed?</p>
           )}
           {confirm.isError && <p className="error">{confirm.error.message}</p>}
         </div>

@@ -47,7 +47,7 @@ const SECTIONS: Section[] = [
 const EMPTY: FacetSelection = { values: [], match: 'any' }
 
 // Campos booleanos que se muestran como casilla en el panel (etiquetas en español)
-const FLAG_LABELS: Record<string, string> = { has_errata: 'Tiene errata', has_ruling: 'Tiene Q&A' }
+const FLAG_LABELS: Record<string, string> = { has_errata: 'Has errata', has_ruling: 'Has Q&A' }
 
 interface Props {
   fields: FieldDef[]
@@ -115,7 +115,7 @@ export default function FacetPanel({ fields, global, context, state, onChange, s
                   href={KEYWORD_RULES_URL}
                   target="_blank"
                   rel="noreferrer"
-                  title="Reglas oficiales de las keyword skills"
+                  title="Official keyword skills rules"
                   onClick={(e) => e.stopPropagation()}
                 >
                   ⓘ
@@ -130,7 +130,7 @@ export default function FacetPanel({ fields, global, context, state, onChange, s
                     else update(key, EMPTY)
                   }}
                 >
-                  limpiar ({active})
+                  clear ({active})
                 </button>
               )}
             </summary>
@@ -195,10 +195,10 @@ function toggle(sel: FacetSelection, value: string | number): FacetSelection {
 function MatchToggle({ sel, onChange }: { sel: FacetSelection; onChange: (s: FacetSelection) => void }) {
   if (sel.values.length < 2) return null
   return (
-    <div className="match-toggle" role="group" aria-label="Combinar valores">
+    <div className="match-toggle" role="group" aria-label="Combine values">
       {(['any', 'all'] as const).map((m) => (
         <button key={m} className={sel.match === m ? 'on' : ''} onClick={() => onChange({ ...sel, match: m })}>
-          {m === 'any' ? 'Cualquiera (O)' : 'Todos (Y)'}
+          {m === 'any' ? 'Any (OR)' : 'All (AND)'}
         </button>
       ))}
     </div>
@@ -218,7 +218,7 @@ function SkillTip({ skills, name, children }: { skills?: SkillIndex; name: strin
   return (
     <Tooltip
       title={`[${name}]`}
-      text={skill?.description ?? 'No aparece en la página oficial de keyword skills (es posterior a su última actualización).'}
+      text={skill?.description ?? "Not listed on the official keyword skills page (it's newer than its last update)."}
     >
       {children}
     </Tooltip>
@@ -238,7 +238,7 @@ function Chips({ field, facet, counts, sel, onChange, skills }: ListProps & { fi
             <button
               className={`chip ${on ? 'on' : ''} ${!n && !on ? 'zero' : ''} ${colorClass(value)} ${field === 'legality' ? `lg-${value}` : ''}`}
               onClick={() => onChange(toggle(sel, value))}
-              title={skills ? undefined : `${n} cartas`}
+              title={skills ? undefined : `${n} cards`}
             >
               {valueLabel(field, value)} <small>{n}</small>
             </button>
@@ -288,7 +288,7 @@ function Subsets({
                   key={String(value)}
                   className={`chip sub ${on ? 'on' : ''} ${!n && !on ? 'zero' : ''}`}
                   onClick={() => onChange(toggle(sel, value))}
-                  title={`${n} cartas`}
+                  title={`${n} cards`}
                 >
                   {String(value)} <small>{n}</small>
                 </button>
@@ -334,7 +334,7 @@ function ValueList({
       {facet.values.length > 10 && (
         <input
           className="input small"
-          placeholder={`Buscar entre ${facet.values.length}…`}
+          placeholder={`Search ${facet.values.length}…`}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
@@ -361,7 +361,7 @@ function ValueList({
                   <button
                     className={`variants-toggle ${showVars ? 'open' : ''}`}
                     onClick={() => setOpenVariants({ ...openVariants, [name]: !showVars })}
-                    title="Elegir valores concretos"
+                    title="Pick specific values"
                   >
                     {varsOn > 0 ? varsOn : vars.length}
                   </button>
@@ -394,7 +394,7 @@ function ValueList({
       </ul>
       {!needle && sorted.length > 10 && (
         <button className="link small" onClick={() => setExpanded(!expanded)}>
-          {expanded ? 'Ver menos' : `Ver todos (${sorted.length})`}
+          {expanded ? 'Show less' : `Show all (${sorted.length})`}
         </button>
       )}
     </div>
@@ -408,7 +408,7 @@ function RangeFilter({ facet, sel, onChange }: { facet: Facet; sel: FacetSelecti
       <input
         className="input small"
         type="number"
-        placeholder={facet.min != null ? `mín ${facet.min}` : 'mín'}
+        placeholder={facet.min != null ? `min ${facet.min}` : 'min'}
         value={sel.min ?? ''}
         onChange={(e) => onChange({ ...sel, min: parse(e.target.value) })}
       />
@@ -416,7 +416,7 @@ function RangeFilter({ facet, sel, onChange }: { facet: Facet; sel: FacetSelecti
       <input
         className="input small"
         type="number"
-        placeholder={facet.max != null ? `máx ${facet.max}` : 'máx'}
+        placeholder={facet.max != null ? `max ${facet.max}` : 'max'}
         value={sel.max ?? ''}
         onChange={(e) => onChange({ ...sel, max: parse(e.target.value) })}
       />

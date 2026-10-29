@@ -9,7 +9,7 @@ import ScanResult from "./ScanResult";
 const percent = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 
 /** "145 ms" o "1,2 s". */
-const fmtMs = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 })} s`);
+const fmtMs = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toLocaleString("en-GB", { maximumFractionDigits: 1 })} s`);
 
 /**
  * Tiempo de reconocimiento: lo que tardó el servidor en identificarla y, si
@@ -22,22 +22,22 @@ function Timing({ s }: { s: SessionScan }) {
   return (
     <span
       className={`scan-time ${slow ? "slow" : ""}`}
-      title={total != null ? `Identificación: ${fmtMs(s.duration_ms)} · desde que llegó la foto: ${fmtMs(total)}` : undefined}
+      title={total != null ? `Identification: ${fmtMs(s.duration_ms)} · since the photo arrived: ${fmtMs(total)}` : undefined}
     >
       {" · "}
       {fmtMs(s.duration_ms)}
-      {total != null && total - s.duration_ms >= 100 && ` (${fmtMs(total)} en total)`}
+      {total != null && total - s.duration_ms >= 100 && ` (${fmtMs(total)} total)`}
     </span>
   );
 }
 
 function rowState(s: SessionScan): { label: string; tone: "ok" | "warn" | "muted" | "error" } {
-  if (s.status === "pending" || s.status === "processing") return { label: "Identificando…", tone: "muted" };
+  if (s.status === "pending" || s.status === "processing") return { label: "Identifying…", tone: "muted" };
   if (s.status === "failed") return { label: "Error", tone: "error" };
-  if (s.dismissed) return { label: "Deshecha", tone: "muted" };
-  if (s.added_to_collection) return { label: "Añadida", tone: "ok" };
-  if (s.repeat_suspect) return { label: "¿Otra copia?", tone: "warn" };
-  return { label: "Por revisar", tone: "warn" };
+  if (s.dismissed) return { label: "Undone", tone: "muted" };
+  if (s.added_to_collection) return { label: "Added", tone: "ok" };
+  if (s.repeat_suspect) return { label: "Another copy?", tone: "warn" };
+  return { label: "To review", tone: "warn" };
 }
 
 const MAX_COPIES = 99;
@@ -72,7 +72,7 @@ function CopiesInput({
       <button
         type="button"
         className="secondary"
-        aria-label="Una copia menos"
+        aria-label="One copy less"
         disabled={disabled || value <= 1}
         onClick={() => commit(value - 1)}
       >
@@ -83,7 +83,7 @@ function CopiesInput({
         inputMode="numeric"
         min={1}
         max={MAX_COPIES}
-        aria-label="Copias"
+        aria-label="Copies"
         value={draft}
         disabled={disabled}
         onFocus={(e) => {
@@ -102,7 +102,7 @@ function CopiesInput({
       <button
         type="button"
         className="secondary"
-        aria-label="Una copia más"
+        aria-label="One copy more"
         disabled={disabled || value >= MAX_COPIES}
         onClick={() => commit(value + 1)}
       >
@@ -111,8 +111,8 @@ function CopiesInput({
       <button
         type="button"
         className={`secondary playset ${value === PLAYSET ? "on" : ""}`}
-        title="Playset: 4 copias"
-        aria-label="Playset (4 copias)"
+        title="Playset: 4 copies"
+        aria-label="Playset (4 copies)"
         disabled={disabled || value === PLAYSET}
         onClick={() => commit(PLAYSET)}
       >
@@ -127,9 +127,9 @@ function ReviewModal({ scanId, onClose }: { scanId: number; onClose: () => void 
   return (
     <div className="scan-modal" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}>
-        {scan.data ? <ScanResult key={scanId} scan={scan.data} /> : <p className="muted">Cargando…</p>}
+        {scan.data ? <ScanResult key={scanId} scan={scan.data} /> : <p className="muted">Loading…</p>}
         <button className="secondary" onClick={onClose}>
-          Cerrar
+          Close
         </button>
       </div>
     </div>
@@ -193,7 +193,7 @@ export default function BurstPanel({ sessionId, active }: { sessionId: number; a
     }
   }, [session.data, active]);
 
-  if (!session.data) return <p className="muted">Cargando la sesión…</p>;
+  if (!session.data) return <p className="muted">Loading the session…</p>;
   const { stats, scans, auto_add_min_confidence } = session.data;
 
   return (
@@ -201,27 +201,27 @@ export default function BurstPanel({ sessionId, active }: { sessionId: number; a
       <div className="burst-stats">
         <div>
           <strong>{stats.added}</strong>
-          <span>{stats.copies > stats.added ? `añadidas · ${stats.copies} copias` : "añadidas"}</span>
+          <span>{stats.copies > stats.added ? `added · ${stats.copies} copies` : "added"}</span>
         </div>
         <div className={stats.review ? "warn" : ""}>
           <strong>{stats.review}</strong>
-          <span>por revisar</span>
+          <span>to review</span>
         </div>
         <div>
           <strong>{stats.undone}</strong>
-          <span>deshechas</span>
+          <span>undone</span>
         </div>
       </div>
       <p className="muted small">
-        Destino: <strong>{session.data.location_name}</strong>. Se añaden solas a la colección a partir del{" "}
-        {percent(auto_add_min_confidence)} (1 copia; con − / + cambias cuántas). Por debajo quedan "por revisar".{" "}
+        Destination: <strong>{session.data.location_name}</strong>. Cards are added to the collection automatically from{" "}
+        {percent(auto_add_min_confidence)} (1 copy; use − / + to change how many). Below that they stay "to review".{" "}
         {session.data.mode === "binder"
-          ? "Cada copia guarda su página, fila y columna en la nota; repetir una casilla sustituye la captura anterior."
-          : 'Si la misma carta sale dos veces seguidas sin retirarla, se pregunta "¿Otra copia?" y eliges cuántas añadir.'}
+          ? "Each copy saves its page, row and column in the note; redoing a slot replaces the previous capture."
+          : "If the same card shows up twice in a row without being removed, you're asked “Another copy?” and choose how many to add."}
       </p>
 
       {scans.length === 0 ? (
-        <p className="muted">Aún no hay cartas en esta sesión.</p>
+        <p className="muted">No cards in this session yet.</p>
       ) : (
         <ul className="burst-list">
           {scans.map((s) => {
@@ -235,8 +235,8 @@ export default function BurstPanel({ sessionId, active }: { sessionId: number; a
                   <span className="muted small">
                     {percent(s.confidence)}
                     <Timing s={s} />
-                    {s.confirmed && " · confirmada"}
-                    {s.binder_page != null && s.binder_slot != null && ` · pág. ${s.binder_page}, casilla ${s.binder_slot}`}
+                    {s.confirmed && " · confirmed"}
+                    {s.binder_page != null && s.binder_slot != null && ` · p. ${s.binder_page}, slot ${s.binder_slot}`}
                   </span>
                 </div>
                 <span className={`scan-badge ${state.tone}`}>{state.label}</span>
@@ -249,7 +249,7 @@ export default function BurstPanel({ sessionId, active }: { sessionId: number; a
                         onChange={(n) => setPendingCopies((p) => ({ ...p, [s.id]: n }))}
                       />
                       <button disabled={addCopy.isPending} onClick={() => addCopy.mutate(s)}>
-                        {(pendingCopies[s.id] ?? 1) > 1 ? `Añadir ${pendingCopies[s.id]} copias` : "Añadir copia"}
+                        {(pendingCopies[s.id] ?? 1) > 1 ? `Add ${pendingCopies[s.id]} copies` : "Add copy"}
                       </button>
                     </>
                   )}
@@ -262,17 +262,17 @@ export default function BurstPanel({ sessionId, active }: { sessionId: number; a
                   )}
                   {done && !s.added_to_collection && !s.repeat_suspect && (
                     <button className="secondary" onClick={() => setReviewing(s.id)}>
-                      Revisar
+                      Review
                     </button>
                   )}
                   {done && s.added_to_collection && (
-                    <button className="secondary" onClick={() => setReviewing(s.id)} title="Corregir la carta">
-                      Corregir
+                    <button className="secondary" onClick={() => setReviewing(s.id)} title="Fix the card">
+                      Fix
                     </button>
                   )}
                   {done && (
                     <button className="secondary" disabled={undo.isPending} onClick={() => undo.mutate(s.id)}>
-                      {s.added_to_collection ? "Deshacer" : "Descartar"}
+                      {s.added_to_collection ? "Undo" : "Discard"}
                     </button>
                   )}
                 </div>

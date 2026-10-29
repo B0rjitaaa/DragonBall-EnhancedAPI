@@ -56,7 +56,7 @@ def identify_card(scan_id: int):
             scan.needs_review = True
         scan.status = Scan.Status.DONE
     except Exception as exc:  # noqa: BLE001 - el error se guarda en el Scan
-        logger.exception("Scan %s falló", scan_id)
+        logger.exception("Scan %s failed", scan_id)
         scan.status = Scan.Status.FAILED
         scan.error = str(exc)
 
@@ -133,7 +133,7 @@ def bootstrap_fingerprints() -> bool:
     if with_print >= Card.objects.count():
         return False
     build_fingerprints.delay()
-    logger.info("Cartas sin huella (%s con huella): se calculan", with_print)
+    logger.info("Cards without fingerprint (%s with one): computing them", with_print)
     return True
 
 

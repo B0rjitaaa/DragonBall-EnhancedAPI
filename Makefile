@@ -1,66 +1,66 @@
 .PHONY: install backups seed up down build logs ps deploy hooks migrate import import-prices export-prices sync sync-full test shell superuser psql reset
 
-install:       ## Instala todo en un paso (.env, servicios, catálogo y precios, admin). En un servidor: make install SERVER=<ip>
+install:       ## Installs everything in one step (.env, services, catalog and prices, admin). On a server: make install SERVER=<ip>
 	bash scripts/install.sh $(if $(SERVER),--server $(SERVER))
 
-backups:       ## En el servidor: instala las copias de seguridad diarias (systemd; pide sudo)
+backups:       ## On the server: installs the daily backups (systemd; asks for sudo)
 	bash scripts/systemd/install.sh
 
-seed:          ## Rehace data/seed/ (catálogo y precios del repo) con los datos de esta instalación
+seed:          ## Rebuilds data/seed/ (the repo's catalog and prices) from this installation's data
 	docker compose exec backend python manage.py export_cards /data/seed/cartas_dbs.json.gz
 	docker compose exec backend python manage.py export_prices /data/seed/precios_dbs.json.gz
 
-up:            ## Levanta todo en segundo plano
+up:            ## Starts everything in the background
 	docker compose up -d --build
 
-down:          ## Para los contenedores (los datos se conservan)
+down:          ## Stops the containers (data is kept)
 	docker compose down
 
 build:
 	docker compose build
 
-deploy:        ## git pull + rebuild si hace falta + migraciones + reinicio
+deploy:        ## git pull + rebuild if needed + migrations + restart
 	bash scripts/deploy.sh
 
-hooks:         ## Activa el hook: cada `git pull` en main ejecuta scripts/deploy.sh
+hooks:         ## Enables the hook: every `git pull` on main runs scripts/deploy.sh
 	git config core.hooksPath .githooks
-	@echo "Hook post-merge activado en este clon."
+	@echo "post-merge hook enabled in this clone."
 
-migrate:       ## Aplica migraciones pendientes
+migrate:       ## Applies pending migrations
 	docker compose exec backend python manage.py migrate
 
-logs:          ## Logs de todos los servicios
+logs:          ## Logs of all services
 	docker compose logs -f --tail=100
 
 ps:
 	docker compose ps
 
-import:        ## Importa data/cartas_dbs.json (inserta o actualiza)
+import:        ## Imports data/cartas_dbs.json (inserts or updates)
 	docker compose exec backend python manage.py import_cards /data/cartas_dbs.json
 
-import-prices: ## Carga los precios de data/precios_dbs.json (sustituye los que haya)
+import-prices: ## Loads prices from data/precios_dbs.json (replaces existing ones)
 	docker compose exec backend python manage.py import_prices /data/precios_dbs.json
 
-export-prices: ## Vuelca los precios a data/precios_dbs.json (el servidor lo hace solo cada día)
+export-prices: ## Dumps prices to data/precios_dbs.json (the server does it by itself every day)
 	docker compose exec backend python manage.py export_prices /data/precios_dbs.json
 
-sync:          ## Encola un sync con Bandai (solo cartas nuevas)
+sync:          ## Queues a Bandai sync (new cards only)
 	docker compose exec backend python manage.py sync_cards --async
 
-sync-full:     ## Encola un sync completo (vuelve a descargar todas)
+sync-full:     ## Queues a full sync (downloads all cards again)
 	docker compose exec backend python manage.py sync_cards --full --async
 
-test:          ## Tests del backend
+test:          ## Backend tests
 	docker compose exec backend python manage.py test --noinput
 
 shell:
 	docker compose exec backend python manage.py shell
 
-superuser:     ## Crea un usuario para /admin
+superuser:     ## Creates a user for /admin
 	docker compose exec backend python manage.py createsuperuser
 
 psql:
 	docker compose exec db psql -U dbs dbs
 
-reset:         ## ¡Borra la base de datos y Redis!
+reset:         ## Deletes the database and Redis!
 	docker compose down -v

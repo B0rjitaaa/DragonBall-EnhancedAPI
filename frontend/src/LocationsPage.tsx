@@ -13,10 +13,10 @@ import type { HistoryCard, Location, LocationKind } from './lib/types'
 
 const KINDS = Object.entries(KIND_LABELS) as [LocationKind, string][]
 const SECTIONS: { kind: LocationKind; title: string; add: string; placeholder: string }[] = [
-  { kind: 'deck', title: 'Mazos', add: 'Nuevo mazo', placeholder: 'Nombre del mazo (p. ej. Goku azul)' },
-  { kind: 'binder', title: 'Archivadores', add: 'Nuevo archivador', placeholder: 'Nombre del archivador' },
-  { kind: 'storage', title: 'Almacén', add: 'Nueva caja', placeholder: 'Nombre (p. ej. Caja 7)' },
-  { kind: 'other', title: 'Otras', add: 'Nueva ubicación', placeholder: 'Nombre de la ubicación' },
+  { kind: 'deck', title: 'Decks', add: 'New deck', placeholder: 'Deck name (e.g. Blue Goku)' },
+  { kind: 'binder', title: 'Binders', add: 'New binder', placeholder: 'Binder name' },
+  { kind: 'storage', title: 'Storage', add: 'New box', placeholder: 'Name (e.g. Box 7)' },
+  { kind: 'other', title: 'Other', add: 'New location', placeholder: 'Location name' },
 ]
 
 /** Enlace a Mi colección dentro de una ubicación. */
@@ -34,7 +34,7 @@ function swallowClickAfterDrag(e: MouseEvent) {
 }
 
 const formatDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
 
 /** Cuántas veces ha pasado un mazo al histórico. */
 const timesParked = (deck: Location) => deck.status_log?.filter((e) => e.status === 'parked').length ?? 0
@@ -99,7 +99,7 @@ export default function LocationsPage() {
   }
 
   if (!locations) {
-    return <div className="locations-page">{error ? <p className="error">{error}</p> : <p className="muted">Cargando…</p>}</div>
+    return <div className="locations-page">{error ? <p className="error">{error}</p> : <p className="muted">Loading…</p>}</div>
   }
 
   const unplaced = locations.find((l) => l.is_default)
@@ -130,9 +130,9 @@ export default function LocationsPage() {
     void run(async () => {
       const { leader } = await api.deckBackInUse(loc.id)
       const brought = leader
-        ? `Su Leader (${leader.card_number}${leader.fake ? ', falsa' : ''}) ha pasado de «${leader.from}» al mazo.`
-        : 'No tienes ninguna copia de su Leader para traerla.'
-      setToast({ text: `«${loc.name}» vuelve a estar en uso. ${brought} El resto lo recuperas restaurando su última versión.`, href: collectionUrl(loc) })
+        ? `Its Leader (${leader.card_number}${leader.fake ? ', fake' : ''}) has moved from “${leader.from}” to the deck.`
+        : "You don't have a copy of its Leader to bring back."
+      setToast({ text: `“${loc.name}” is in use again. ${brought} Get the rest back by restoring its latest version.`, href: collectionUrl(loc) })
     })
   }
 
@@ -142,14 +142,14 @@ export default function LocationsPage() {
   return (
     <div className="locations-page">
       <header className="locations-page-head">
-        <h1>Ubicaciones</h1>
+        <h1>Locations</h1>
         <p className="muted">
-          Dónde guardas tus copias. Para mover cartas de un sitio a otro, usa la{' '}
-          <a href="/collection?view=list">lista de Mi colección</a>.
+          Where you keep your copies. To move cards from one place to another, use the{' '}
+          <a href="/collection?view=list">My collection list</a>.
         </p>
       </header>
 
-      <nav className="loc-tabs" aria-label="Secciones">
+      <nav className="loc-tabs" aria-label="Sections">
         {SECTIONS.filter((s) => s.kind !== 'other' || counts.other > 0).map((s) => (
           <a key={s.kind} href={`#sec-${s.kind}`} className={current === s.kind ? 'active' : ''}>
             {s.title} <span>{counts[s.kind]}</span>
@@ -160,8 +160,8 @@ export default function LocationsPage() {
       {error && <p className="error">{error}</p>}
       {unplaced && unplaced.copies > 0 && (
         <a className="loc-unplaced" href={collectionUrl(unplaced)}>
-          <strong>{unplaced.copies}</strong> {unplaced.copies === 1 ? 'copia sin ubicar' : 'copias sin ubicar'}
-          <span>Ordenarlas →</span>
+          <strong>{unplaced.copies}</strong> {unplaced.copies === 1 ? 'unsorted copy' : 'unsorted copies'}
+          <span>Sort them →</span>
         </a>
       )}
 
@@ -185,7 +185,7 @@ export default function LocationsPage() {
           {toast.text}
           {toast.href && (
             <a className="btn ghost" href={toast.href}>
-              Abrir el mazo
+              Open the deck
             </a>
           )}
         </div>
@@ -217,7 +217,7 @@ function SectionHead({
         <div className="loc-section-tools">
           {onSort && count > 1 && (
             <button className={`btn ghost ${sorting ? 'on' : ''}`} onClick={onSort}>
-              {sorting ? 'Listo' : 'Ordenar'}
+              {sorting ? 'Done' : 'Reorder'}
             </button>
           )}
           <button className="btn" onClick={() => setAdding((v) => !v)} aria-expanded={adding}>
@@ -250,10 +250,10 @@ function SectionHead({
             aria-label={section.add}
           />
           <button className="btn primary" disabled={busy || !name.trim()}>
-            Crear
+            Create
           </button>
           <button type="button" className="btn ghost" onClick={() => setAdding(false)}>
-            Cancelar
+            Cancel
           </button>
         </form>
       )}
@@ -323,7 +323,7 @@ function DeckSection({
       <SectionHead section={section} count={decks.length} sorting={sorting} onSort={() => setSorting((v) => !v)}
         run={run} busy={busy} nextPosition={(decks.at(-1)?.position ?? 0) + 1} />
       <h3 className="loc-sub">
-        En uso <small>{active.length}</small>
+        In use <small>{active.length}</small>
       </h3>
       {active.length ? (
         sorting ? (
@@ -338,14 +338,14 @@ function DeckSection({
           <div className="locdeck-grid">{active.map((d) => tile(d))}</div>
         )
       ) : (
-        <p className="empty small">No tienes ningún mazo en uso.</p>
+        <p className="empty small">You have no decks in use.</p>
       )}
 
       {parked.length > 0 && (
         <details className="locdeck-parked">
           <summary>
-            Histórico <small>{parked.length}</small>
-            <span className="muted"> · mazos que ya no usas; su última lista queda guardada</span>
+            Archive <small>{parked.length}</small>
+            <span className="muted"> · decks you no longer use; their latest list is saved</span>
           </summary>
           <ul>
             {parked.map((d) => (
@@ -355,14 +355,14 @@ function DeckSection({
                   <span>
                     <strong>{d.name}</strong>
                     <small className="muted">
-                      {d.copies > 0 ? `${d.copies} copias en la caja` : `${d.last_list ?? 0} cartas en su última lista`}
-                      {' · '}en el histórico desde el {formatDate(d.parked_at)}
-                      {timesParked(d) > 1 && ` · ${timesParked(d)}.ª vez`}
+                      {d.copies > 0 ? `${d.copies} copies in the box` : `${d.last_list ?? 0} cards in its latest list`}
+                      {' · '}archived since {formatDate(d.parked_at)}
+                      {timesParked(d) > 1 && ` · ${timesParked(d)} times`}
                     </small>
                   </span>
                 </a>
                 <button className="btn" disabled={busy} onClick={() => onStatus(d, 'active')}>
-                  Volver a usar
+                  Use again
                 </button>
                 <LocMenu loc={d} onEdit={onEdit} onStatus={onStatus} onLog={onLog} />
               </li>
@@ -387,7 +387,7 @@ function DeckTile({
   const issues = deck.issues
   const warnings = [
     issues?.banned.length && `${issues.banned.length} Banned`,
-    issues?.limited.length && `${issues.limited.length} Limited repetida${issues.limited.length > 1 ? 's' : ''}`,
+    issues?.limited.length && `${issues.limited.length} Limited repeated`,
   ].filter(Boolean)
   return (
     <article className={`locdeck-tile ${dragging ? 'dragging' : ''}`}>
@@ -395,7 +395,7 @@ function DeckTile({
         {deck.leader ? (
           <img src={deck.leader.image} alt={`Leader: ${deck.leader.name}`} loading="lazy" referrerPolicy="no-referrer" draggable={false} />
         ) : (
-          <span className="locdeck-art-empty">Sin Leader</span>
+          <span className="locdeck-art-empty">No Leader</span>
         )}
         {deck.leader && (
           <span className="locdeck-colors">
@@ -418,9 +418,9 @@ function DeckTile({
         </div>
         {deck.leader && <small className="muted locdeck-leader-name">{deck.leader.name}</small>}
         <p className="locdeck-stats">
-          <strong>{deck.copies}</strong> copias · {deck.cards} cartas
-          {!!deck.value && <> · <span title="Valor en Cardmarket (sin las falsas)">{formatEur(deck.value)}</span></>}
-          {deck.fakes > 0 && <> · <a className="fake-link" href={`${collectionUrl(deck)}?fakes=1`}>{deck.fakes === 1 ? '1 falsa' : `${deck.fakes} falsas`}</a></>}
+          <strong>{deck.copies}</strong> copies · {deck.cards} cards
+          {!!deck.value && <> · <span title="Cardmarket value (excluding fakes)">{formatEur(deck.value)}</span></>}
+          {deck.fakes > 0 && <> · <a className="fake-link" href={`${collectionUrl(deck)}?fakes=1`}>{deck.fakes === 1 ? '1 fake' : `${deck.fakes} fakes`}</a></>}
         </p>
         {warnings.length > 0 && (
           <p className="locdeck-warn" title={[...(issues?.banned ?? []), ...(issues?.limited ?? [])].join(', ')}>
@@ -452,9 +452,9 @@ function ListSection({
           {l.notes && <small className="muted">{l.notes}</small>}
         </span>
         <span className="loc-row-stats">
-          <strong>{l.copies}</strong> copias · {l.cards} cartas
-          {!!l.value && <> · <span title="Valor en Cardmarket (sin las falsas)">{formatEur(l.value)}</span></>}
-          {l.fakes > 0 && <em className="fake-text"> · {l.fakes === 1 ? '1 falsa' : `${l.fakes} falsas`}</em>}
+          <strong>{l.copies}</strong> copies · {l.cards} cards
+          {!!l.value && <> · <span title="Cardmarket value (excluding fakes)">{formatEur(l.value)}</span></>}
+          {l.fakes > 0 && <em className="fake-text"> · {l.fakes === 1 ? '1 fake' : `${l.fakes} fakes`}</em>}
         </span>
         <span className="loc-bar" aria-hidden="true">
           <i style={{ width: `${(100 * l.copies) / max}%` }} />
@@ -472,7 +472,7 @@ function ListSection({
       <SectionHead section={section} count={items.length} sorting={sorting} onSort={() => setSorting((v) => !v)}
         run={run} busy={busy} nextPosition={(items.at(-1)?.position ?? 0) + 1} />
       {!items.length ? (
-        <p className="empty small">Aún no hay ninguna.</p>
+        <p className="empty small">None yet.</p>
       ) : sorting ? (
         <SortableList ids={items.map((l) => l.id)} onOrder={onOrder} className="loc-rows">
           {items.map((l) => (
@@ -516,27 +516,27 @@ function LocMenu({
   }
   return (
     <div className="loc-menu" ref={ref}>
-      <button className="icon-btn" aria-label={`Opciones de ${loc.name}`} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <button className="icon-btn" aria-label={`Options for ${loc.name}`} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         ⋯
       </button>
       {open && (
         <div className="loc-menu-list" role="menu">
           <button role="menuitem" onClick={pick(() => onEdit(loc))}>
-            Editar…
+            Edit…
           </button>
           {onStatus &&
             (loc.status === 'parked' ? (
               <button role="menuitem" onClick={pick(() => onStatus(loc, 'active'))}>
-                Volver a usar
+                Use again
               </button>
             ) : (
               <button role="menuitem" onClick={pick(() => onStatus(loc, 'parked'))}>
-                Mover al histórico
+                Move to archive
               </button>
             ))}
           {onLog && !!loc.status_log?.length && (
             <button role="menuitem" onClick={pick(() => onLog(loc))}>
-              Registro de uso…
+              Usage log…
             </button>
           )}
         </div>
@@ -572,13 +572,13 @@ function EditDialog({ loc, run, onClose }: { loc: Location; run: Run; onClose: (
           save()
         }}
       >
-        <h2>Editar ubicación</h2>
+        <h2>Edit location</h2>
         <label>
-          Nombre
+          Name
           <input className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} autoFocus />
         </label>
         <label>
-          Tipo
+          Type
           <select className="input" value={kind} onChange={(e) => setKind(e.target.value as LocationKind)}>
             {KINDS.map(([v, l]) => (
               <option key={v} value={v}>
@@ -588,20 +588,20 @@ function EditDialog({ loc, run, onClose }: { loc: Location; run: Run; onClose: (
           </select>
         </label>
         <label>
-          Notas
-          <textarea className="input" rows={3} maxLength={500} value={notes} placeholder="p. ej. caja azul del armario"
+          Notes
+          <textarea className="input" rows={3} maxLength={500} value={notes} placeholder="e.g. blue box in the wardrobe"
             onChange={(e) => setNotes(e.target.value)} />
         </label>
         {confirmDelete ? (
           <div className="loc-dialog-danger">
             <p>
               {loc.copies
-                ? `¿Borrar «${loc.name}»? Sus ${loc.copies} copias pasarán a «Sin ubicar».`
-                : `¿Borrar «${loc.name}»?`}
+                ? `Delete “${loc.name}”? Its ${loc.copies} copies will move to “Unsorted”.`
+                : `Delete “${loc.name}”?`}
             </p>
             <div className="loc-dialog-actions">
               <button type="button" className="btn ghost" onClick={() => setConfirmDelete(false)}>
-                No, mantener
+                No, keep it
               </button>
               <button
                 type="button"
@@ -611,20 +611,20 @@ function EditDialog({ loc, run, onClose }: { loc: Location; run: Run; onClose: (
                   onClose()
                 }}
               >
-                Sí, borrar
+                Yes, delete
               </button>
             </div>
           </div>
         ) : (
           <div className="loc-dialog-actions">
             <button type="button" className="btn ghost danger-text" onClick={() => setConfirmDelete(true)}>
-              Borrar…
+              Delete…
             </button>
             <span className="spacer" />
             <button type="button" className="btn ghost" onClick={onClose}>
-              Cancelar
+              Cancel
             </button>
-            <button className="btn primary">Guardar</button>
+            <button className="btn primary">Save</button>
           </div>
         )}
       </form>
@@ -659,7 +659,7 @@ function HistoryDialog({
   const copies = (cards ?? []).reduce((n, c) => n + c.quantity, 0)
   const distinct = new Set((cards ?? []).map((c) => c.bandai_id)).size
   const asText = () =>
-    (cards ?? []).map((c) => `${c.quantity}x ${c.card_number} ${c.name}${c.fake ? ' (falsa)' : ''}`).join('\n')
+    (cards ?? []).map((c) => `${c.quantity}x ${c.card_number} ${c.name}${c.fake ? ' (fake)' : ''}`).join('\n')
 
   const confirm = async () => {
     setSaving(true)
@@ -679,7 +679,7 @@ function HistoryDialog({
       await navigator.clipboard.writeText(asText())
       setCopied(true)
     } catch {
-      setError('No se pudo copiar: selecciona la lista y cópiala a mano')
+      setError("Couldn't copy: select the list and copy it by hand")
     }
   }
 
@@ -688,21 +688,21 @@ function HistoryDialog({
       <div className="history-body">
         {done ? (
           <>
-            <h2>«{deck.name}» está en el histórico</h2>
+            <h2>“{deck.name}” is in the archive</h2>
             <p>
-              Estas <strong>{copies} copias</strong> ({distinct} cartas) están ahora en <strong>«Sin ubicar»</strong>. Guárdalas
-              donde quieras cuando puedas. Su lista queda guardada en el mazo.
+              These <strong>{copies} copies</strong> ({distinct} cards) are now in <strong>“Unsorted”</strong>. Put them
+              wherever you like when you can. Its list stays saved in the deck.
             </p>
           </>
         ) : (
           <>
-            <h2>Mover «{deck.name}» al histórico</h2>
+            <h2>Move “{deck.name}” to the archive</h2>
             <p className="muted">
               {cards === null
-                ? 'Cargando sus cartas…'
+                ? 'Loading its cards…'
                 : cards.length
-                  ? `Sus ${copies} copias (${distinct} cartas) pasarán a «Sin ubicar». La lista del mazo queda guardada como versión, para que puedas montarlo otra vez.`
-                  : 'El mazo está vacío: solo pasará al histórico.'}
+                  ? `Its ${copies} copies (${distinct} cards) will move to “Unsorted”. The deck list is saved as a version so you can build it again.`
+                  : 'The deck is empty: it will just move to the archive.'}
             </p>
           </>
         )}
@@ -717,7 +717,7 @@ function HistoryDialog({
                 <span className="history-name">
                   {c.name}
                   {c.card_type === 'LEADER' && <em> · Leader</em>}
-                  {c.fake && <em className="fake-text"> · falsa</em>}
+                  {c.fake && <em className="fake-text"> · fake</em>}
                 </span>
               </li>
             ))}
@@ -727,26 +727,26 @@ function HistoryDialog({
           {done ? (
             <>
               <button type="button" className="btn ghost" onClick={copy}>
-                {copied ? 'Copiada ✓' : 'Copiar lista'}
+                {copied ? 'Copied ✓' : 'Copy list'}
               </button>
               <span className="spacer" />
               {unplaced && (
                 <a className="btn" href={collectionUrl(unplaced)}>
-                  Ver «Sin ubicar»
+                  View “Unsorted”
                 </a>
               )}
               <button type="button" className="btn primary" onClick={() => ref.current?.close()}>
-                Cerrar
+                Close
               </button>
             </>
           ) : (
             <>
               <span className="spacer" />
               <button type="button" className="btn ghost" onClick={() => ref.current?.close()} disabled={saving}>
-                Cancelar
+                Cancel
               </button>
               <button type="button" className="btn primary" onClick={confirm} disabled={saving || cards === null}>
-                {saving ? 'Moviendo…' : 'Mover al histórico'}
+                {saving ? 'Moving…' : 'Move to archive'}
               </button>
             </>
           )}
@@ -765,28 +765,28 @@ function LogDialog({ deck, onClose }: { deck: Location; onClose: () => void }) {
   return (
     <dialog ref={ref} className="loc-dialog log-dialog" onClose={onClose}>
       <div className="history-body">
-        <h2>Registro de uso de «{deck.name}»</h2>
+        <h2>Usage log for “{deck.name}”</h2>
         <p className="muted">
-          Ha pasado {times === 1 ? 'una vez' : `${times} veces`} al histórico. Ahora está{' '}
-          <strong>{deck.status === 'parked' ? 'en el histórico' : 'en uso'}</strong>.
+          Moved to the archive {times === 1 ? 'once' : `${times} times`}. It's now{' '}
+          <strong>{deck.status === 'parked' ? 'in the archive' : 'in use'}</strong>.
         </p>
         <ol className="log-list">
           {log.map((e, i) => (
             <li key={i} className={e.status}>
               <time dateTime={e.at}>
                 {formatDate(e.at)}
-                <small>{new Date(e.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</small>
+                <small>{new Date(e.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</small>
               </time>
               <span>
                 {e.status === 'parked' ? (
                   <>
-                    <strong>Al histórico</strong>
+                    <strong>To the archive</strong>
                     <small className="muted">
-                      {e.copies ? `${e.copies} copias pasaron a «Sin ubicar»` : 'con la caja vacía'}
+                      {e.copies ? `${e.copies} copies moved to “Unsorted”` : 'with an empty box'}
                     </small>
                   </>
                 ) : (
-                  <strong>Vuelve a usarse</strong>
+                  <strong>Back in use</strong>
                 )}
               </span>
             </li>
@@ -795,7 +795,7 @@ function LogDialog({ deck, onClose }: { deck: Location; onClose: () => void }) {
         <div className="loc-dialog-actions">
           <span className="spacer" />
           <button type="button" className="btn primary" onClick={() => ref.current?.close()}>
-            Cerrar
+            Close
           </button>
         </div>
       </div>

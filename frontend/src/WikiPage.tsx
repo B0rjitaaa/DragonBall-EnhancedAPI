@@ -1,13 +1,66 @@
-// Wiki (/wiki y /wiki/<slug>): guía de uso y documentación técnica. El contenido es el Markdown de
-// frontend/wiki/ (ver lib/wiki.ts), el mismo que se lee en el repositorio. Va en tema claro de lectura,
-// aparte del oscuro del resto de la web.
+// Wiki (/wiki y /wiki/<slug>): guía de uso y documentación técnica, en inglés y en español (botón
+// ES / EN). El contenido es el Markdown de frontend/wiki/<idioma>/ (ver lib/wiki.ts), el mismo que se
+// lee en el repositorio. Va en tema claro de lectura, aparte del oscuro del resto de la web.
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import {
-  WIKI_ARTICLES, WIKI_CATEGORIES, articleBySlug, articleText, imageUrl, renderArticle, wikiPath, type WikiArticle,
+  WIKI_ARTICLES, WIKI_CATEGORIES, WIKI_LANGS, articleBySlug, articleText, imageUrl, initialLang, renderArticle, saveLang,
+  wikiPath, type WikiArticle, type WikiLang,
 } from './lib/wiki'
 import NotFoundPage from './NotFoundPage'
 
 const REPO_WIKI = 'https://github.com/B0rjitaaa/DragonBall-EnhancedAPI/tree/main/frontend/wiki'
+
+// Los textos propios de la página (los artículos ya vienen en su idioma).
+const TEXT = {
+  en: {
+    articles: (n: number) => `${n} articles`,
+    heading: 'How can we help?',
+    intro: 'How each part of the app works, where the data comes from and how everything is built inside.',
+    placeholder: 'Search a topic: “fakes”, “burst”, “Cardmarket”, “backup”…',
+    searchLabel: 'Search the wiki',
+    categories: 'Categories',
+    results: (n: number, q: string) => `${n} ${n === 1 ? 'article' : 'articles'} about “${q}”`,
+    empty: 'Nothing about that. Try another word or browse the categories.',
+    read: 'Read →',
+    all: 'All articles',
+    home: '← Wiki home',
+    youAreIn: 'You are in',
+    minutes: (n: number) => `${n} min read`,
+    repo: 'View on GitHub ↗',
+    more: 'More articles',
+    prev: '← Previous',
+    next: 'Next →',
+    onThisPage: 'On this page',
+    top: 'Back to top',
+    zoom: 'Enlarged image',
+    close: 'Click anywhere or press Esc to close',
+    language: 'Language',
+  },
+  es: {
+    articles: (n: number) => `${n} artículos`,
+    heading: '¿En qué te podemos ayudar?',
+    intro: 'Cómo se usa cada parte de la web, de dónde salen los datos y cómo está montado todo por dentro.',
+    placeholder: 'Busca un tema: «fakes», «burst», «Cardmarket», «backup»…',
+    searchLabel: 'Buscar en la wiki',
+    categories: 'Categorías',
+    results: (n: number, q: string) => `${n} ${n === 1 ? 'artículo' : 'artículos'} sobre «${q}»`,
+    empty: 'No hay nada sobre eso. Prueba con otra palabra o mira las categorías.',
+    read: 'Leer →',
+    all: 'Todos los artículos',
+    home: '← Portada de la wiki',
+    youAreIn: 'Estás en',
+    minutes: (n: number) => `${n} min de lectura`,
+    repo: 'Ver en GitHub ↗',
+    more: 'Más artículos',
+    prev: '← Anterior',
+    next: 'Siguiente →',
+    onThisPage: 'En esta página',
+    top: 'Volver arriba',
+    zoom: 'Imagen ampliada',
+    close: 'Pulsa en cualquier sitio o Esc para cerrar',
+    language: 'Idioma',
+  },
+} satisfies Record<WikiLang, unknown>
 
 function norm(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -19,12 +72,12 @@ function wikiSlug(): string | null {
 }
 
 /** Artículos que contienen todas las palabras: primero los que las tienen en el título. */
-function searchArticles(query: string): WikiArticle[] | null {
+function searchArticles(query: string, lang: WikiLang): WikiArticle[] | null {
   const words = norm(query).split(/\s+/).filter(Boolean)
   if (!words.length) return null
   return WIKI_ARTICLES.map((a) => {
-    const head = norm(`${a.title} ${a.excerpt} ${a.keywords ?? ''}`)
-    const body = norm(articleText(a.slug))
+    const head = norm(`${a.title[lang]} ${a.excerpt[lang]} ${a.keywords ?? ''}`)
+    const body = norm(articleText(a.slug, lang))
     if (!words.every((w) => head.includes(w) || body.includes(w))) return null
     return { a, score: words.filter((w) => head.includes(w)).length }
   })
@@ -33,17 +86,44 @@ function searchArticles(query: string): WikiArticle[] | null {
     .map((r) => r.a)
 }
 
+/** Botón ES / EN: cambia el idioma de toda la wiki y lo recuerda. */
+function LangSwitch({ lang, onChange }: { lang: WikiLang; onChange: (lang: WikiLang) => void }) {
+  return (
+    <div className="wiki-lang" role="group" aria-label={TEXT[lang].language}>
+      {WIKI_LANGS.map((l) => (
+        <button key={l} type="button" className={l === lang ? 'active' : ''} aria-pressed={l === lang} lang={l} onClick={() => onChange(l)}>
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function WikiPage() {
   const slug = wikiSlug()
   const article = slug ? articleBySlug(slug) : undefined
+  const [lang, setLang] = useState<WikiLang>(initialLang)
+  const changeLang = (l: WikiLang) => {
+    setLang(l)
+    saveLang(l)
+  }
   useEffect(() => {
-    document.title = article ? `${article.title} · Wiki` : 'Wiki · DragonBall EnhancedAPI'
-  }, [article])
+    document.title = article ? `${article.title[lang]} · Wiki` : 'Wiki · DragonBall EnhancedAPI'
+    document.documentElement.lang = lang
+    return () => {
+      document.documentElement.lang = 'en'
+    }
+  }, [article, lang])
   if (slug && !article) return <NotFoundPage />
-  return <div className="wiki-shell">{article ? <WikiArticleView article={article} /> : <WikiIndex />}</div>
+  return (
+    <div className="wiki-shell" lang={lang}>
+      <LangSwitch lang={lang} onChange={changeLang} />
+      {article ? <WikiArticleView key={`${article.slug}-${lang}`} article={article} lang={lang} /> : <WikiIndex lang={lang} />}
+    </div>
+  )
 }
 
-function ArticleCard({ a }: { a: WikiArticle }) {
+function ArticleCard({ a, lang }: { a: WikiArticle; lang: WikiLang }) {
   const cover = a.cover ? imageUrl(a.cover) : undefined
   return (
     <a className="wiki-card" href={wikiPath(a.slug)}>
@@ -51,42 +131,41 @@ function ArticleCard({ a }: { a: WikiArticle }) {
         {cover ? <img src={cover} alt="" loading="lazy" /> : <span aria-hidden>{a.icon}</span>}
       </div>
       <div className="wiki-card-body">
-        <h3>{a.title}</h3>
-        <p>{a.excerpt}</p>
-        <span className="wiki-card-more">Leer →</span>
+        <h3>{a.title[lang]}</h3>
+        <p>{a.excerpt[lang]}</p>
+        <span className="wiki-card-more">{TEXT[lang].read}</span>
       </div>
     </a>
   )
 }
 
-function WikiIndex() {
+function WikiIndex({ lang }: { lang: WikiLang }) {
+  const t = TEXT[lang]
   const [query, setQuery] = useState('')
-  const results = useMemo(() => searchArticles(query), [query])
+  const results = useMemo(() => searchArticles(query, lang), [query, lang])
 
   return (
     <div className="wiki-index">
       <header className="wiki-hero">
-        <p className="wiki-eyebrow">📖 Wiki · {WIKI_ARTICLES.length} artículos</p>
-        <h1>¿En qué te podemos ayudar?</h1>
-        <p className="wiki-hero-text">
-          Cómo se usa cada parte de la web, de dónde salen los datos y cómo está montado todo por dentro.
-        </p>
+        <p className="wiki-eyebrow">📖 Wiki · {t.articles(WIKI_ARTICLES.length)}</p>
+        <h1>{t.heading}</h1>
+        <p className="wiki-hero-text">{t.intro}</p>
         <div className="wiki-search">
           <span aria-hidden>🔍</span>
           <input
             type="search"
-            placeholder="Busca un tema: «falsas», «ráfaga», «Cardmarket», «copia de seguridad»…"
+            placeholder={t.placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Buscar en la wiki"
+            aria-label={t.searchLabel}
             autoFocus
           />
         </div>
         {!results && (
-          <nav className="wiki-chips" aria-label="Categorías">
+          <nav className="wiki-chips" aria-label={t.categories}>
             {WIKI_CATEGORIES.map((c) => (
               <a key={c.id} href={`#${c.id}`}>
-                <span aria-hidden>{c.icon}</span> {c.label}
+                <span aria-hidden>{c.icon}</span> {c.label[lang]}
               </a>
             ))}
           </nav>
@@ -96,16 +175,16 @@ function WikiIndex() {
       {results ? (
         <section className="wiki-category">
           <h2 className="wiki-results-head">
-            {results.length} {results.length === 1 ? 'artículo' : 'artículos'} sobre «{query.trim()}»
+            {t.results(results.length, query.trim())}
           </h2>
           {results.length ? (
             <div className="wiki-grid">
               {results.map((a) => (
-                <ArticleCard key={a.slug} a={a} />
+                <ArticleCard key={a.slug} a={a} lang={lang} />
               ))}
             </div>
           ) : (
-            <p className="wiki-empty">No hay nada sobre eso. Prueba con otra palabra o mira las categorías.</p>
+            <p className="wiki-empty">{t.empty}</p>
           )}
         </section>
       ) : (
@@ -119,13 +198,13 @@ function WikiIndex() {
                   {cat.icon}
                 </span>
                 <div>
-                  <h2>{cat.label}</h2>
-                  <p>{cat.blurb}</p>
+                  <h2>{cat.label[lang]}</h2>
+                  <p>{cat.blurb[lang]}</p>
                 </div>
               </div>
               <div className="wiki-grid">
                 {articles.map((a) => (
-                  <ArticleCard key={a.slug} a={a} />
+                  <ArticleCard key={a.slug} a={a} lang={lang} />
                 ))}
               </div>
             </section>
@@ -137,17 +216,17 @@ function WikiIndex() {
 }
 
 /** Menú lateral con todos los artículos (en el móvil, plegable). */
-function WikiSidebar({ current }: { current: WikiArticle }) {
+function WikiSidebar({ current, lang }: { current: WikiArticle; lang: WikiLang }) {
   return (
     <details className="wiki-sidebar" open={window.innerWidth > 1000}>
-      <summary>Todos los artículos</summary>
+      <summary>{TEXT[lang].all}</summary>
       <a className="wiki-sidebar-home" href={wikiPath()}>
-        ← Portada de la wiki
+        {TEXT[lang].home}
       </a>
       {WIKI_CATEGORIES.map((cat) => (
         <div key={cat.id} className="wiki-sidebar-group">
           <strong>
-            <span aria-hidden>{cat.icon}</span> {cat.label}
+            <span aria-hidden>{cat.icon}</span> {cat.label[lang]}
           </strong>
           {WIKI_ARTICLES.filter((a) => a.category === cat.id).map((a) => (
             <a
@@ -156,7 +235,7 @@ function WikiSidebar({ current }: { current: WikiArticle }) {
               className={a.slug === current.slug ? 'active' : ''}
               aria-current={a.slug === current.slug ? 'page' : undefined}
             >
-              {a.title}
+              {a.title[lang]}
             </a>
           ))}
         </div>
@@ -165,8 +244,9 @@ function WikiSidebar({ current }: { current: WikiArticle }) {
   )
 }
 
-function WikiArticleView({ article }: { article: WikiArticle }) {
-  const rendered = useMemo(() => renderArticle(article.slug), [article.slug])
+function WikiArticleView({ article, lang }: { article: WikiArticle; lang: WikiLang }) {
+  const t = TEXT[lang]
+  const rendered = useMemo(() => renderArticle(article.slug, lang), [article.slug, lang])
   const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [showTop, setShowTop] = useState(false)
@@ -174,7 +254,7 @@ function WikiArticleView({ article }: { article: WikiArticle }) {
   const index = WIKI_ARTICLES.indexOf(article)
   const prev = WIKI_ARTICLES[index - 1]
   const next = WIKI_ARTICLES[index + 1]
-  const minutes = Math.max(1, Math.round(articleText(article.slug).split(/\s+/).length / 200))
+  const minutes = Math.max(1, Math.round(articleText(article.slug, lang).split(/\s+/).length / 200))
 
   // Al entrar con #apartado, la página aún no estaba pintada: se baja ahora.
   useEffect(() => {
@@ -216,51 +296,51 @@ function WikiArticleView({ article }: { article: WikiArticle }) {
 
   return (
     <div className="wiki-article-layout">
-      <WikiSidebar current={article} />
+      <WikiSidebar current={article} lang={lang} />
 
       <article className="wiki-article">
-        <nav className="wiki-breadcrumb" aria-label="Estás en">
+        <nav className="wiki-breadcrumb" aria-label={t.youAreIn}>
           <a href={wikiPath()}>Wiki</a>
           <span aria-hidden>›</span>
-          <a href={`${wikiPath()}#${category?.id ?? ''}`}>{category?.label}</a>
+          <a href={`${wikiPath()}#${category?.id ?? ''}`}>{category?.label[lang]}</a>
         </nav>
         <h1>
           <span className="wiki-title-icon" aria-hidden>
             {article.icon}
           </span>
-          {article.title}
+          {article.title[lang]}
         </h1>
-        <p className="wiki-excerpt">{article.excerpt}</p>
+        <p className="wiki-excerpt">{article.excerpt[lang]}</p>
         <p className="wiki-meta">
-          {minutes} min de lectura ·{' '}
-          <a href={`${REPO_WIKI}/${article.slug}.md`} target="_blank" rel="noreferrer">
-            Ver en el repositorio ↗
+          {t.minutes(minutes)} ·{' '}
+          <a href={`${REPO_WIKI}/${lang}/${article.slug}.md`} target="_blank" rel="noreferrer">
+            {t.repo}
           </a>
         </p>
         {rendered && (
           <div className="wiki-body" onClick={onBodyClick} dangerouslySetInnerHTML={{ __html: rendered.html }} />
         )}
-        <nav className="wiki-pager" aria-label="Más artículos">
+        <nav className="wiki-pager" aria-label={t.more}>
           {prev ? (
             <a href={wikiPath(prev.slug)}>
-              <small>← Anterior</small>
-              <strong>{prev.title}</strong>
+              <small>{t.prev}</small>
+              <strong>{prev.title[lang]}</strong>
             </a>
           ) : (
             <span />
           )}
           {next && (
             <a href={wikiPath(next.slug)} className="next">
-              <small>Siguiente →</small>
-              <strong>{next.title}</strong>
+              <small>{t.next}</small>
+              <strong>{next.title[lang]}</strong>
             </a>
           )}
         </nav>
       </article>
 
       {rendered && rendered.toc.length > 1 && (
-        <aside className="wiki-toc" aria-label="En esta página">
-          <strong>En esta página</strong>
+        <aside className="wiki-toc" aria-label={t.onThisPage}>
+          <strong>{t.onThisPage}</strong>
           {rendered.toc.map((h) => (
             <a key={h.id} href={`#${h.id}`} className={h.id === activeId ? 'active' : ''}>
               {h.text}
@@ -270,15 +350,15 @@ function WikiArticleView({ article }: { article: WikiArticle }) {
       )}
 
       {showTop && (
-        <button className="wiki-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Volver arriba">
+        <button className="wiki-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label={t.top}>
           ↑
         </button>
       )}
       {zoom && (
-        <div className="wiki-zoom" onClick={() => setZoom(null)} role="dialog" aria-label={zoom.alt || 'Imagen ampliada'}>
+        <div className="wiki-zoom" onClick={() => setZoom(null)} role="dialog" aria-label={zoom.alt || t.zoom}>
           <img src={zoom.src} alt={zoom.alt} />
           {zoom.alt && <p>{zoom.alt}</p>}
-          <small>Pulsa en cualquier sitio o Esc para cerrar</small>
+          <small>{t.close}</small>
         </div>
       )}
     </div>

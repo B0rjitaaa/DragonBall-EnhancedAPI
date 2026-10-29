@@ -52,7 +52,7 @@ def load(path: str | Path) -> dict[str, int]:
     """Carga un volcado sustituyendo los precios que hubiera. Devuelve cuántas filas de cada tabla."""
     doc = read_json(path)
     if doc.get("format") != FORMAT:
-        raise ValueError(f"{path} no es un volcado de precios ({FORMAT})")
+        raise ValueError(f"{path} is not a price dump ({FORMAT})")
     cards = set(Card.objects.values_list("id", flat=True))
     by_model: dict[type, list] = {model: [] for model in MODELS}
     for item in serializers.deserialize("python", doc["objects"]):
@@ -83,6 +83,6 @@ def refresh_file(path: str | Path | None) -> None:
         return
     try:
         counts = export(path)
-        logger.info("Volcado de precios en %s: %s", path, counts)
+        logger.info("Price dump written to %s: %s", path, counts)
     except OSError:
-        logger.warning("No se pudo escribir el volcado de precios en %s", path, exc_info=True)
+        logger.warning("Could not write the price dump to %s", path, exc_info=True)

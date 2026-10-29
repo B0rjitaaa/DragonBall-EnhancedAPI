@@ -6,22 +6,24 @@ from django.utils import timezone
 
 from cards.models import Card
 
-DEFAULT_LOCATION_NAME = "Sin ubicar"
+DEFAULT_LOCATION_NAME = "Unsorted"
+# Nombre que tenía antes (instalaciones y copias de la colección anteriores).
+OLD_DEFAULT_LOCATION_NAME = "Sin ubicar"
 
 
 class Location(models.Model):
     """Dónde están guardadas las copias: un mazo, un archivador, una caja…"""
 
     class Kind(models.TextChoices):
-        DECK = "deck", "Mazo"
-        BINDER = "binder", "Archivador"
-        STORAGE = "storage", "Almacén"
-        OTHER = "other", "Otro"
+        DECK = "deck", "Deck"
+        BINDER = "binder", "Binder"
+        STORAGE = "storage", "Storage"
+        OTHER = "other", "Other"
 
     class Status(models.TextChoices):
         # Solo cuenta en los mazos: "en el histórico" = ya no lo usas (sus copias pasan a "Sin ubicar").
-        ACTIVE = "active", "En uso"
-        PARKED = "parked", "En el histórico"
+        ACTIVE = "active", "In use"
+        PARKED = "parked", "Archived"
 
     # Identificador estable para enlaces (/coleccion/mazo/<uid>), que no cambia al renombrar.
     uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -95,7 +97,7 @@ class CollectionEntry(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.quantity}x {self.card} ({self.location}{', falsa' if self.fake else ''})"
+        return f"{self.quantity}x {self.card} ({self.location}{', fake' if self.fake else ''})"
 
     def save(self, *args, **kwargs):
         if self._state.adding and not self.position:

@@ -139,20 +139,20 @@ class SyncRunSerializer(serializers.ModelSerializer):
 
 class SearchRequestSerializer(serializers.Serializer):
     q = serializers.CharField(required=False, allow_blank=True, max_length=200,
-                              help_text="Búsqueda libre en nombre, número y texto")
-    query = serializers.JSONField(required=False, allow_null=True, help_text="Árbol AND/OR de condiciones")
+                              help_text="Free-text search in name, number and text")
+    query = serializers.JSONField(required=False, allow_null=True, help_text="AND/OR tree of conditions")
     ordering = serializers.CharField(required=False, allow_blank=True)
     page = serializers.IntegerField(required=False, min_value=1, default=1)
     page_size = serializers.IntegerField(required=False, min_value=1, max_value=200, default=48)
     scope = serializers.ChoiceField(choices=["all", "collection"], required=False, default="all",
-                                    help_text="collection: solo las cartas de Mi colección (con sus copias)")
+                                    help_text="collection: only the cards in My collection (with their copies)")
     location = serializers.IntegerField(required=False, allow_null=True,
-                                        help_text="Con scope=collection: solo las copias de esa ubicación")
+                                        help_text="With scope=collection: only the copies in that location")
     fake = serializers.BooleanField(required=False, allow_null=True, default=None,
-                                    help_text="Con scope=collection y true: solo las cartas con copias falsas")
+                                    help_text="With scope=collection and true: only cards with fake copies")
     include_fakes = serializers.BooleanField(required=False, allow_null=True, default=None,
-                                             help_text="Con scope=collection: contar también las copias falsas "
-                                                       "(por defecto solo las auténticas)")
+                                             help_text="With scope=collection: also count fake copies "
+                                                       "(by default only genuine ones)")
 
 
 class BanListEntrySerializer(serializers.ModelSerializer):

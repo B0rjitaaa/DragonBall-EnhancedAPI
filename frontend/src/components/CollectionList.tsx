@@ -21,7 +21,7 @@ const copiesIn = (card: CardSummary, location: number, withFakes = true) =>
   (card.locations ?? []).filter((l) => l.id === location && (withFakes || !l.fake)).reduce((n, l) => n + l.quantity, 0)
 
 const spotKey = (l: OwnedLocation) => `${l.id}:${l.fake ? 1 : 0}`
-const spotLabel = (l: OwnedLocation) => (l.fake ? `${l.name} (falsas)` : l.name)
+const spotLabel = (l: OwnedLocation) => (l.fake ? `${l.name} (fakes)` : l.name)
 
 /** Mi colección en modo lista: una fila por carta con su reparto y controles para mover copias. */
 export default function CollectionList({ cards, locations, filterLocation, showFakes = true, loading, busy, onOpen, onMove }: Props) {
@@ -63,7 +63,7 @@ export default function CollectionList({ cards, locations, filterLocation, showF
     }
   }
 
-  if (!loading && cards.length === 0) return <div className="empty">No hay cartas que cumplan estos filtros.</div>
+  if (!loading && cards.length === 0) return <div className="empty">No cards match these filters.</div>
 
   return (
     <div className={`collection-list ${loading ? 'loading' : ''}`}>
@@ -73,18 +73,18 @@ export default function CollectionList({ cards, locations, filterLocation, showF
             type="checkbox"
             checked={allChecked}
             onChange={() => setSelected(allChecked ? new Set() : new Set(cards.map((c) => c.id)))}
-            aria-label="Seleccionar todas las de esta página"
+            aria-label="Select all on this page"
           />
-          {chosen.length ? `${chosen.length} seleccionadas` : 'Seleccionar todas'}
+          {chosen.length ? `${chosen.length} selected` : 'Select all'}
         </label>
         {chosen.length > 0 && (
           <span className="bulk-move">
-            Mover
+            Move
             <select className="input" value={bulkAll ? 'all' : 'one'} onChange={(e) => setBulkAll(e.target.value === 'all')}>
-              <option value="all">todas sus copias</option>
-              <option value="one">1 copia</option>
+              <option value="all">all their copies</option>
+              <option value="one">1 copy</option>
             </select>
-            de
+            from
             <select className="input" value={bulkSource} onChange={(e) => setBulkSource(e.target.value ? Number(e.target.value) : '')}>
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -92,9 +92,9 @@ export default function CollectionList({ cards, locations, filterLocation, showF
                 </option>
               ))}
             </select>
-            a
+            to
             <select className="input" value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value ? Number(e.target.value) : '')}>
-              <option value="">elige destino…</option>
+              <option value="">choose destination…</option>
               {locations
                 .filter((l) => l.id !== source)
                 .map((l) => (
@@ -107,12 +107,12 @@ export default function CollectionList({ cards, locations, filterLocation, showF
               className="btn primary"
               disabled={bulkBusy || bulkTarget === '' || movable.length === 0}
               onClick={() => void bulkMove()}
-              title={movable.length < chosen.length ? `${chosen.length - movable.length} no tienen copias en el origen` : undefined}
+              title={movable.length < chosen.length ? `${chosen.length - movable.length} have no copies in the source` : undefined}
             >
-              {bulkBusy ? 'Moviendo…' : `Mover ${movable.length}`}
+              {bulkBusy ? 'Moving…' : `Move ${movable.length}`}
             </button>
             <button className="link small" onClick={() => setSelected(new Set())}>
-              Quitar selección
+              Clear selection
             </button>
           </span>
         )}
@@ -175,8 +175,8 @@ function ListRow({
 
   return (
     <li className={`list-row ${checked ? 'checked' : ''}`}>
-      <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`Seleccionar ${card.name}`} />
-      <button className="list-card" onClick={onOpen} title="Ver ficha">
+      <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`Select ${card.name}`} />
+      <button className="list-card" onClick={onOpen} title="View card">
         <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" />
         <span>
           <strong>{card.name}</strong>
@@ -185,7 +185,7 @@ function ListRow({
           </small>
         </span>
       </button>
-      <span className="list-total" title="Copias en total">
+      <span className="list-total" title="Total copies">
         ×{owned.reduce((n, l) => n + l.quantity, 0)}
       </span>
       <span className="list-locs">
@@ -196,7 +196,7 @@ function ListRow({
             title={l.notes || undefined}
           >
             {l.name}
-            {l.fake && <em> falsa</em>} <strong>{l.quantity}</strong>
+            {l.fake && <em> fake</em>} <strong>{l.quantity}</strong>
           </span>
         ))}
       </span>
@@ -208,10 +208,10 @@ function ListRow({
           max={have}
           value={amount}
           onChange={(e) => setQty(Number(e.target.value))}
-          aria-label="Copias a mover"
+          aria-label="Copies to move"
           disabled={!have}
         />
-        de
+        from
         <select
           className="input"
           value={sourceKey}
@@ -219,7 +219,7 @@ function ListRow({
             setSourceKey(e.target.value)
             setQty(owned.find((l) => spotKey(l) === e.target.value)?.quantity ?? 0)
           }}
-          aria-label="Origen"
+          aria-label="Source"
         >
           {owned.map((l) => (
             <option key={spotKey(l)} value={spotKey(l)}>
@@ -227,14 +227,14 @@ function ListRow({
             </option>
           ))}
         </select>
-        a
+        to
         <select
           className="input"
           value={target}
           onChange={(e) => setTarget(e.target.value ? Number(e.target.value) : '')}
-          aria-label="Destino"
+          aria-label="Destination"
         >
-          <option value="">destino…</option>
+          <option value="">destination…</option>
           {locations
             .filter((l) => l.id !== source)
             .map((l) => (
@@ -251,7 +251,7 @@ function ListRow({
             setTarget('')
           }}
         >
-          Mover
+          Move
         </button>
       </span>
     </li>

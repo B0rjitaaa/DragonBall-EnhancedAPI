@@ -85,7 +85,7 @@ class HealthTests(HealthFixture, TestCase):
             r = self.get()
         self.assertEqual(r.json()["status"], "ok")
         self.assertFalse(self.checks(r)["camera"]["ok"])
-        self.assertIn("sin webcam", self.checks(r)["camera"]["detail"])
+        self.assertIn("no webcam", self.checks(r)["camera"]["detail"])
 
 
 @override_settings(CACHES=LOCMEM, CAMERA_URL="")
@@ -115,13 +115,13 @@ class BackupHealthTests(HealthFixture, TestCase):
             status, check = self.backup()
         self.assertEqual(status, "ok")
         self.assertTrue(check["ok"])
-        self.assertIn("copiada fuera del servidor", check["detail"])
+        self.assertIn("copied off the server", check["detail"])
 
     def test_failed_old_or_not_replicated_is_a_warning(self):
         cases = [
             ({"status": "error", "message": "falló en: volumen media"}, "falló"),
-            ({"finished_at": (timezone.now() - timedelta(hours=40)).isoformat()}, "hace"),
-            ({"remote": "error"}, "copia fuera del servidor falló"),
+            ({"finished_at": (timezone.now() - timedelta(hours=40)).isoformat()}, "h ago"),
+            ({"remote": "error"}, "off-server copy failed"),
         ]
         for fields, text in cases:
             with self.subTest(fields=fields), self.write(**fields):
@@ -134,7 +134,7 @@ class BackupHealthTests(HealthFixture, TestCase):
         with override_settings(BACKUP_STATUS_FILE="/no/existe/last_status.json"):
             status, check = self.backup()
         self.assertEqual(status, "degraded")
-        self.assertIn("no hay registro", check["detail"])
+        self.assertIn("no backup on record", check["detail"])
 
 
 @override_settings(CACHES=LOCMEM, CAMERA_URL="", TELEGRAM_BOT_TOKEN="t", TELEGRAM_CHAT_ID="1")
@@ -166,15 +166,15 @@ class AlertTests(HealthFixture, TestCase):
         self.age_state("scanner_worker", 11)
         sent, calls = self.run_check(only_celery)
         self.assertEqual(len(sent), 1)
-        self.assertIn("Worker del escáner", sent[0])
-        self.assertIn("desde hace 11 min", sent[0])
+        self.assertIn("Scanner worker", sent[0])
+        self.assertIn("for 11 min", sent[0])
         self.assertFalse(calls[0]["disable_notification"])  # crítico: con sonido
 
         self.assertEqual(self.run_check(only_celery)[0], [])  # ya avisado: no se repite
 
         sent, _ = self.run_check()
         self.assertEqual(len(sent), 1)
-        self.assertIn("Vuelve a funcionar: Worker del escáner", sent[0])
+        self.assertIn("Working again: Scanner worker", sent[0])
 
     def test_short_outage_is_never_reported(self):
         self.run_check([{"celery@mint": {"ok": "pong"}}])
@@ -201,7 +201,7 @@ class HeartbeatTests(TestCase):
     """Latido a Healthchecks.io (o compatible): si deja de llegar, avisa el servicio externo."""
 
     def report(self, worker_ok=True):
-        return {"checks": [{"key": "worker", "label": "Worker de Celery", "kind": "critical", "ok": worker_ok},
+        return {"checks": [{"key": "worker", "label": "Celery worker", "kind": "critical", "ok": worker_ok},
                            {"key": "backup", "label": "Copia de seguridad", "kind": "warning", "ok": False}]}
 
     def test_ping_ok_and_fail(self):
@@ -214,7 +214,7 @@ class HeartbeatTests(TestCase):
                 self.assertTrue(ping_heartbeat(self.report()))  # un aviso menor no cuenta: latido normal
                 ping_heartbeat(self.report(worker_ok=False))
         self.assertEqual([c.args[0] for c in post.call_args_list], ["https://hc-ping.com/abc", "https://hc-ping.com/abc/fail"])
-        self.assertEqual(post.call_args.kwargs["data"], "Worker de Celery".encode())
+        self.assertEqual(post.call_args.kwargs["data"], "Celery worker".encode())
 
 
 class EnsureAdminTests(TestCase):

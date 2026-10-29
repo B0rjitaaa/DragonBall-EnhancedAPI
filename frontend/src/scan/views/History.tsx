@@ -5,11 +5,11 @@ import { api } from "../api";
 import ScanResult from "../components/ScanResult";
 import type { Scan, ScanStatus } from "../types";
 
-const SOURCE_LABEL: Record<Scan["source"], string> = { camera: "Cámara", upload: "Foto subida" };
+const SOURCE_LABEL: Record<Scan["source"], string> = { camera: "Camera", upload: "Uploaded photo" };
 const STATUS_LABEL: Record<ScanStatus, string> = {
-  pending: "En cola…",
-  processing: "Identificando…",
-  done: "Hecho",
+  pending: "Queued…",
+  processing: "Identifying…",
+  done: "Done",
   failed: "Error",
 };
 
@@ -23,7 +23,7 @@ export default function History() {
   });
 
   if (scans.isError) return <p className="error">{scans.error.message}</p>;
-  if (!scans.data) return <p className="muted">Cargando…</p>;
+  if (!scans.data) return <p className="muted">Loading…</p>;
 
   return (
     <div>
@@ -31,11 +31,11 @@ export default function History() {
         <thead>
           <tr>
             <th />
-            <th>Fecha</th>
-            <th>Origen</th>
-            <th>Resultado</th>
-            <th>Confianza</th>
-            <th>Tiempo</th>
+            <th>Date</th>
+            <th>Source</th>
+            <th>Result</th>
+            <th>Confidence</th>
+            <th>Time</th>
           </tr>
         </thead>
         <tbody>
@@ -59,11 +59,11 @@ export default function History() {
       </table>
       <div className="pager">
         <button disabled={!scans.data.previous} onClick={() => setPage((p) => p - 1)}>
-          ← Anterior
+          ← Previous
         </button>
-        <span>Página {page}</span>
+        <span>Page {page}</span>
         <button disabled={!scans.data.next} onClick={() => setPage((p) => p + 1)}>
-          Siguiente →
+          Next →
         </button>
       </div>
 

@@ -142,7 +142,7 @@ def _summary(card: Card) -> dict:
 def _card(card_id: int) -> Card:
     card = Card.objects.filter(id=card_id).first()
     if card is None:
-        raise CollectionUnavailable("Carta desconocida", 404)
+        raise CollectionUnavailable("Unknown card", 404)
     return card
 
 
@@ -151,7 +151,7 @@ def _location(location_id: int | None) -> Location | None:
         return None
     location = Location.objects.filter(id=location_id).first()
     if location is None:
-        raise CollectionUnavailable("Ubicación desconocida", 400, {"location": "Ubicación desconocida"})
+        raise CollectionUnavailable("Unknown location", 400, {"location": "Unknown location"})
     return location
 
 
@@ -188,11 +188,11 @@ def note_owned(card_id: int, location: int, notes: str, fake: bool = False) -> d
     card = _card(card_id)
     updated = CollectionEntry.objects.filter(card=card, location=_location(location), fake=fake).update(notes=notes)
     if not updated:
-        raise CollectionUnavailable("No hay copias de esa carta en esa ubicación", 404)
+        raise CollectionUnavailable("There are no copies of that card in that location", 404)
     return _summary(card)
 
 
-KIND_NAMES = {"deck": "mazo", "binder": "archivador", "storage": "almacén", "other": "otro"}
+KIND_NAMES = {"deck": "deck", "binder": "binder", "storage": "storage", "other": "other"}
 
 
 def reorder_owned(location: int, card_ids: list[int]) -> None:

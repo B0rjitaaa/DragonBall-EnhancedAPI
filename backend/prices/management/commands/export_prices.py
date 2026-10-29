@@ -5,13 +5,13 @@ from prices.snapshot import export
 
 
 class Command(BaseCommand):
-    help = "Vuelca los precios (Cardmarket, TCGplayer, emparejamientos, precios e historial) a un JSON."
+    help = "Dumps prices (Cardmarket, TCGplayer, matches, prices and history) to a JSON file."
 
     def add_arguments(self, parser):
         parser.add_argument("path", nargs="?", default=settings.PRICES_SNAPSHOT or "/data/precios_dbs.json")
 
     def handle(self, *args, path, **options):
         counts = export(path)
-        self.stdout.write(self.style.SUCCESS(f"Precios volcados en {path}: {sum(counts.values())} filas"))
+        self.stdout.write(self.style.SUCCESS(f"Prices dumped to {path}: {sum(counts.values())} rows"))
         for label, n in counts.items():
             self.stdout.write(f"  {label}: {n}")
