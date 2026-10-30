@@ -65,6 +65,25 @@ Cada carta con problemas lleva una marca con el motivo.
 
 **Pulsa cualquier barra o color para filtrar la lista**: por ejemplo, ver solo las cartas de coste 2. Cada sección dice entonces «X of Y cards». **«✕ Clear filters»** vuelve a mostrarlo todo.
 
+### Exportar el mazo
+
+Debajo de la comprobación de reglas hay dos botones. Usan **la lista que estás viendo**: la principal (con los cambios sin guardar) o la versión guardada que hayas elegido.
+
+- **«Open in Time Chamber ↗»** (abrir en Time Chamber) abre el mazo en [Time Chamber](https://time-chamber.net/), el simulador y creador de mazos online de Masters, en una pestaña nueva: Leader, Main Deck, Z Deck y Side Deck. Para verlo y jugarlo allí no hace falta cuenta; para guardarlo, sí.
+- **«Copy deck list»** (copiar la lista) copia la lista en texto, por secciones, lista para pegarla en TCGArena, Discord o un mensaje:
+
+```
+_____Leader_____
+Cell // Cell, Return of the Ultimate Lifeform [EX20-01]
+
+_____Main Deck_____
+2 Android 20, Vile Creator [BT5-070]
+4 Dormant Potential Unleashed [BT10-088]
+…
+```
+
+Las distintas impresiones de una carta (alt art, promos) comparten número, así que se suman: 1 + 3 copias de BT10-088 salen como **4 Dormant Potential Unleashed**. Solo salen de la web los números de carta, y solo cuando pulsas el botón.
+
 ## Las secciones de la lista
 
 - **«Main Deck»** (mazo principal).

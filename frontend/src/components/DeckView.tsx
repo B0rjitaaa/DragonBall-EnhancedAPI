@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { colorClass } from '../lib/colors'
 import type { CardSummary, DeckChange, DeckDetail, DeckListCard, DeckVersionDetail, Location, RestoreResult } from '../lib/types'
+import { deckListText, isExportable, timeChamberUrl, type ExportDeck } from '../lib/deckExport'
 import { cardThumb } from '../lib/types'
 import { CardPicker, MatchesPanel, SaveListModal, VersionBar, versionLabel } from './DeckHistory'
 
@@ -406,6 +407,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
               </ul>
             </details>
           )}
+          <DeckExport deck={{ leader, main, z: zDeck, side }} />
         </div>
 
         {detail ? (
@@ -683,6 +685,41 @@ function SortableDeckCard({
     >
       <DeckCard card={card} flag={flag} onOpen={onOpen} controls={controls} />
     </li>
+  )
+}
+
+/** Llevar el mazo que se está viendo (la lista principal o la versión elegida) a Time Chamber o copiarlo en texto. */
+function DeckExport({ deck }: { deck: ExportDeck }) {
+  const [copy, setCopy] = useState<'idle' | 'copied' | 'manual'>('idle')
+  if (!isExportable(deck)) return null
+  const text = deckListText(deck)
+  const copyList = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopy('copied')
+      window.setTimeout(() => setCopy('idle'), 2000)
+    } catch {
+      setCopy('manual')
+    }
+  }
+  return (
+    <div className="deck-export">
+      <a
+        className="btn small"
+        href={timeChamberUrl(deck)}
+        target="_blank"
+        rel="noreferrer"
+        title="Open this list in the Time Chamber deck builder and simulator (Leader, Main, Z and Side Deck)"
+      >
+        Open in Time Chamber ↗
+      </a>
+      <button type="button" className="btn small ghost" onClick={copyList} title="Copy the list as text, e.g. to paste it in TCGArena or Discord">
+        {copy === 'copied' ? 'Deck list copied ✓' : 'Copy deck list'}
+      </button>
+      {copy === 'manual' && (
+        <textarea className="input deck-export-text" readOnly value={text} rows={8} onFocus={(e) => e.currentTarget.select()} autoFocus />
+      )}
+    </div>
   )
 }
 

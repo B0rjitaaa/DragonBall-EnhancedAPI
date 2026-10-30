@@ -744,6 +744,10 @@ strong.loc-title { padding: 0.35rem 0; }
 .deck-check.error { color: #ffb1a8; background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
 .deck-check.warn { color: var(--accent-2); background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 details.deck-check { border-radius: 12px; }
+/* Exportar el mazo: Time Chamber y lista en texto */
+.deck-export { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.35rem; }
+.deck-export a.btn { text-decoration: none; color: inherit; }
+.deck-export-text { flex-basis: 100%; width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; resize: vertical; }
 details.deck-check summary { cursor: pointer; list-style: none; font-weight: 600; }
 details.deck-check summary::-webkit-details-marker { display: none; }
 details.deck-check summary::after { content: ' ▾'; opacity: 0.7; }

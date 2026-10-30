@@ -65,6 +65,25 @@ Each card with a problem carries a mark with the reason.
 
 **Tap any bar or colour to filter the list**: for example, to see only the cards that cost 2. Each section then says “X of Y cards”. **✕ Clear filters** shows everything again.
 
+### Exporting the deck
+
+Under the rules check there are two buttons. They take **the list you're looking at**: the main list (with any unsaved changes) or the saved version you picked.
+
+- **Open in Time Chamber ↗** opens the deck in [Time Chamber](https://time-chamber.net/), the online Masters simulator and deck builder, in a new tab: Leader, Main Deck, Z Deck and Side Deck. You don't need an account to see it or play it there; you do to save it.
+- **Copy deck list** copies the list as text, by sections, ready to paste in TCGArena, Discord or a message:
+
+```
+_____Leader_____
+Cell // Cell, Return of the Ultimate Lifeform [EX20-01]
+
+_____Main Deck_____
+2 Android 20, Vile Creator [BT5-070]
+4 Dormant Potential Unleashed [BT10-088]
+…
+```
+
+Different printings of a card (alt arts, promos) share the card number, so they're added together: 1 + 3 copies of BT10-088 become **4 Dormant Potential Unleashed**. Only card numbers leave the app, and only when you press the button.
+
 ## The list sections
 
 - **Main Deck**.

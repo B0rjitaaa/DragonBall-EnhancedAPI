@@ -95,7 +95,7 @@ export const WIKI_ARTICLES: WikiArticle[] = [
   { slug: 'mazos', category: 'coleccion', icon: '🃏', cover: 'mazo.jpg',
     title: { en: 'Decks', es: 'Mazos' },
     excerpt: { en: 'Leader, Main Deck and Side Deck, list versions, matches, stats and history.', es: 'Leader, Main Deck y Side Deck, versiones de la lista, partidas, estadísticas e histórico.' },
-    keywords: 'mazo deck leader side deck partidas estadisticas historico versiones archivar deck matches stats history versions archive' },
+    keywords: 'mazo deck leader side deck partidas estadisticas historico versiones archivar exportar copiar lista simulador deck matches stats history versions archive export copy list time chamber timechamber tcgarena simulator' },
   { slug: 'importar-exportar', category: 'coleccion', icon: '📤', cover: 'csv.jpg',
     title: { en: 'Import, export and collection backup', es: 'Importar, exportar y copia de la colección' },
     excerpt: { en: 'CSV for spreadsheets, and the full JSON backup you can restore.', es: 'CSV para hojas de cálculo, y la copia completa en JSON que se puede restaurar.' },
