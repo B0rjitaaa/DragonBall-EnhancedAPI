@@ -291,3 +291,140 @@ class DeckHistoryTests(TestCase):
         self.assertEqual(deck["issues"], {"banned": ["EX20-02"], "limited": []})  # las falsas no cuentan
         self.assertEqual(deck["leader"]["colors"], ["Green"])
         self.assertEqual(deck["status"], "active")
+
+
+class DeckImportTests(TestCase):
+    """Importar un mazo (enlace o texto): qué tienes libre, qué está en otros mazos y qué falta; crearlo."""
+
+    def setUp(self):
+        from decks.models import SideCard
+
+        self.client, self.Side = APIClient(), SideCard
+        self.leader = Card.objects.create(id=1, card_number="EX20-01", name="Cell", card_type="LEADER")
+        self.a = Card.objects.create(id=2, card_number="BT29-86", name="Goku Black", card_type="BATTLE")
+        self.a_alt = Card.objects.create(id=3, card_number="BT29-86", name="Goku Black", card_type="BATTLE")  # alt art
+        self.b = Card.objects.create(id=4, card_number="EX20-03", name="Android 17", card_type="BATTLE")
+        self.z = Card.objects.create(id=5, card_number="BT21-070", name="Z Cell", card_type="Z-BATTLE")
+        self.box = Location.objects.create(name="Caja 1", kind="storage")
+        self.other = Location.objects.create(name="Mazo viejo", kind="deck")
+        self.third = Location.objects.create(name="Mazo intocable", kind="deck")
+        CollectionEntry.objects.create(card=self.leader, location=self.box, quantity=1, notes="P. 3 · row 1 · col 2")
+        CollectionEntry.objects.create(card=self.a, location=self.box, quantity=1)
+        CollectionEntry.objects.create(card=self.a_alt, location=self.box, quantity=1)  # otra impresión: cuenta
+        CollectionEntry.objects.create(card=self.a, location=self.box, quantity=2, fake=True)  # falsas: no cuentan
+        CollectionEntry.objects.create(card=self.a, location=self.other, quantity=2)
+        CollectionEntry.objects.create(card=self.b, location=self.third, quantity=1)
+        SideCard.objects.create(deck=self.other, card=self.a, quantity=2)
+        self.text = "_____Leader_____\nCell [EX20-01]\n_____Main Deck_____\n4 Goku Black [BT29-086]\n2x EX20-03\n" \
+                    "_____Z Deck_____\nBT21-70 x1\n## Side Deck\n1 BT29-086"
+
+    def preview(self, source):
+        return self.client.post("/api/my-collection/decks/import/preview/", {"source": source}, format="json")
+
+    def test_text_list_preview(self):
+        data = self.preview(self.text).data
+        rows = {r["number"]: r for r in data["rows"]}
+        # BT29-086 = BT29-86; 4 en el main + 1 en el side = 5: 2 libres (dos impresiones), 2 en otro mazo, 1 falta.
+        goku = rows["BT29-86"]
+        self.assertEqual((goku["sections"], goku["free"], goku["missing"]), ({"main": 4, "side": 1}, 2, 1))
+        self.assertEqual(goku["in_use"], [{"deck_id": self.other.id, "deck": "Mazo viejo", "quantity": 2}])
+        self.assertEqual((rows["EX20-03"]["in_use"][0]["deck"], rows["EX20-03"]["missing"]), ("Mazo intocable", 1))
+        self.assertEqual(rows["BT21-070"]["missing"], 1)
+        self.assertTrue(data["has_leader"])
+        self.assertEqual(data["totals"], {"cards": 9, "free": 3, "in_use": 3, "missing": 3})
+        self.assertIn(str(self.a.id), {str(k) for k in data["catalog"]})
+        self.assertEqual(goku["from"], [{"location": "Caja 1", "quantity": 2}])
+
+    def test_create_takes_free_copies_and_only_accepted_decks(self):
+        lines = self.preview(self.text).data["lines"]
+        body = {"lines": lines, "name": "Goku Black", "source": "text", "take_from": [self.other.id]}
+        response = self.client.post("/api/my-collection/decks/import/", body, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        data = response.data
+        new = Location.objects.get(name="Goku Black")
+        self.assertEqual(new.kind, "deck")
+        have = {(e.card_id, e.fake): e.quantity for e in CollectionEntry.objects.filter(location=new)}
+        self.assertEqual(have, {(1, False): 1, (2, False): 3, (3, False): 1})  # leader, 1+2 Goku, 1 alt
+        self.assertFalse(CollectionEntry.objects.filter(location=self.other).exists())  # aceptado: se vacía
+        self.assertTrue(CollectionEntry.objects.filter(location=self.third, card=self.b).exists())  # no aceptado
+        self.assertTrue(CollectionEntry.objects.filter(location=self.box, card=self.a, fake=True).exists())
+        self.assertEqual((data["moved"], data["missing"]), (5, 4))
+        # El mazo nuevo guarda la lista completa (también lo que falta) como principal; el side, aparte.
+        from decks.services import principal_version, version_list
+
+        listing = version_list(principal_version(new))
+        self.assertEqual(sum(n for (_c, s), n in listing.items() if s == "side"), 1)
+        self.assertEqual(sum(listing.values()), 9)
+        self.assertEqual(sum(self.Side.objects.filter(deck=new).values_list("quantity", flat=True)), 1)
+        # El mazo del que salen cartas guarda una versión nueva con lo que le queda (y su side se ajusta).
+        self.assertEqual(data["decks_changed"], [{"deck_id": self.other.id, "deck": "Mazo viejo", "copies": 2, "version": 1}])
+        version = principal_version(self.other)
+        self.assertEqual((version.name, version_list(version)), ("Gave cards to “Goku Black”", {}))
+        self.assertFalse(self.Side.objects.filter(deck=self.other).exists())
+        # Lista de recogida: primero la caja (libres), luego el otro mazo; con las notas de posición.
+        picks = data["pick_list"]
+        self.assertEqual([g["location"] for g in picks], ["Caja 1", "Mazo viejo"])
+        box = {(c["bandai_id"], c["quantity"]) for c in picks[0]["cards"]}
+        self.assertEqual(box, {(1, 1), (2, 1), (3, 1)})
+        self.assertEqual(picks[0]["cards"][0]["notes"], ["P. 3 · row 1 · col 2"])
+        self.assertEqual(picks[1]["cards"], [{"bandai_id": 2, "number": "BT29-86", "name": "Goku Black", "rarity": "",
+                                             "quantity": 2, "position": 1, "notes": []}])
+
+    def test_pick_list_is_saved_with_the_deck(self):
+        lines = self.preview(self.text).data["lines"]
+        body = {"lines": lines, "name": "Goku Black", "take_from": [self.other.id]}
+        deck_id = self.client.post("/api/my-collection/decks/import/", body, format="json").data["deck"]["id"]
+        url = f"/api/my-collection/decks/{deck_id}/pick-list/"
+        data = self.client.get(url).data
+        self.assertEqual([g["location"] for g in data["groups"]], ["Caja 1", "Mazo viejo"])
+        self.assertIn(1, data["catalog"])
+        self.assertEqual(self.client.get(f"/api/my-collection/decks/{deck_id}/").data["pick_list"], {"total": 4, "done": 0})
+        key = f"{self.box.id}-1"
+        saved = self.client.patch(url, {"done": [key, key, "999-999"]}, format="json").data
+        self.assertEqual(saved["done"], [key])  # sin repetidas ni claves que no existen
+        self.assertEqual(self.client.get(f"/api/my-collection/decks/{deck_id}/").data["pick_list"], {"total": 4, "done": 1})
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        self.assertIsNone(self.client.get(f"/api/my-collection/decks/{deck_id}/").data["pick_list"])
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_name_must_be_new(self):
+        lines = self.preview(self.text).data["lines"]
+        body = {"lines": lines, "name": "caja 1", "take_from": []}
+        response = self.client.post("/api/my-collection/decks/import/", body, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("already", response.data["detail"])
+
+    def test_leader_detected_without_section_and_unknown_numbers(self):
+        data = self.preview("1 EX20-01\n4 BT29-86\n3 ZZ9-999").data
+        self.assertTrue(data["has_leader"])
+        self.assertEqual(data["unknown"], ["ZZ9-999"])
+
+    def test_time_chamber_link(self):
+        data = self.preview("https://time-chamber.net/decks/import?leader=EX20-01&main=BT29-86x2&z=BT21-070x1&side=EX20-03x1").data
+        self.assertEqual(data["source"], "timechamber")
+        self.assertEqual(data["totals"]["cards"], 5)
+
+    def test_unknown_site_asks_for_text(self):
+        response = self.preview("https://example.com/deck/1")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("paste the list as text", response.data["detail"])
+
+    def test_deckplanet_and_topdeckdiffusion_pages(self):
+        from unittest import mock
+
+        deck_data = {"deck_name": "Cell", "deck_leader": {"card_number": "EX20-01"},
+                     "deck_cards": [{"zone": "main", "amount_in_deck": 3, "card_id": {"card_number": "BT29-086"}},
+                                    {"zone": "side", "amount_in_deck": 1, "card_id": {"card_number": "EX20-03"}}],
+                     "z_deck_cards": [{"zone": "z", "amount_in_deck": 1, "card_id": {"card_number": "BT21-070"}}]}
+        payload = '1:["$","x",null,{"deckData":' + __import__("json").dumps(deck_data) + "}]"
+        dp_page = "<script>self.__next_f.push([1," + __import__("json").dumps(payload) + "])</script>"
+        tdd_data = {"leaders": [{"qty": 1, "number": "EX20-01"}, {"qty": 1, "number": "EX20-01"}],
+                    "main": [{"qty": 3, "number": "BT29-086"}], "zdeck": [{"qty": 1, "number": "BT21-070"}],
+                    "side": [{"qty": 1, "number": "EX20-03"}]}
+        tdd_page = '<h1 class="tdd-title">Regio Lille &amp; co</h1><script id="export-deck-data" type="application/json">' \
+                   + __import__("json").dumps(tdd_data) + "</script>"
+        for url, page, name in (("https://www.dbs-deckplanet.com/es/dbs_masters/deck/abc", dp_page, "Cell"),
+                                ("https://topdeckdiffusion.com/decks/xyz", tdd_page, "Regio Lille & co")):
+            with mock.patch("decks.importer._fetch", return_value=page):
+                data = self.preview(url).data
+            self.assertEqual((data["name"], data["totals"]["cards"], data["has_leader"]), (name, 6, True), url)

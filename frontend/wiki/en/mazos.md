@@ -10,6 +10,32 @@ A **deck** is a [location](ubicaciones.md) of type Deck. When you open it (`/col
 
 ![Deck view: Leader, counters, deck-building warnings, stats, matches and the list by section](../img/mazo.jpg)
 
+## Importing a deck from another site
+
+In **Locations → Decks**, **⇩ Import deck** creates a deck from a list you found elsewhere, using the cards you already have:
+
+1. Paste the **deck link** or the **deck list**:
+   - links from **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) and **Time Chamber** import links;
+   - from any other site, use its *export* or *copy list* option and paste the text. Each line needs a card number: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Section headers (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) are optional: without them, the LEADER card is taken as the Leader.
+2. Press **Check the list**. For each card you'll see:
+   - **✓ free**: copies in Unsorted, a binder or a box;
+   - **in “Deck X”**: copies you have, but in another deck;
+   - **✕ missing**: copies you don't have, with an estimate of what they cost.
+
+   Cards are compared **by number**: any printing counts (alt arts, promos…) and `BT29-086` is the same as `BT29-86`. **Fake copies don't count.**
+3. If some cards are **in use in other decks**, a warning lists them deck by deck. **Tick a deck to take its copies**: they move to the new deck and that deck **saves a new version** with what it has left (named “Gave cards to “…””), so its old list stays in its history. Leave it unticked and those cards count as missing.
+4. Check the **Deck name** (it comes from the original site when there is one) and press **Create deck**.
+
+The new deck gets the copies you have (free ones first) and saves the **complete list as its main list, missing cards included**, so the deck view shows what you still need (“the box doesn't match the main list: −N”).
+
+In the check, each free card says where it is, for example **✓ 2 free (Caja 1, Archivador ×1)**. After creating the deck you get **Where to get the cards**, a pick list to gather them physically:
+- grouped by place (Unsorted first, then binders and boxes, then other decks), in the order the cards are in each place;
+- **#N** is the card's place in that location's **My order** (the order you see in My collection when you sort by it);
+- binder cards show their position note, for example **Pág. 43 · fila 2 · col 2** (from the scanner's binder mode);
+- tick each card as you take it out, or **Copy list** to have it as text on your phone.
+
+The list is **saved with the deck**, ticks included. While it has cards left to pick, the deck header shows **📋 Cards to fetch · N/M picked**: tap it to open the list again. When everything is ticked, **Remove the list** (or **Remove** at any time: the cards stay in the deck).
+
 ## Box, main list and versions
 
 These three ideas are the key to understanding decks:

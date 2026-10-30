@@ -1662,3 +1662,97 @@ button.deck-chip:hover { border-color: var(--accent); }
   .wiki-pager a.next { grid-column: 1; }
   .wiki-table th, .wiki-table td { padding: 0.6rem 0.75rem; }
 }
+
+/* Importar un mazo (enlace o lista): vista previa de lo que tienes, lo que está en otros mazos y lo que falta */
+.loc-dialog.deck-import { width: min(46rem, calc(100vw - 2rem)); max-height: 90vh; }
+.deck-import-body { display: grid; gap: 0.8rem; padding: 1.2rem; }
+.deck-import-body form, .deck-import-preview, .deck-import-done { display: grid; gap: 0.8rem; padding: 0; }
+.deck-import-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.deck-import-head h2 { margin: 0; font-size: 1.15rem; }
+.deck-import-warn { color: var(--accent-2); }
+.deck-import-totals { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.deck-import-totals > span { padding: 0.3rem 0.7rem; border-radius: 999px; border: 1px solid var(--line); font-size: 0.88rem; }
+.deck-import-totals .ok { color: #4cc38a; border-color: color-mix(in srgb, #4cc38a 40%, transparent); }
+.deck-import-totals .use { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.deck-import-totals .miss { color: #ffb1a8; border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.deck-import-alert {
+  display: grid; gap: 0.5rem; padding: 0.8rem; border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.deck-import-alert p { margin: 0; color: var(--muted); }
+.deck-import-deck {
+  display: flex !important; align-items: flex-start; gap: 0.6rem; padding: 0.55rem 0.65rem; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-2); color: var(--text) !important; cursor: pointer; font-size: 0.92rem !important;
+}
+.deck-import-deck.on { border-color: var(--accent); }
+.deck-import-deck input { margin-top: 0.2rem; }
+.deck-import-deck span { display: grid; gap: 0.15rem; }
+.deck-import-deck small { color: var(--muted); font-size: 0.78rem; }
+.deck-import-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; max-height: 42vh; overflow-y: auto; }
+.deck-import-rows li {
+  display: grid; grid-template-columns: 2.2rem minmax(0, 1fr) auto; align-items: center; gap: 0.6rem;
+  padding: 0.35rem 0.5rem; border-radius: 8px; background: var(--bg-3); border-left: 3px solid transparent;
+}
+.deck-import-rows li.ok { border-left-color: #4cc38a; }
+.deck-import-rows li.use { border-left-color: var(--accent); }
+.deck-import-rows li.miss { border-left-color: var(--danger); }
+.deck-import-rows img { width: 2.2rem; border-radius: 3px; }
+.deck-import-card { display: grid; min-width: 0; }
+.deck-import-card strong, .deck-import-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-import-card small { color: var(--muted); font-size: 0.78rem; }
+.deck-import-status { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.3rem; font-size: 0.78rem; }
+.deck-import-status .ok { color: #4cc38a; }
+.deck-import-status .use { color: var(--accent-2); }
+.deck-import-status .use.dim { color: var(--muted); }
+.deck-import-status .miss { color: #ffb1a8; font-weight: 600; }
+.deck-import-changed { margin: 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.9rem; }
+.deck-import-done p { margin: 0; }
+@media (max-width: 600px) {
+  .loc-dialog.deck-import { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; border: 0; }
+  .deck-import-body { padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px)); }
+  .deck-import-rows { max-height: none; }
+  .deck-import-rows li { grid-template-columns: 2rem minmax(0, 1fr); }
+  .deck-import-status { grid-column: 2; justify-content: flex-start; }
+}
+
+/* Lista de recogida del mazo importado: dónde coger cada copia */
+.pick-list { display: grid; gap: 0.6rem; padding: 0.8rem; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-3); }
+.pick-list-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.pick-list-head h3 { margin: 0; font-size: 1rem; }
+.pick-list-head h3 small { margin-left: 0.4rem; color: var(--muted); font-weight: 500; font-size: 0.8rem; }
+.pick-list p { margin: 0; }
+.pick-list-text { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; }
+.pick-group h4 { margin: 0.2rem 0 0.35rem; font-size: 0.92rem; }
+.pick-group h4 small { margin-left: 0.35rem; color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.pick-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.pick-group label {
+  display: grid !important; grid-template-columns: auto 2rem minmax(0, 1fr) auto; align-items: center; gap: 0.55rem;
+  padding: 0.35rem 0.5rem; border-radius: 8px; background: var(--bg-2); color: var(--text) !important; cursor: pointer; font-size: 0.9rem !important;
+}
+.pick-group img { width: 2rem; border-radius: 3px; }
+.pick-group li.done label { opacity: 0.45; }
+.pick-group li.done .pick-card strong { text-decoration: line-through; }
+.pick-card { display: grid; min-width: 0; }
+.pick-card strong, .pick-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-card small { color: var(--muted); font-size: 0.76rem; }
+.pick-where { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem; font-size: 0.76rem; }
+.pick-pos, .pick-note { padding: 0.05rem 0.4rem; border-radius: 4px; border: 1px solid var(--line); white-space: nowrap; }
+.pick-pos { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pick-note { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.deck-import-status small { color: var(--muted); }
+@media (max-width: 600px) {
+  .pick-group label { grid-template-columns: auto 2rem minmax(0, 1fr); }
+  .pick-where { grid-column: 3; justify-content: flex-start; }
+}
+.pick-list-tools { display: inline-flex; gap: 0.35rem; }
+.pick-list-finished {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.7rem;
+  border-radius: 8px; color: #4cc38a; background: color-mix(in srgb, #4cc38a 12%, transparent); border: 1px solid color-mix(in srgb, #4cc38a 35%, transparent);
+}
+/* Aviso en el mazo importado: cartas por sacar de sus sitios */
+.deck-picks {
+  align-self: flex-start; margin-top: 0.35rem; padding: 0.35rem 0.8rem; border-radius: 999px; font-size: 0.85rem;
+  color: var(--accent-2); background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.deck-picks:hover { border-color: var(--accent); }

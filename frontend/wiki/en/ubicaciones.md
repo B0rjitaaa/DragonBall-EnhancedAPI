@@ -55,7 +55,7 @@ Tapping it opens that location in My collection.
 
 ## Creating a location
 
-Each section has its own button: **+ New deck**, **+ New binder**, **+ New box** or **+ New location**. Type the name (unique, up to 80 characters) and press **Create**.
+Each section has its own button: **+ New deck**, **+ New binder**, **+ New box** or **+ New location**. Type the name (unique, up to 80 characters) and press **Create**. For decks there's also **⇩ Import deck**, to create one from a DeckPlanet / Top Deck Diffusion link or a pasted list: see [Importing a deck from another site](mazos.md#importing-a-deck-from-another-site).
 
 ### Binder size
 

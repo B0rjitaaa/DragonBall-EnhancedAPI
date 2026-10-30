@@ -7,7 +7,7 @@ from cards.models import Card
 from collection.models import Location
 
 from . import services
-from .models import DeckVersion, Match
+from .models import DeckVersion, Match, PickList
 from .serializers import ListCardSerializer, MatchSerializer, SideSerializer, VersionSerializer
 
 
@@ -83,6 +83,37 @@ def _diff(old: dict, new: dict) -> list[dict]:
     return [{"bandai_id": r["card_id"], "section": r["section"], "delta": r["delta"]} for r in rows]
 
 
+def _pick_summary(deck: Location) -> dict | None:
+    picks = PickList.objects.filter(deck=deck).first()
+    return {"total": picks.total, "done": len(picks.done)} if picks else None
+
+
+class DeckPickListView(APIView):
+    """La lista de recogida de un mazo importado: leerla, guardar las cartas ya sacadas y quitarla."""
+
+    def _get(self, pk) -> PickList:
+        return get_object_or_404(PickList, deck=_deck(pk))
+
+    def _data(self, picks: PickList) -> dict:
+        ids = {c["bandai_id"] for g in picks.groups for c in g.get("cards", [])}
+        return _with_catalog({"deck": picks.deck.name, "groups": picks.groups, "done": picks.done,
+                              "created_at": picks.created_at, "card_ids": [{"bandai_id": i} for i in ids]})
+
+    def get(self, request, pk):
+        return Response(self._data(self._get(pk)))
+
+    def patch(self, request, pk):
+        picks = self._get(pk)
+        valid = {f"{g['location_id']}-{c['bandai_id']}" for g in picks.groups for c in g.get("cards", [])}
+        picks.done = [k for k in dict.fromkeys(str(k) for k in request.data.get("done") or []) if k in valid]
+        picks.save(update_fields=["done"])
+        return Response(self._data(picks))
+
+    def delete(self, request, pk):
+        self._get(pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class DeckView(APIView):
     """Un mazo: su lista actual, sus versiones (con su balance) y estadísticas por líder rival."""
 
@@ -114,6 +145,7 @@ class DeckView(APIView):
             ],
             "record": services.record(all_matches),
             "by_leader": services.by_leader(all_matches),
+            "pick_list": _pick_summary(deck),
         }))
 
 
@@ -274,3 +306,31 @@ class DeckBackInUseView(APIView):
         if deck.status != Location.Status.PARKED:
             return Response({"detail": "The deck is already in use"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"deck": deck.name, "leader": services.back_in_use(deck)})
+
+
+class DeckImportPreviewView(APIView):
+    """Importar un mazo (enlace de DeckPlanet / Top Deck Diffusion / Time Chamber o lista en texto): qué tienes."""
+
+    def post(self, request):
+        from .importer import DeckImportError, parse_source, preview
+
+        try:
+            data = preview(parse_source(str(request.data.get("source") or "")))
+        except DeckImportError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_with_catalog(data))
+
+
+class DeckImportView(APIView):
+    """Crea el mazo importado: `lines` (de la vista previa), `name` y `take_from` (mazos de los que coger copias)."""
+
+    def post(self, request):
+        from .importer import DeckImportError, create_deck, parsed_from_lines
+
+        take_from = {int(d) for d in request.data.get("take_from") or [] if str(d).isdigit()}
+        try:
+            deck = parsed_from_lines(request.data.get("lines"), str(request.data.get("source") or "text"))
+            result = create_deck(deck, str(request.data.get("name") or ""), take_from)
+        except DeckImportError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_with_catalog(result), status=status.HTTP_201_CREATED)

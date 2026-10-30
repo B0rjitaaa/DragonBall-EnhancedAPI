@@ -1,5 +1,5 @@
 import type {
-  CardDetail, ChangesResponse, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
 
@@ -153,6 +153,16 @@ export const api = {
   priceRadar: (days: number, scope: 'collection' | 'all') =>
     request<RadarResponse>(`/prices/radar/?days=${days}&scope=${scope}`),
   deleteLocation: (id: number) => request<void>(`/my-collection/locations/${id}/`, { method: 'DELETE' }),
+  /** Importar un mazo (enlace de DeckPlanet / Top Deck Diffusion / Time Chamber o lista en texto): qué tienes. */
+  previewDeckImport: (source: string) => request<DeckImportPreview>('/my-collection/decks/import/preview/', post({ source })),
+  /** Crear el mazo importado: `lines` de la vista previa y los mazos de los que coger copias. */
+  importDeck: (lines: DeckImportPreview['lines'], name: string, source: string, takeFrom: number[]) =>
+    request<DeckImportResult>('/my-collection/decks/import/', post({ lines, name, source, take_from: takeFrom })),
+  /** Lista de recogida de un mazo importado: leerla, guardar lo ya sacado y quitarla. */
+  pickList: (deck: number) => request<SavedPickList>(`/my-collection/decks/${deck}/pick-list/`),
+  savePicked: (deck: number, done: string[]) =>
+    request<SavedPickList>(`/my-collection/decks/${deck}/pick-list/`, { method: 'PATCH', body: JSON.stringify({ done }) }),
+  deletePickList: (deck: number) => request<void>(`/my-collection/decks/${deck}/pick-list/`, { method: 'DELETE' }),
   /** Mazos: lista actual, versiones guardadas y partidas. */
   deck: (id: number) => request<DeckDetail>(`/my-collection/decks/${id}/`),
   /** Guarda una lista: `cards` (la editada) o, sin ella, lo que hay en la caja. */

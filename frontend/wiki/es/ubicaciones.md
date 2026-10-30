@@ -55,7 +55,7 @@ Al pulsarla se abre esa ubicación en «My collection».
 
 ## Crear una ubicación
 
-Cada sección tiene su botón: **«+ New deck»**, **«+ New binder»**, **«+ New box»** o **«+ New location»**. Escribe el nombre (único, hasta 80 caracteres) y pulsa **«Create»**.
+Cada sección tiene su botón: **«+ New deck»**, **«+ New binder»**, **«+ New box»** o **«+ New location»**. Escribe el nombre (único, hasta 80 caracteres) y pulsa **«Create»**. En los mazos tienes también **«⇩ Import deck»**, para crear uno desde un enlace de DeckPlanet / Top Deck Diffusion o una lista pegada: ver [Importar un mazo de otra web](mazos.md#importar-un-mazo-de-otra-web).
 
 ### Tamaño del archivador
 

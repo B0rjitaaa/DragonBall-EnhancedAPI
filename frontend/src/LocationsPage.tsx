@@ -12,6 +12,7 @@ import { locationPath } from './lib/query'
 import type { HistoryCard, Location, LocationKind } from './lib/types'
 import { DEFAULT_BINDER, binderLabel, type BinderSize } from './lib/binder'
 import BinderSizePicker from './components/BinderSizePicker'
+import DeckImport from './components/DeckImport'
 
 const KINDS = Object.entries(KIND_LABELS) as [LocationKind, string][]
 const SECTIONS: { kind: LocationKind; title: string; add: string; placeholder: string }[] = [
@@ -211,6 +212,7 @@ function SectionHead({
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [size, setSize] = useState<BinderSize>(DEFAULT_BINDER)
+  const [importing, setImporting] = useState(false)
   const isBinder = section.kind === 'binder'
   return (
     <>
@@ -224,11 +226,17 @@ function SectionHead({
               {sorting ? 'Done' : 'Reorder'}
             </button>
           )}
+          {section.kind === 'deck' && (
+            <button className="btn" onClick={() => setImporting(true)} title="Create a deck from a DeckPlanet / Top Deck Diffusion link or a pasted list, with the cards you already have">
+              ⇩ Import deck
+            </button>
+          )}
           <button className="btn" onClick={() => setAdding((v) => !v)} aria-expanded={adding}>
             + {section.add}
           </button>
         </div>
       </div>
+      {importing && <DeckImport onClose={() => setImporting(false)} onDone={() => void run(async () => {})} />}
       {adding && (
         <form
           className="loc-add"

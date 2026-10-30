@@ -8,6 +8,7 @@ import type { CardSummary, DeckChange, DeckDetail, DeckListCard, DeckVersionDeta
 import { deckListText, isExportable, timeChamberUrl, type ExportDeck } from '../lib/deckExport'
 import { cardThumb } from '../lib/types'
 import { CardPicker, MatchesPanel, SaveListModal, VersionBar, versionLabel } from './DeckHistory'
+import { PickListDialog } from './PickList'
 
 /** Reglas de construcción de Dragon Ball Super Masters que se comprueban. */
 const MAIN_MIN = 50
@@ -196,6 +197,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
   const main = pool.filter((c) => sectionOf(c) === 'main')
   const zDeck = pool.filter((c) => sectionOf(c) === 'z')
   const [showFront, setShowFront] = useState(false)
+  const [showPicks, setShowPicks] = useState(false)
   const viewingCurrent = selected == null
 
   const deckControls: CardControls | undefined = viewingCurrent
@@ -408,6 +410,25 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
             </details>
           )}
           <DeckExport deck={{ leader, main, z: zDeck, side }} />
+          {detail?.pick_list && (
+            <button
+              type="button"
+              className="deck-picks"
+              onClick={() => setShowPicks(true)}
+              title="Where to get the cards that moved into this deck when you imported it"
+            >
+              📋 Cards to fetch · <strong>{detail.pick_list.done}/{detail.pick_list.total}</strong> picked
+            </button>
+          )}
+          {showPicks && (
+            <PickListDialog
+              deckId={deck.id}
+              onClose={() => {
+                setShowPicks(false)
+                reload()
+              }}
+            />
+          )}
         </div>
 
         {detail ? (

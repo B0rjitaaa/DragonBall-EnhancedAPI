@@ -10,6 +10,32 @@ Un **mazo** es una [ubicación](ubicaciones.md) de tipo «Deck». Al abrirlo (`/
 
 ![Vista Mazo: Leader, contadores, avisos de construcción, estadísticas, partidas y la lista por secciones](../img/mazo.jpg)
 
+## Importar un mazo de otra web
+
+En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea un mazo a partir de una lista que hayas visto en otra web, con las cartas que ya tienes:
+
+1. Pega el **enlace del mazo** o la **lista**:
+   - enlaces de **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) y enlaces de importación de **Time Chamber**;
+   - de cualquier otra web, usa su opción de *exportar* o *copiar lista* y pega el texto. Cada línea necesita un número de carta: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Las cabeceras de sección (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) son opcionales: sin ellas, la carta de tipo LEADER se toma como Leader.
+2. Pulsa **«Check the list»** (comprobar la lista). De cada carta verás:
+   - **«✓ free»** (libres): copias en «Unsorted», un archivador o una caja;
+   - **«in “Mazo X”»**: copias que tienes, pero en otro mazo;
+   - **«✕ missing»** (faltan): copias que no tienes, con lo que costarían aproximadamente.
+
+   Las cartas se comparan **por número**: vale cualquier impresión (alt art, promos…) y `BT29-086` es lo mismo que `BT29-86`. **Las copias falsas no cuentan.**
+3. Si hay cartas **en uso en otros mazos**, un aviso las enseña mazo por mazo. **Marca un mazo para coger sus copias**: pasan al mazo nuevo y ese mazo **guarda una versión nueva** con lo que le queda (con el nombre «Gave cards to “…”»), así que su lista anterior queda en su historial. Si no lo marcas, esas cartas cuentan como que faltan.
+4. Revisa el nombre (**«Deck name»**, que viene de la web de origen si lo tiene) y pulsa **«Create deck»** (crear mazo).
+
+El mazo nuevo se queda con las copias que tienes (primero las libres) y guarda **la lista completa como lista principal, también lo que falta**, así que la vista del mazo te enseña lo que aún necesitas («the box doesn't match the main list: −N»).
+
+En la comprobación, cada carta libre dice dónde está, por ejemplo **«✓ 2 free (Caja 1, Archivador ×1)»**. Al crear el mazo aparece **«Where to get the cards»** (dónde coger las cartas), una lista para ir a buscarlas físicamente:
+- agrupada por sitio («Unsorted» primero, luego archivadores y cajas, y después otros mazos), en el orden en que están las cartas en cada sitio;
+- **#N** es el puesto de la carta en **«My order»** de esa ubicación (el orden que ves en «My collection» al ordenar así);
+- las cartas de los archivadores llevan su nota de posición, por ejemplo **«Pág. 43 · fila 2 · col 2»** (la del modo archivador del escáner);
+- marca cada carta al sacarla, o usa **«Copy list»** (copiar lista) para tenerla en texto en el móvil.
+
+La lista **se guarda con el mazo**, con lo que ya hayas marcado. Mientras le queden cartas por sacar, la cabecera del mazo enseña **«📋 Cards to fetch · N/M picked»** (cartas por sacar): púlsalo para volver a abrirla. Cuando lo tengas todo marcado, **«Remove the list»** (quitar la lista), o **«Remove»** en cualquier momento: las cartas se quedan en el mazo.
+
 ## Caja, lista principal y versiones
 
 Estas tres ideas son la clave para entender los mazos:

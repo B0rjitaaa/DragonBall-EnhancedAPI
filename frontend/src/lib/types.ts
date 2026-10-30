@@ -463,7 +463,19 @@ export interface DeckDetail {
   matches: Match[]
   record: MatchRecord
   by_leader: LeaderRecord[]
+  /** Mazo importado: su lista de recogida (cartas por sacar), si aún la tiene. */
+  pick_list: { total: number; done: number } | null
   /** Datos de catálogo de todas las cartas que aparecen. */
+  catalog: Record<number, CardSummary>
+}
+
+/** La lista de recogida guardada de un mazo importado. */
+export interface SavedPickList {
+  deck: string
+  groups: PickGroup[]
+  /** Claves «<location_id>-<bandai_id>» de las cartas ya sacadas. */
+  done: string[]
+  created_at: string
   catalog: Record<number, CardSummary>
 }
 
@@ -504,3 +516,68 @@ export interface RestoreResult {
 
 /** Imagen para cuadrículas y listas: la miniatura si la hay, si no la original. */
 export const cardThumb = (card: Pick<CardSummary, 'image_url' | 'thumb_url'>): string => card.thumb_url || card.image_url
+
+/** Importar un mazo: una carta de la lista (por número, cualquier impresión). */
+export interface DeckImportRow {
+  bandai_id: number
+  number: string
+  name: string
+  /** Copias por sección: leader, main, z, side. */
+  sections: Partial<Record<'leader' | 'main' | 'z' | 'side', number>>
+  quantity: number
+  /** Copias libres (Sin ubicar, archivadores, cajas). */
+  free: number
+  /** Copias que están en otros mazos. */
+  in_use: { deck_id: number; deck: string; quantity: number }[]
+  /** Copias que no tienes ni libres ni en otros mazos (las falsas no cuentan). */
+  missing: number
+  /** De qué ubicaciones libres salen las copias. */
+  from: { location: string; quantity: number }[]
+}
+
+/** Dónde coger las copias del mazo importado, por ubicación y en su orden dentro de ella. */
+export interface PickGroup {
+  location_id: number
+  location: string
+  kind: LocationKind
+  cards: {
+    bandai_id: number
+    number: string
+    name: string
+    rarity: string
+    quantity: number
+    /** Puesto en «Mi orden» de la ubicación. */
+    position: number | null
+    /** Líneas de su nota (p. ej. «P. 12 · row 2 · col 3»). */
+    notes: string[]
+  }[]
+}
+
+export interface DeckImportPreview {
+  source: string
+  source_label: string
+  /** Nombre del mazo en la web de origen (si lo trae). */
+  name: string
+  /** La lista leída: [número, sección, copias]; se devuelve tal cual al crear el mazo. */
+  lines: [string, string, number][]
+  rows: DeckImportRow[]
+  has_leader: boolean
+  totals: { cards: number; free: number; in_use: number; missing: number }
+  /** Mazos que tienen cartas de la lista: cuáles y cuántas. */
+  in_use: { deck_id: number; deck: string; copies: number; cards: { bandai_id: number; number: string; name: string; quantity: number }[] }[]
+  /** Números que no están en el catálogo. */
+  unknown: string[]
+  /** Líneas del texto que no se entendieron. */
+  unread: string[]
+  catalog: Record<number, CardSummary>
+}
+
+export interface DeckImportResult {
+  deck: { id: number; uid: string; name: string }
+  moved: number
+  missing: number
+  unknown: string[]
+  decks_changed: { deck_id: number; deck: string; copies: number; version: number }[]
+  pick_list: PickGroup[]
+  catalog: Record<number, CardSummary>
+}

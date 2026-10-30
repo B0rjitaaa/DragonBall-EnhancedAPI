@@ -84,3 +84,28 @@ class Match(models.Model):
 
     class Meta:
         ordering = ["-played_on", "-created_at"]
+
+
+class PickList(models.Model):
+    """Dónde coger las copias que pasaron a un mazo importado (por ubicación y posición) y cuáles ya has sacado.
+
+    Se guarda al importar el mazo para poder volver a ella desde el mazo; se quita al marcarlas todas o a mano.
+    """
+
+    deck = models.OneToOneField(Location, on_delete=models.CASCADE, related_name="pick_list")
+    # [{location_id, location, kind, cards: [{bandai_id, number, name, rarity, quantity, position, notes}]}]
+    groups = models.JSONField(default=list)
+    # Claves «<location_id>-<bandai_id>» de las cartas ya sacadas.
+    done = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Pick list"
+        verbose_name_plural = "Pick lists"
+
+    def __str__(self):
+        return f"Pick list of {self.deck}"
+
+    @property
+    def total(self) -> int:
+        return sum(len(g.get("cards", [])) for g in self.groups)
