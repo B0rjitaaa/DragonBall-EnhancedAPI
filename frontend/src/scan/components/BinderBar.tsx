@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { api, sessionPollInterval } from "../api";
 import type { SessionScan } from "../types";
 
-const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-
 function slotState(s: SessionScan | undefined): { label: string; tone: string } {
   if (!s) return { label: "", tone: "" };
   if (s.status === "pending" || s.status === "processing") return { label: "…", tone: "busy" };
@@ -17,6 +15,9 @@ function slotState(s: SessionScan | undefined): { label: string; tone: string } 
 
 interface Props {
   sessionId: number;
+  /** Bolsillos por página. */
+  rows: number;
+  cols: number;
   page: number;
   /** Casilla a capturar (null: página terminada). */
   slot: number | null;
@@ -30,8 +31,11 @@ interface Props {
   onStop: () => void;
 }
 
-/** Sesión de archivador: la página en 3×3, la casilla actual y los controles. */
-export default function BinderBar({ sessionId, page, slot, skipped, sending, onSelect, onCapture, onSkip, onPage, onStop }: Props) {
+/** Sesión de archivador: la página (filas × columnas), la casilla actual y los controles. */
+export default function BinderBar({
+  sessionId, rows, cols, page, slot, skipped, sending, onSelect, onCapture, onSkip, onPage, onStop,
+}: Props) {
+  const slots = Array.from({ length: rows * cols }, (_, i) => i + 1);
   const session = useQuery({
     queryKey: ["session", sessionId],
     queryFn: () => api.getSession(sessionId),
@@ -42,8 +46,8 @@ export default function BinderBar({ sessionId, page, slot, skipped, sending, onS
   for (const s of [...(session.data?.scans ?? [])].reverse()) {
     if (s.binder_page === page && s.binder_slot != null && !(s.dismissed && s.card_detected)) bySlot.set(s.binder_slot, s);
   }
-  const row = slot == null ? null : Math.ceil(slot / 3);
-  const col = slot == null ? null : ((slot - 1) % 3) + 1;
+  const row = slot == null ? null : Math.ceil(slot / cols);
+  const col = slot == null ? null : ((slot - 1) % cols) + 1;
 
   return (
     <div className="binder-bar">
@@ -58,12 +62,17 @@ export default function BinderBar({ sessionId, page, slot, skipped, sending, onS
           </button>
         </span>
         <span className="muted small">
-          Destination: <strong>{session.data?.location_name ?? "…"}</strong>
+          Destination: <strong>{session.data?.location_name ?? "…"}</strong> · {cols}×{rows}
         </span>
       </div>
 
-      <div className="binder-grid" role="grid" aria-label={`Page ${page}`}>
-        {SLOTS.map((n) => {
+      <div
+        className="binder-grid"
+        role="grid"
+        aria-label={`Page ${page}`}
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, maxWidth: `${Math.max(cols, 3) * 120}px` }}
+      >
+        {slots.map((n) => {
           const st = skipped.has(n) && !bySlot.has(n) ? { label: "Gap", tone: "muted" } : slotState(bySlot.get(n));
           return (
             <button

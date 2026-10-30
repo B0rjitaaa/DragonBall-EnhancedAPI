@@ -61,7 +61,7 @@ Descarga `my-collection-AAAA-MM-DD.csv`, pensado para abrirlo directamente en **
 ## Descargar copia (JSON)
 
 Descarga `my-collection-AAAA-MM-DD.json` con:
-- **todas tus ubicaciones**, también las vacías, con su tipo, copias, falsas y notas;
+- **todas tus ubicaciones**, también las vacías, con su tipo, copias, falsas y notas (y, en los archivadores, sus bolsillos por página);
 - **cada carta en cada ubicación**: id, número, nombre, cantidad, falsa y notas;
 - los totales: cartas, copias y falsas.
 

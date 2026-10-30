@@ -10,6 +10,8 @@ import { colorClass } from './lib/colors'
 import { formatEur } from './lib/prices'
 import { locationPath } from './lib/query'
 import type { HistoryCard, Location, LocationKind } from './lib/types'
+import { DEFAULT_BINDER, binderLabel, type BinderSize } from './lib/binder'
+import BinderSizePicker from './components/BinderSizePicker'
 
 const KINDS = Object.entries(KIND_LABELS) as [LocationKind, string][]
 const SECTIONS: { kind: LocationKind; title: string; add: string; placeholder: string }[] = [
@@ -208,6 +210,8 @@ function SectionHead({
 }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
+  const [size, setSize] = useState<BinderSize>(DEFAULT_BINDER)
+  const isBinder = section.kind === 'binder'
   return (
     <>
       <div className="loc-section-head">
@@ -233,8 +237,10 @@ function SectionHead({
             const value = name.trim()
             if (!value) return
             void run(async () => {
-              await api.createLocation(value, section.kind, nextPosition)
+              const pockets = isBinder ? { binder_rows: size.rows, binder_cols: size.cols } : {}
+              await api.createLocation(value, section.kind, nextPosition, pockets)
               setName('')
+              setSize(DEFAULT_BINDER)
               setAdding(false)
             })
           }}
@@ -255,6 +261,12 @@ function SectionHead({
           <button type="button" className="btn ghost" onClick={() => setAdding(false)}>
             Cancel
           </button>
+          {isBinder && (
+            <div className="loc-add-binder">
+              <span className="muted small">Pockets per page (the scanner's binder mode uses it)</span>
+              <BinderSizePicker value={size} onChange={setSize} />
+            </div>
+          )}
         </form>
       )}
     </>
@@ -448,7 +460,14 @@ function ListSection({
     <div key={l.id} className={`loc-row ${dragging ? 'dragging' : ''}`}>
       <a className="loc-row-main" href={sorting ? undefined : collectionUrl(l)}>
         <span className="loc-row-name">
-          <strong>{l.name}</strong>
+          <strong>
+            {l.name}
+            {l.kind === 'binder' && (
+              <span className="loc-pockets" title="Pockets per page (used by the scanner's binder mode)">
+                {binderLabel({ rows: l.binder_rows, cols: l.binder_cols }, false)}
+              </span>
+            )}
+          </strong>
           {l.notes && <small className="muted">{l.notes}</small>}
         </span>
         <span className="loc-row-stats">
@@ -551,15 +570,20 @@ function EditDialog({ loc, run, onClose }: { loc: Location; run: Run; onClose: (
   const [name, setName] = useState(loc.name)
   const [kind, setKind] = useState<LocationKind>(loc.kind)
   const [notes, setNotes] = useState(loc.notes)
+  const [size, setSize] = useState<BinderSize>({ rows: loc.binder_rows, cols: loc.binder_cols })
   const [confirmDelete, setConfirmDelete] = useState(false)
   useEffect(() => {
     ref.current?.showModal()
   }, [])
   const save = () => {
-    const changes: Partial<Pick<Location, 'name' | 'kind' | 'notes'>> = {}
+    const changes: Partial<Pick<Location, 'name' | 'kind' | 'notes' | 'binder_rows' | 'binder_cols'>> = {}
     if (name.trim() && name.trim() !== loc.name) changes.name = name.trim()
     if (kind !== loc.kind) changes.kind = kind
     if (notes !== loc.notes) changes.notes = notes
+    if (kind === 'binder' && (size.rows !== loc.binder_rows || size.cols !== loc.binder_cols)) {
+      changes.binder_rows = size.rows
+      changes.binder_cols = size.cols
+    }
     if (Object.keys(changes).length) void run(() => api.updateLocation(loc.id, changes))
     onClose()
   }
@@ -587,6 +611,12 @@ function EditDialog({ loc, run, onClose }: { loc: Location; run: Run; onClose: (
             ))}
           </select>
         </label>
+        {kind === 'binder' && (
+          <div className="loc-dialog-field">
+            <span>Pockets per page</span>
+            <BinderSizePicker value={size} onChange={setSize} />
+          </div>
+        )}
         <label>
           Notes
           <textarea className="input" rows={3} maxLength={500} value={notes} placeholder="e.g. blue box in the wardrobe"

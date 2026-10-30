@@ -61,7 +61,7 @@ Downloads `my-collection-YYYY-MM-DD.csv`, designed to open straight in **Excel w
 ## Download backup (JSON)
 
 Downloads `my-collection-YYYY-MM-DD.json` with:
-- **all your locations**, including empty ones, with their type, copies, fakes and notes;
+- **all your locations**, including empty ones, with their type, copies, fakes and notes (and, for binders, their pockets per page);
 - **each card in each location**: id, number, name, quantity, fake and notes;
 - the totals: cards, copies and fakes.
 

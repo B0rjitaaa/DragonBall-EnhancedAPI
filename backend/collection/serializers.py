@@ -12,7 +12,7 @@ class LocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
         fields = ["id", "uid", "name", "kind", "status", "parked_at", "notes", "is_default", "position",
-                  "cards", "copies", "fakes"]
+                  "binder_rows", "binder_cols", "cards", "copies", "fakes"]
         read_only_fields = ["uid", "is_default", "parked_at"]
 
     def validate_status(self, value):

@@ -132,9 +132,12 @@ export const api = {
       '/my-collection/restore/', post({ backup, apply: true }),
     ),
   locations: () => request<Location[]>('/my-collection/locations/'),
-  createLocation: (name: string, kind: LocationKind, position = 0) =>
-    request<Location>('/my-collection/locations/', post({ name, kind, position })),
-  updateLocation: (id: number, changes: Partial<Pick<Location, 'name' | 'kind' | 'notes' | 'position'>>) =>
+  createLocation: (name: string, kind: LocationKind, position = 0, extra: Partial<Pick<Location, 'binder_rows' | 'binder_cols'>> = {}) =>
+    request<Location>('/my-collection/locations/', post({ name, kind, position, ...extra })),
+  updateLocation: (
+    id: number,
+    changes: Partial<Pick<Location, 'name' | 'kind' | 'notes' | 'position' | 'binder_rows' | 'binder_cols'>>,
+  ) =>
     request<Location>(`/my-collection/locations/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
   /** Mazos al histórico: qué copias saldrían (GET) y pasarlo, con sus copias a «Sin ubicar» (POST). */
   deckHistoryPreview: (id: number) => request<{ deck: string; cards: HistoryCard[] }>(`/my-collection/decks/${id}/to-history/`),

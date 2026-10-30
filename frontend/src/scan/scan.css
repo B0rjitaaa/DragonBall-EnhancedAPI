@@ -723,6 +723,22 @@
   padding: 6px 8px;
 }
 
+/* Móvil: «Save to» y el tamaño del archivador a lo ancho, con su etiqueta delante */
+@media (max-width: 600px) {
+  .scan-app .burst-location {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    width: 100%;
+  }
+  .scan-app .burst-location select {
+    width: 100%;
+    padding: 10px 8px;
+  }
+  .scan-app .binder-grid {
+    max-width: none !important;
+  }
+}
+
 /* Modo archivador */
 .scan-app .binder-bar {
   display: flex;

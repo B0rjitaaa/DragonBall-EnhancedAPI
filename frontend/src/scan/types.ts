@@ -62,6 +62,9 @@ export interface Location {
   notes: string;
   is_default: boolean;
   position: number;
+  /** Archivadores: bolsillos por página (filas × columnas). */
+  binder_rows: number;
+  binder_cols: number;
   cards: number;
   copies: number;
 }
@@ -128,6 +131,9 @@ export interface ScanSession {
   mode: SessionMode;
   location: number | null;
   location_name: string;
+  /** Modo archivador: bolsillos por página de esta sesión (los del archivador de destino, si lo es). */
+  binder_rows: number;
+  binder_cols: number;
   auto_add_min_confidence: number;
   stats: { total: number; added: number; copies: number; review: number; pending: number; failed: number; undone: number };
   scans: SessionScan[];

@@ -21,7 +21,7 @@ from django.db.models import Max
 from cards.models import Card
 from decks.models import SideCard
 
-from .models import OLD_DEFAULT_LOCATION_NAME, CollectionEntry, Location
+from .models import BINDER_MAX_SIDE, OLD_DEFAULT_LOCATION_NAME, CollectionEntry, Location
 
 FORMAT = "dbs-collection"
 KINDS = {"deck": Location.Kind.DECK, "binder": Location.Kind.BINDER, "storage": Location.Kind.STORAGE,
@@ -51,6 +51,17 @@ class Plan:
     skipped: list = field(default_factory=list)
 
 
+def _pockets(value) -> dict:
+    """«4x3» (filas x columnas de un archivador) → sus campos; nada si no viene o no es válido."""
+    try:
+        rows, cols = (int(n) for n in str(value).lower().split("x"))
+    except (TypeError, ValueError):
+        return {}
+    if not (1 <= rows <= BINDER_MAX_SIDE and 1 <= cols <= BINDER_MAX_SIDE):
+        return {}
+    return {"binder_rows": rows, "binder_cols": cols}
+
+
 def _plan(doc: dict) -> Plan:
     if not isinstance(doc, dict) or doc.get("format") != FORMAT:
         raise RestoreError("This is not a My collection backup (missing \"format\": \"dbs-collection\")")
@@ -71,7 +82,7 @@ def _plan(doc: dict) -> Plan:
         if not name or key in existing or key in plan.create:
             continue
         plan.create[key] = {"name": name, "kind": KINDS.get(_key(place.get("kind", "")), Location.Kind.OTHER),
-                            "notes": str(place.get("notes") or "")}
+                            "notes": str(place.get("notes") or ""), **_pockets(place.get("pockets"))}
         plan.names[key] = name
     known = set(Card.objects.filter(id__in=[r.get("id") for r in cards_in if isinstance(r, dict)])
                 .values_list("id", flat=True))

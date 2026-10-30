@@ -57,6 +57,12 @@ Al pulsarla se abre esa ubicación en «My collection».
 
 Cada sección tiene su botón: **«+ New deck»**, **«+ New binder»**, **«+ New box»** o **«+ New location»**. Escribe el nombre (único, hasta 80 caracteres) y pulsa **«Create»**.
 
+### Tamaño del archivador
+
+Al crear un **archivador** eliges también sus bolsillos por página (**«Pockets per page»**): **2×2** (4), **3×3** (9, el habitual y el que sale marcado), **3×4** (12), **4×4** (16) o **«Custom»** (a medida), donde escribes filas × columnas (hasta 6 × 6). El tamaño sale junto al nombre del archivador en la lista, por ejemplo **4×4**.
+
+Lo usa el [modo archivador](escaner.md#modo-archivador) del escáner: la rejilla tiene esas casillas y la nota de posición de cada copia cuenta con esas columnas. Puedes cambiarlo después en **«Edit…»**. Los archivadores creados antes de esta opción son de 3×3.
+
 ## Ordenar las ubicaciones
 
 Con más de una ubicación en una sección aparece el botón **«Reorder»** (ordenar):
@@ -72,6 +78,7 @@ Este orden es el que se usa en todos los selectores de ubicación de la web.
 El diálogo **«Edit location»** (opción «Edit…» del menú) permite cambiar:
 - el nombre (**«Name»**);
 - el tipo (**«Type»**: Deck, Binder, Storage, Other);
+- en los archivadores, los bolsillos por página (**«Pockets per page»**);
 - las notas (**«Notes»**), por ejemplo «caja azul del armario».
 
 **«Delete…»** pide confirmación: «Delete “Caja 3”? Its N copies will move to “Unsorted”.» Los escaneos que apuntaban a esa ubicación también pasan a «Unsorted».

@@ -57,6 +57,12 @@ Tapping it opens that location in My collection.
 
 Each section has its own button: **+ New deck**, **+ New binder**, **+ New box** or **+ New location**. Type the name (unique, up to 80 characters) and press **Create**.
 
+### Binder size
+
+When you create a **binder**, you also choose its **Pockets per page**: **2×2** (4), **3×3** (9, the usual one and the default), **3×4** (12), **4×4** (16) or **Custom**, where you type rows × columns (up to 6 × 6). The size shows next to the binder's name in the list, for example **4×4**.
+
+The scanner's [binder mode](escaner.md#binder-mode) uses it: the grid has that many slots and each copy's position note is counted with those columns. You can change it later in **Edit…**. Binders created before this option exist are 3×3.
+
 ## Reordering locations
 
 With more than one location in a section, the **Reorder** button appears:
@@ -72,6 +78,7 @@ This order is the one used in every location selector on the site.
 The **Edit location** dialog lets you change:
 - the **Name**;
 - the **Type** (Deck, Binder, Storage, Other);
+- for binders, the **Pockets per page**;
 - the **Notes**, for example “blue box in the wardrobe”.
 
 **Delete…** asks for confirmation: “Delete “Box 3”? Its N copies will move to “Unsorted”.” Scans that pointed to that location also move to Unsorted.

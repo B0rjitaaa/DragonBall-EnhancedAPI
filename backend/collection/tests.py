@@ -290,7 +290,42 @@ class RestoreBackupTests(TestCase):
         self.assertFalse(self.Location.objects.filter(name="Sin ubicar").exists())
         self.assertEqual(self.Location.objects.get(name="Archivador azul").kind, "binder")
 
+    def test_binder_size_goes_in_the_backup_and_comes_back(self):
+        self.Location.objects.create(name="Archivador 4x3", kind="binder", binder_rows=4, binder_cols=3)
+        backup = self.client.get("/api/my-collection/backup/").json()
+        place = next(p for p in backup["locations"] if p["name"] == "Archivador 4x3")
+        self.assertEqual(place["pockets"], "4x3")
+        self.Location.objects.filter(name="Archivador 4x3").delete()
+        self.restore(apply=True, backup=backup)
+        binder = self.Location.objects.get(name="Archivador 4x3")
+        self.assertEqual((binder.kind, binder.binder_rows, binder.binder_cols), ("binder", 4, 3))
+
     def test_rejects_other_files(self):
         response = self.restore(backup={"cards": []})
         self.assertEqual(response.status_code, 400)
         self.assertIn("dbs-collection", response.json()["detail"])
+
+
+class BinderSizeTests(TestCase):
+    """Archivadores: bolsillos por página al crearlos y al editarlos."""
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_create_and_change_the_size(self):
+        created = self.client.post("/api/my-collection/locations/",
+                                   {"name": "Archivador 4x4", "kind": "binder", "binder_rows": 4, "binder_cols": 4},
+                                   format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertEqual((created.data["binder_rows"], created.data["binder_cols"]), (4, 4))
+        pk = created.data["id"]
+        changed = self.client.patch(f"/api/my-collection/locations/{pk}/", {"binder_rows": 5, "binder_cols": 2},
+                                    format="json")
+        self.assertEqual((changed.data["binder_rows"], changed.data["binder_cols"]), (5, 2))
+        too_big = self.client.patch(f"/api/my-collection/locations/{pk}/", {"binder_rows": 7}, format="json")
+        self.assertEqual(too_big.status_code, 400)
+
+    def test_default_is_3x3(self):
+        created = self.client.post("/api/my-collection/locations/", {"name": "Archivador", "kind": "binder"},
+                                   format="json")
+        self.assertEqual((created.data["binder_rows"], created.data["binder_cols"]), (3, 3))

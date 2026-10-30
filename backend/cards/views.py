@@ -511,7 +511,7 @@ class MyCollectionReorderView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-LOCATION_FIELDS = ("name", "kind", "status", "notes", "position")
+LOCATION_FIELDS = ("name", "kind", "status", "notes", "position", "binder_rows", "binder_cols")
 
 
 def deck_leaders() -> dict[int, dict]:

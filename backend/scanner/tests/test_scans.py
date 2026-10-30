@@ -418,6 +418,29 @@ class BinderSessionTests(BurstFixture, TestCase):
         data = {"image": upload, "session": self.session, "binder_page": 1, "binder_slot": 10}
         self.assertEqual(self.client.post("/api/scanner/scans/", data, format="multipart").status_code, 400)
 
+    def test_session_takes_the_size_of_the_binder(self):
+        from collection.models import Location
+
+        big = Location.objects.create(name="Archivador 4x4", kind="binder", binder_rows=4, binder_cols=4)
+        # Lo que mande el navegador no cuenta: manda el archivador.
+        body = {"mode": "binder", "location": big.id, "binder_rows": 2, "binder_cols": 2}
+        session = self.client.post("/api/scanner/sessions/", body, format="json").data
+        self.assertEqual((session["binder_rows"], session["binder_cols"]), (4, 4))
+        self.session, self.binder = session["id"], big
+        scan = self._slot(4, page=2, slot=16)
+        self.assertTrue(scan["added_to_collection"])
+        self.assertEqual(self.entry(self.cards[4]).notes, "P. 2 · row 4 · col 4")
+        upload = SimpleUploadedFile("frame.jpg", self._card_photo(4), content_type="image/jpeg")
+        data = {"image": upload, "session": self.session, "binder_page": 1, "binder_slot": 17}
+        self.assertEqual(self.client.post("/api/scanner/scans/", data, format="multipart").status_code, 400)
+
+    def test_size_chosen_for_a_destination_that_is_not_a_binder(self):
+        body = {"mode": "binder", "binder_rows": 2, "binder_cols": 2}
+        session = self.client.post("/api/scanner/sessions/", body, format="json").data
+        self.assertEqual((session["binder_rows"], session["binder_cols"]), (2, 2))
+        too_big = {"mode": "binder", "binder_rows": 7, "binder_cols": 2}
+        self.assertEqual(self.client.post("/api/scanner/sessions/", too_big, format="json").status_code, 400)
+
 
 @override_settings(MEDIA_ROOT=MEDIA)
 class SessionLocationTests(TestCase):

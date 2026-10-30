@@ -9,6 +9,7 @@ import ScanResult from "../components/ScanResult";
 import { ChangeDetector, type DetectorState } from "../lib/changeDetector";
 import { frameFromVideo, guideFraction, guideRegion, preparePhoto } from "../lib/photo";
 import { unlockAudio } from "../lib/sounds";
+import { BINDER_PRESETS, DEFAULT_BINDER, binderLabel, type BinderSize } from "../../lib/binder";
 
 const PREVIEW_INTERVAL_MS = 500;
 const RETRY_INTERVAL_MS = 5000;
@@ -65,6 +66,7 @@ type Source = "device" | "server";
 
 const SOURCE_KEY = "scanner.source";
 const LOCATION_KEY = "scanner.burstLocation";
+const BINDER_SIZE_KEY = "scanner.binderSize";
 
 // Por defecto: la cámara del propio dispositivo en móviles/tabletas (si el
 // navegador la permite) y la webcam del escáner en el ordenador. Se recuerda
@@ -141,12 +143,34 @@ export default function Scanner() {
     burstLocation != null && locations.data?.some((l) => l.id === burstLocation && !l.is_default)
       ? burstLocation
       : null;
+  // Si el destino es un archivador, su tamaño de página.
+  const destination = locations.data?.find((l) => l.id === validLocation);
+  const destinationBinder: BinderSize | null =
+    destination?.kind === "binder" ? { rows: destination.binder_rows, cols: destination.binder_cols } : null;
   const [burstActive, setBurstActive] = useState(false);
   // Sesión de archivador: página, casilla a capturar (null = página terminada) y huecos.
   const [binderActive, setBinderActive] = useState(false);
   const [binderPage, setBinderPage] = useState(1);
   const [binderSlot, setBinderSlot] = useState<number | null>(1);
   const [binderSkipped, setBinderSkipped] = useState<Set<number>>(() => new Set());
+  // Bolsillos por página: los del archivador de destino; si el destino no es un archivador, los elegidos aquí.
+  const [chosenBinder, setChosenBinder] = useState<BinderSize>(() => {
+    try {
+      const [rows, cols] = (localStorage.getItem(BINDER_SIZE_KEY) ?? "").split("x").map(Number);
+      return rows && cols ? { rows, cols } : DEFAULT_BINDER;
+    } catch {
+      return DEFAULT_BINDER;
+    }
+  });
+  const chooseBinder = (size: BinderSize) => {
+    setChosenBinder(size);
+    try {
+      localStorage.setItem(BINDER_SIZE_KEY, `${size.rows}x${size.cols}`);
+    } catch {
+      /* sin persistencia */
+    }
+  };
+  const [binderSize, setBinderSize] = useState<BinderSize>(DEFAULT_BINDER);
   const [detectorState, setDetectorState] = useState<DetectorState>("idle");
   const [sending, setSending] = useState(false);
   const detector = useRef<ChangeDetector | null>(null);
@@ -287,8 +311,9 @@ export default function Scanner() {
     unlockAudio();
     setCaptureError(null);
     try {
-      const session = await api.createSession(validLocation, "binder");
+      const session = await api.createSession(validLocation, "binder", destinationBinder ?? chosenBinder);
       setBurstId(session.id);
+      setBinderSize({ rows: session.binder_rows, cols: session.binder_cols });
       setBinderActive(true);
       setBinderSlot(1);
       setBinderSkipped(new Set());
@@ -305,7 +330,7 @@ export default function Scanner() {
     }
   };
 
-  const nextSlot = (from: number) => (from >= 9 ? null : from + 1);
+  const nextSlot = (from: number) => (from >= binderSize.rows * binderSize.cols ? null : from + 1);
 
   /** Captura la casilla actual del archivador y pasa a la siguiente (sin esperar a identificar). */
   const captureBinder = async () => {
@@ -402,6 +427,8 @@ export default function Scanner() {
         {binderActive && burstId != null ? (
           <BinderBar
             sessionId={burstId}
+            rows={binderSize.rows}
+            cols={binderSize.cols}
             page={binderPage}
             slot={binderSlot}
             skipped={binderSkipped}
@@ -451,6 +478,28 @@ export default function Scanner() {
                   )}
                 </select>
               </label>
+              {destinationBinder ? (
+                <span className="burst-location muted small" title="Pockets per page of this binder (change it in Locations)">
+                  ▦ {binderLabel(destinationBinder)}
+                </span>
+              ) : (
+                <label className="burst-location" title="Pockets per page for binder mode">
+                  <span>Binder pages</span>
+                  <select
+                    value={`${chosenBinder.rows}x${chosenBinder.cols}`}
+                    onChange={(e) => {
+                      const [rows, cols] = e.target.value.split("x").map(Number);
+                      chooseBinder({ rows, cols });
+                    }}
+                  >
+                    {BINDER_PRESETS.map((p) => (
+                      <option key={`${p.rows}x${p.cols}`} value={`${p.rows}x${p.cols}`}>
+                        {binderLabel(p)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </>
           )}
           <button className="secondary" onClick={() => void captureManual()} disabled={busy}>

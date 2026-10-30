@@ -175,6 +175,9 @@ export interface Location {
   notes: string
   is_default: boolean
   position: number
+  /** Archivadores: bolsillos por página (filas × columnas). */
+  binder_rows: number
+  binder_cols: number
   cards: number
   copies: number
   fakes: number

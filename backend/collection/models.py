@@ -1,6 +1,7 @@
 """Mi colección: las copias que tengo de cada carta y dónde están guardadas."""
 import uuid
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -9,6 +10,8 @@ from cards.models import Card
 DEFAULT_LOCATION_NAME = "Unsorted"
 # Nombre que tenía antes (instalaciones y copias de la colección anteriores).
 OLD_DEFAULT_LOCATION_NAME = "Sin ubicar"
+# Bolsillos por lado de una página de archivador (hasta 6 × 6).
+BINDER_MAX_SIDE = 6
 
 
 class Location(models.Model):
@@ -32,6 +35,13 @@ class Location(models.Model):
     status = models.CharField(max_length=8, choices=Status.choices, default=Status.ACTIVE)
     parked_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    # Archivadores: bolsillos por página (filas × columnas). Lo usa el escáner en modo archivador.
+    binder_rows = models.PositiveSmallIntegerField(
+        default=3, validators=[MinValueValidator(1), MaxValueValidator(BINDER_MAX_SIDE)], help_text="Pockets per page: rows"
+    )
+    binder_cols = models.PositiveSmallIntegerField(
+        default=3, validators=[MinValueValidator(1), MaxValueValidator(BINDER_MAX_SIDE)], help_text="Pockets per page: columns"
+    )
     # "Sin ubicar": destino por defecto de lo escaneado y de lo que queda al
     # borrar una ubicación. Siempre existe y no se puede borrar.
     is_default = models.BooleanField(default=False)

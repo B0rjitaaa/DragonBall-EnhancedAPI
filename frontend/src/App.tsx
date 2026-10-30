@@ -394,6 +394,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     [location],
   )
 
+  // Móvil: el menú plegable de copia y CSV de Mi colección.
+  const [actionsOpen, setActionsOpen] = useState(false)
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
   if (bootError) {
@@ -415,7 +417,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           aria-label="Filters"
           aria-expanded={sidebarOpen}
         >
-          ☰
+          ☰<span className="menu-label"> Filters{activeCount > 0 ? ` (${activeCount})` : ''}</span>
         </button>
         <button className="brand" onClick={goHome} title="Back to the start and clear the filters">
           <span className="ball" aria-hidden>★</span>
@@ -451,7 +453,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
             setPage(1)
           }}
         >
-          Advanced mode {advancedOn ? 'ON' : 'OFF'}
+          Advanced <span className="hide-sm">mode </span>
+          {advancedOn ? 'ON' : 'OFF'}
         </button>
       </header>
 
@@ -624,35 +627,40 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               </span>
             )}
             {inCollection && (
-              <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Downloads a JSON with your locations and all your cards, with their copies in each location">
-                Download backup
-              </a>
-            )}
-            {inCollection && (
-              <a className="btn backup-link" href={COLLECTION_CSV_URL} download title="Downloads your collection as CSV to open in Excel or another spreadsheet">
-                Download CSV
-              </a>
-            )}
-            {inCollection && (
-              <CsvImport
-                onDone={() => {
-                  setReloadTick((t) => t + 1)
-                  reloadLocations()
-                }}
-              />
-            )}
-            {inCollection && (
-              <RestoreBackup
-                onDone={() => {
-                  setReloadTick((t) => t + 1)
-                  reloadLocations()
-                }}
-              />
-            )}
-            {inCollection && (
-              <a className="btn primary scan-link" href="/scan">
-                Scan cards
-              </a>
+              // En el móvil, copia y CSV van plegados en «Backup & CSV»; en el ordenador, a la vista.
+              <div className={`coll-actions ${actionsOpen ? 'open' : ''}`}>
+                <button
+                  type="button"
+                  className="btn coll-actions-toggle"
+                  onClick={() => setActionsOpen((v) => !v)}
+                  aria-expanded={actionsOpen}
+                >
+                  Backup & CSV {actionsOpen ? '▴' : '▾'}
+                </button>
+                <div className="coll-actions-extra">
+                  <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Downloads a JSON with your locations and all your cards, with their copies in each location">
+                    Download backup
+                  </a>
+                  <a className="btn backup-link" href={COLLECTION_CSV_URL} download title="Downloads your collection as CSV to open in Excel or another spreadsheet">
+                    Download CSV
+                  </a>
+                  <CsvImport
+                    onDone={() => {
+                      setReloadTick((t) => t + 1)
+                      reloadLocations()
+                    }}
+                  />
+                  <RestoreBackup
+                    onDone={() => {
+                      setReloadTick((t) => t + 1)
+                      reloadLocations()
+                    }}
+                  />
+                </div>
+                <a className="btn primary scan-link" href="/scan">
+                  Scan cards
+                </a>
+              </div>
             )}
           </div>
 

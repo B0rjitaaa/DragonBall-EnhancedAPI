@@ -2,7 +2,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from cards.models import Card
-from collection.models import DEFAULT_LOCATION_NAME
+from collection.models import BINDER_MAX_SIDE, DEFAULT_LOCATION_NAME, Location
 
 from .models import Scan, ScanSession
 
@@ -72,9 +72,17 @@ class ScanSerializer(serializers.ModelSerializer):
             "session": {"required": False},
             "after_empty": {"required": False},
             "binder_page": {"required": False, "min_value": 1, "max_value": 999},
-            "binder_slot": {"required": False, "min_value": 1, "max_value": 9},
+            "binder_slot": {"required": False, "min_value": 1, "max_value": BINDER_MAX_SIDE * BINDER_MAX_SIDE},
             "region": {"required": False},
         }
+
+    def validate(self, attrs):
+        session, slot = attrs.get("session"), attrs.get("binder_slot")
+        if session is not None and slot is not None and slot > session.binder_rows * session.binder_cols:
+            raise serializers.ValidationError(
+                {"binder_slot": f"This binder has {session.binder_rows * session.binder_cols} pockets per page"}
+            )
+        return attrs
 
     def validate_region(self, value):
         if value is None:
@@ -144,10 +152,19 @@ class ScanSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScanSession
         fields = [
-            "id", "started_at", "ended_at", "mode", "location", "location_name", "auto_add_min_confidence", "stats",
-            "scans",
+            "id", "started_at", "ended_at", "mode", "location", "location_name", "binder_rows", "binder_cols",
+            "auto_add_min_confidence", "stats", "scans",
         ]
         read_only_fields = ["started_at", "ended_at"]
+        extra_kwargs = {"binder_rows": {"required": False}, "binder_cols": {"required": False}}
+
+    def create(self, validated_data):
+        # Si el destino es un archivador, la página tiene su tamaño (gana sobre lo que mande el navegador).
+        location = validated_data.get("location")
+        if location is not None and location.kind == Location.Kind.BINDER:
+            validated_data["binder_rows"] = location.binder_rows
+            validated_data["binder_cols"] = location.binder_cols
+        return super().create(validated_data)
 
     def get_auto_add_min_confidence(self, _obj):
         return settings.AUTO_ADD_MIN_CONFIDENCE

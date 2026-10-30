@@ -1,9 +1,10 @@
 """Escáner: fotos de cartas, su identificación y las huellas con las que se reconocen."""
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
 from cards.models import Card
-from collection.models import CollectionEntry, Location
+from collection.models import BINDER_MAX_SIDE, CollectionEntry, Location
 
 
 def scan_upload_to(instance, filename):
@@ -64,6 +65,13 @@ class ScanSession(models.Model):
     location = models.ForeignKey(
         Location, null=True, blank=True, on_delete=models.SET_NULL, related_name="sessions"
     )
+    # Modo archivador: bolsillos por página. Si el destino es un archivador, los suyos.
+    binder_rows = models.PositiveSmallIntegerField(
+        default=3, validators=[MinValueValidator(1), MaxValueValidator(BINDER_MAX_SIDE)]
+    )
+    binder_cols = models.PositiveSmallIntegerField(
+        default=3, validators=[MinValueValidator(1), MaxValueValidator(BINDER_MAX_SIDE)]
+    )
 
     class Meta:
         ordering = ["-started_at"]
@@ -116,7 +124,7 @@ class Scan(models.Model):
     # haya recolocado la misma carta: no se añade sola ("¿Otra copia?").
     after_empty = models.BooleanField(default=True)
     repeat_suspect = models.BooleanField(default=False)
-    # Sesión de archivador: página y casilla (1-9, por filas de 3) de la carta.
+    # Sesión de archivador: página y casilla de la carta (1…filas×columnas de la sesión, por filas).
     binder_page = models.PositiveSmallIntegerField(null=True, blank=True)
     binder_slot = models.PositiveSmallIntegerField(null=True, blank=True)
     # Zona del fotograma a analizar (el marco guía), en fracciones 0-1:
@@ -137,8 +145,9 @@ class Scan(models.Model):
 
     @property
     def binder_position(self) -> str:
-        """"Pág. 12 · fila 2 · col 3" (vacío si no es de una sesión de archivador)."""
+        """"P. 12 · row 2 · col 3" (vacío si no es de una sesión de archivador)."""
         if not self.binder_page or not self.binder_slot:
             return ""
-        row, col = divmod(self.binder_slot - 1, 3)
+        cols = self.session.binder_cols if self.session_id else 3
+        row, col = divmod(self.binder_slot - 1, cols)
         return f"P. {self.binder_page} · row {row + 1} · col {col + 1}"

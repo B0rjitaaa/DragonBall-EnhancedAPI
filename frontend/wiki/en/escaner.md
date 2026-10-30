@@ -94,14 +94,14 @@ This is the mode for adding lots of cards in a row: **you put a card down, it re
 
 To scan a binder **slot by slot**, with its page and position recorded:
 
-1. Choose the destination in **Save to**, usually the binder itself.
-2. Press **▦ Binder mode**. A 3 × 3 grid appears, along with **‹ Page N ›**.
+1. Choose the destination in **Save to**, usually the binder itself. Next to it you'll see its page size, for example **▦ 3×3 · 9 pockets**: it's the one you chose for that binder in [Locations](ubicaciones.md#creating-a-location). If the destination isn't a binder (for example **Unsorted**), pick the size in **Binder pages**: 2×2, 3×3, 3×4 or 4×4. The site remembers your choice.
+2. Press **▦ Binder mode**. A grid with one square per pocket appears (3 × 3 for the usual 9-pocket pages), along with **‹ Page N ›**.
 3. The site tells you which slot is next: “Move the camera close to the card in **row 1, column 1** until it fills the frame”.
 4. Press **Capture slot N**. If the sleeve is empty, press **Empty slot**.
-5. When all 9 are done, press **Next page →**.
+5. When every pocket on the page is done, press **Next page →**.
 6. Press **■ Finish** when you're done.
 
-Each added copy stores its position in its **note**, for example “**P. 12 · row 2 · col 3**”. That way you'll always know where each card is in the binder.
+Each added copy stores its position in its **note**, for example “**P. 12 · row 2 · col 3**”, counted with the binder's own number of columns. That way you'll always know where each card is in the binder.
 
 - **Redo a slot:** tap the slot in the grid. The new capture replaces the previous one.
 - **What's added automatically:** the same as in burst mode (65% or more). The rest is left for review.

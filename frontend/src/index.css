@@ -296,13 +296,14 @@ body.no-scroll { overflow: hidden; }
     transform: translateX(-100%); transition: transform 0.2s; box-shadow: 8px 0 30px rgba(0, 0, 0, 0.5);
   }
   .sidebar.open { transform: none; }
-  .sidebar { display: flex; flex-direction: column; }
+  /* Sin hueco bajo «Show N cards» (el botón queda pegado al borde de abajo) */
+  .sidebar { display: flex; flex-direction: column; height: 100dvh; padding-bottom: 0; }
   .sidebar .facets { flex: 1 0 auto; }
   .backdrop { display: block; position: fixed; inset: 0; z-index: 35; background: rgba(0, 0, 0, 0.55); }
   .close-filters { display: block; font-size: 1.05rem; }
   .sidebar-foot {
     display: block; position: sticky; bottom: 0; z-index: 1;
-    margin: 0.75rem -1rem 0; padding: 0.65rem 1rem;
+    margin: 0.75rem -1rem 0; padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
     background: var(--bg-2); border-top: 1px solid var(--line);
   }
   .sidebar-foot .btn { width: 100%; }
@@ -434,6 +435,11 @@ details.rulings .count { background: var(--bg-3); border-radius: 999px; padding:
 .results-head .backup-link + .scan-link { margin-left: 0; }
 .results-head:has(.backup-link) { flex-wrap: wrap; gap: 0.5rem; }
 .results-head .backup-link + .backup-link { margin-left: 0; }
+/* Copia y CSV: en el ordenador, a la vista (el contenedor no cuenta); en el móvil, plegados */
+.coll-actions, .coll-actions-extra { display: contents; }
+.coll-actions-toggle { display: none; }
+.hide-sm { display: inline; }
+.menu-label { display: none; }
 
 /* Importar CSV */
 .modal.csv-import { max-width: 560px; }
@@ -481,8 +487,57 @@ details.rulings .count { background: var(--bg-3); border-radius: 999px; padding:
   background: var(--accent); color: #111;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
+/* Menú: en el ordenador, solo el texto; «More», los iconos y las etiquetas cortas son del móvil. */
+.site-nav .nav-icon, .site-nav .nav-label-short, .site-nav .nav-more { display: none; }
+.nav-more-sheet, .nav-more-backdrop { display: none; }
+
+/* Móvil: barra de pestañas abajo (como una app), con «More» para Prices, News y Wiki */
 @media (max-width: 760px) {
-  .site-nav { padding: 0.35rem 0.6rem; }
+  body { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
+  .site-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; overflow: visible;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0;
+    padding: 0.25rem max(0.25rem, env(safe-area-inset-right, 0px)) calc(0.25rem + env(safe-area-inset-bottom, 0px)) max(0.25rem, env(safe-area-inset-left, 0px));
+    border-top: 1px solid var(--line); border-bottom: 0;
+    background: color-mix(in srgb, var(--bg-2) 94%, transparent); backdrop-filter: blur(10px);
+  }
+  .site-nav a, .site-nav .nav-more {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem;
+    min-height: 50px; padding: 0.2rem 0.1rem; border: 0; border-radius: 10px; background: none;
+    color: var(--muted); font-size: 0.68rem; font-weight: 600; box-shadow: none;
+  }
+  .site-nav a.active, .site-nav .nav-more.active { color: var(--accent-2); background: none; box-shadow: none; }
+  .site-nav a:hover { background: none; }
+  .site-nav .nav-icon { display: block; font-size: 1.3rem; line-height: 1; filter: grayscale(1); opacity: 0.75; }
+  .site-nav .active .nav-icon { filter: none; opacity: 1; }
+  .site-nav .nav-label { display: none; }
+  .site-nav .nav-label-short { display: block; }
+  .site-nav .nav-more-item { display: none; }
+  .site-nav a.nav-wiki { margin-left: 0; }
+  .site-nav .nav-more { display: flex; }
+  .site-nav .nav-scan { order: 4; }
+  .site-nav .nav-more { order: 5; }
+  .site-nav .nav-badge { position: absolute; top: 2px; left: calc(50% + 6px); margin: 0; }
+
+  .nav-more-backdrop { display: block; position: fixed; inset: 0; z-index: 31; background: rgba(0, 0, 0, 0.45); }
+  .nav-more-sheet {
+    display: grid; position: fixed; z-index: 32;
+    right: max(0.5rem, env(safe-area-inset-right, 0px)); bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    min-width: 12rem; padding: 0.35rem; border-radius: 14px;
+    background: var(--bg-2); border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  }
+  .nav-more-sheet a {
+    display: flex; align-items: center; gap: 0.7rem; padding: 0.75rem 0.9rem; border-radius: 10px;
+    color: var(--text); text-decoration: none; font-size: 1rem;
+  }
+  .nav-more-sheet a.active { background: var(--bg-3); color: var(--accent-2); font-weight: 600; }
+  .nav-more-sheet .nav-icon { font-size: 1.2rem; }
+  .nav-more-sheet .nav-label-short { display: none; }
+  .nav-more-sheet .nav-badge { margin-left: auto; }
+
+  /* Lo que va fijo abajo, por encima de la barra */
+  .loc-toast { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .wiki-top { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Mi colección: − ×N + bajo cada carta y en la ficha */
@@ -641,10 +696,47 @@ strong.loc-title { padding: 0.35rem 0; }
   .list-move { grid-column: 1 / -1; flex-wrap: wrap; }
 }
 @media (max-width: 600px) {
+  /* Cabecera: buscador arriba, debajo «☰ Filters», orden y modo avanzado en una fila */
+  .topbar { gap: 0.5rem; padding: 0.55rem 0.75rem; }
+  .topbar .brand { display: none; }
+  .topbar .search { order: -1; flex-basis: 100%; }
+  .topbar .menu {
+    display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.45rem 0.7rem; font-size: 0.95rem;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); color: var(--text);
+  }
+  .menu-label { display: inline; font-size: 0.9rem; font-weight: 600; }
+  .topbar select { flex: 1; min-width: 0; }
+  .topbar .btn { padding-inline: 0.7rem; white-space: nowrap; }
+  .hide-sm { display: none; }
+
+  /* Mi colección: ubicación a lo ancho; copia y CSV plegados en «Backup & CSV» */
+  .results-head { gap: 0.5rem; }
+  .coll-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; }
+  .coll-actions-toggle { display: block; color: var(--text); }
+  .coll-actions-extra { display: none; }
+  .coll-actions.open .coll-actions-extra { display: grid; grid-column: 1 / -1; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .coll-actions .btn { width: 100%; text-align: center; margin: 0; }
+  .results-head .coll-actions .scan-link { margin-left: 0; order: 1; }
+  .coll-actions.open .coll-actions-extra { order: 2; }
+
+  /* Ficha de carta y demás ventanas: a pantalla completa, con la ✕ siempre a mano */
+  .modal-backdrop { padding: 0; place-items: stretch; }
+  .modal {
+    width: 100%; max-height: none; height: 100dvh; border-radius: 0; border: 0;
+    padding: 0.5rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  .modal .close {
+    position: sticky; top: 0; z-index: 5; display: block; margin: 0 0 0 auto;
+    width: 2.6rem; height: 2.6rem; border-radius: 50%; font-size: 1.15rem;
+    background: color-mix(in srgb, var(--bg-3) 92%, transparent); color: var(--text); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  }
+  .detail { gap: 1rem; margin-top: -2.2rem; }
+  .detail-img img { width: auto; max-width: 100%; max-height: 42vh; }
+
   .locations-new { grid-template-columns: 1fr auto; }
   .locations-new input { grid-column: 1 / -1; }
   .location-filter { margin-left: 0; width: 100%; flex-wrap: wrap; }
-  .location-filter select { flex: 1; max-width: none; }
+  .location-filter select { flex: 1 1 100%; max-width: none; }
 }
 
 /* Mi colección: ubicación en la tarjeta de la cuadrícula */
@@ -1058,6 +1150,31 @@ button.deck-chip:hover { border-color: var(--accent); }
 .loc-section-tools .btn.on { border-color: var(--accent); color: var(--accent); }
 .loc-add { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.9rem; }
 .loc-add .input { flex: 1 1 16rem; }
+.loc-add-binder { flex-basis: 100%; display: grid; gap: 0.4rem; }
+.loc-dialog-field { display: grid; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.loc-pockets {
+  margin-left: 0.5rem; padding: 0.05rem 0.4rem; border-radius: 4px; border: 1px solid var(--line);
+  font-size: 0.72rem; font-weight: 600; color: var(--muted); vertical-align: middle; font-variant-numeric: tabular-nums;
+}
+/* Bolsillos por página de un archivador */
+.binder-size { display: grid; gap: 0.6rem; }
+.binder-size-options { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.binder-size-option {
+  display: grid; justify-items: center; gap: 0.2rem; min-width: 5.6rem; padding: 0.55rem 0.6rem;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); color: var(--text); cursor: pointer;
+}
+.binder-size-option:hover { border-color: var(--accent); }
+.binder-size-option.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--bg-2)); }
+.binder-size-option span { font-weight: 700; font-size: 0.9rem; }
+.binder-size-option small { color: var(--muted); font-size: 0.72rem; }
+.binder-mini { display: grid; gap: 2px; width: 2rem; height: 2rem; }
+.binder-mini i { border-radius: 2px; background: var(--muted); opacity: 0.55; }
+.binder-size-option.on .binder-mini i { background: var(--accent); opacity: 0.9; }
+.binder-size-custom-icon { display: grid; place-items: center; width: 2rem; height: 2rem; font-size: 1.2rem; }
+.binder-size-custom { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem; }
+.binder-size-custom label { display: grid; gap: 0.2rem; font-size: 0.8rem; color: var(--muted); }
+.binder-size-custom .input { width: 5rem; }
+.binder-size-custom small { flex-basis: 100%; }
 .loc-sub { margin: 0.4rem 0 0.6rem; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .loc-unplaced {
   display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline; margin: 0.75rem 0 0; padding: 0.7rem 1rem;
@@ -1312,6 +1429,7 @@ button.deck-chip:hover { border-color: var(--accent); }
 .wiki-shell :focus-visible { outline: 3px solid var(--w-focus); outline-offset: 2px; border-radius: 4px; }
 .wiki-shell h1, .wiki-shell h2, .wiki-shell h3 { color: var(--w-text); text-transform: none; letter-spacing: -0.01em; }
 .wiki-shell code {
+  overflow-wrap: anywhere;
   background: var(--w-sunken); color: #8a3a05; padding: 0.12em 0.4em; border-radius: 5px; font-size: 0.88em;
 }
 /* Botón de idioma ES / EN, arriba a la derecha */

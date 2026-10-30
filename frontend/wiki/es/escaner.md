@@ -94,14 +94,14 @@ Es el modo para dar de alta muchas cartas seguidas: **pones una carta, la recono
 
 Para escanear un archivador **casilla a casilla**, con su página y posición apuntadas:
 
-1. Elige el destino en **«Save to»**, normalmente el propio archivador.
-2. Pulsa **«▦ Binder mode»**. Aparece una rejilla de 3 × 3 y **«‹ Page N ›»**.
+1. Elige el destino en **«Save to»**, normalmente el propio archivador. Al lado verás su tamaño de página, por ejemplo **«▦ 3×3 · 9 pockets»** (9 bolsillos): es el que elegiste para ese archivador en [Ubicaciones](ubicaciones.md#crear-una-ubicacion). Si el destino no es un archivador (por ejemplo **«Unsorted»**), elige el tamaño en **«Binder pages»** (páginas del archivador): 2×2, 3×3, 3×4 o 4×4. La web recuerda lo que elijas.
+2. Pulsa **«▦ Binder mode»**. Aparece una rejilla con un cuadro por bolsillo (3 × 3 en las páginas habituales de 9) y **«‹ Page N ›»**.
 3. La web te dice qué casilla toca: «Move the camera close to the card in **row 1, column 1** until it fills the frame».
 4. Pulsa **«Capture slot N»** (capturar casilla N). Si la funda está vacía, pulsa **«Empty slot»** (hueco vacío).
-5. Al acabar las 9, pulsa **«Next page →»**.
+5. Al acabar todos los bolsillos de la página, pulsa **«Next page →»**.
 6. Pulsa **«■ Finish»** al acabar.
 
-Cada copia añadida guarda su posición en la **nota**, por ejemplo «**P. 12 · row 2 · col 3**» (página 12, fila 2, columna 3). Así siempre sabrás dónde está cada carta en el archivador.
+Cada copia añadida guarda su posición en la **nota**, por ejemplo «**P. 12 · row 2 · col 3**» (página 12, fila 2, columna 3), contando con las columnas de ese archivador. Así siempre sabrás dónde está cada carta en el archivador.
 
 - **Repetir una casilla:** pulsa la casilla en la rejilla. La captura nueva sustituye a la anterior.
 - **Qué se añade solo:** lo mismo que en la ráfaga (65 % o más). El resto queda por revisar.

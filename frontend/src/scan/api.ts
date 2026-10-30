@@ -34,7 +34,7 @@ export function sessionPollInterval(session: ScanSession | undefined): number {
 }
 
 export const api = {
-  /** `binder`: página y casilla (1-9) en una sesión de archivador. */
+  /** `binder`: página y casilla (1…filas×columnas) en una sesión de archivador. */
   /** `region`: zona del marco (fracciones 0-1) que el servidor recorta de la webcam. */
   createScan(image?: File, session?: number, afterEmpty = true, binder?: BinderSpot, region?: FrameRegion | null): Promise<Scan> {
     const spot = {
@@ -55,8 +55,16 @@ export const api = {
   },
   undoScan: (id: number) => request<Scan>(`/api/scanner/scans/${id}/undo/`, json("POST", {})),
 
-  createSession: (location?: number | null, mode: SessionMode = "burst") =>
-    request<ScanSession>("/api/scanner/sessions/", json("POST", { mode, ...(location ? { location } : {}) })),
+  /** `size`: bolsillos por página en modo archivador (si el destino es un archivador, cuenta el suyo). */
+  createSession: (location?: number | null, mode: SessionMode = "burst", size?: { rows: number; cols: number }) =>
+    request<ScanSession>(
+      "/api/scanner/sessions/",
+      json("POST", {
+        mode,
+        ...(location ? { location } : {}),
+        ...(size ? { binder_rows: size.rows, binder_cols: size.cols } : {}),
+      }),
+    ),
   listLocations: () => request<Location[]>("/api/my-collection/locations/"),
   getSession: (id: number) => request<ScanSession>(`/api/scanner/sessions/${id}/`),
   endSession: (id: number) => request<ScanSession>(`/api/scanner/sessions/${id}/end/`, json("POST", {})),

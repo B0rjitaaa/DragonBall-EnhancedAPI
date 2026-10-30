@@ -222,6 +222,8 @@ def backup_document(entries: list[dict], exported_at: str, locations: list[dict]
             place["fakes"] = loc["fakes"]
         if loc.get("notes"):
             place["notes"] = loc["notes"]
+        if loc.get("kind") == "binder" and loc.get("binder_rows"):
+            place["pockets"] = f"{loc['binder_rows']}x{loc.get('binder_cols', 3)}"
         places.append(place)
     return {
         "format": "dbs-collection",
