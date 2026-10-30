@@ -7,7 +7,7 @@ import { cardThumb, type CardSummary, type PickGroup, type SavedPickList } from 
 function asText(deckName: string, groups: PickGroup[]): string {
   const lines = [`Cards to fetch for “${deckName}”`]
   for (const g of groups) {
-    lines.push('', `${g.location} (${KIND_LABELS[g.kind] ?? g.kind})`)
+    lines.push('', g.kind === 'out' ? g.location : `${g.location} (${KIND_LABELS[g.kind] ?? g.kind})`)
     for (const c of g.cards) {
       const where = [c.position ? `#${c.position}` : '', ...c.notes].filter(Boolean).join(' · ')
       lines.push(`- ${c.quantity}× ${c.name} [${c.number}${c.rarity ? ` ${c.rarity}` : ''}]${where ? ` — ${where}` : ''}`)
@@ -97,8 +97,8 @@ export default function PickList({
       )}
       {groups.map((g) => (
         <div key={g.location_id} className="pick-group">
-          <h4>
-            {g.location} <small>{KIND_LABELS[g.kind] ?? g.kind}</small>
+          <h4 className={g.kind === 'out' ? 'pick-out' : ''}>
+            {g.location} {g.kind !== 'out' && <small>{KIND_LABELS[g.kind] ?? g.kind}</small>}
           </h4>
           <ul>
             {g.cards.map((c) => {

@@ -26,6 +26,18 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
 3. Si hay cartas **en uso en otros mazos**, un aviso las enseña mazo por mazo. **Marca un mazo para coger sus copias**: pasan al mazo nuevo y ese mazo **guarda una versión nueva** con lo que le queda (con el nombre «Gave cards to “…”»), así que su lista anterior queda en su historial. Si no lo marcas, esas cartas cuentan como que faltan.
 4. Revisa el nombre (**«Deck name»**, que viene de la web de origen si lo tiene) y pulsa **«Create deck»** (crear mazo).
 
+### Si ya tienes un mazo con ese Leader
+
+Si el Leader de la lista (cualquier impresión) es el de uno de tus mazos en uso, la comprobación ofrece **«Add it as a new list of “Mazo X”»** (añadirla como lista nueva de ese mazo; sale marcado, y si hay varios mazos con ese Leader eliges uno) o **«Create a new deck»** (crear un mazo nuevo). Al añadirla al mazo:
+- cuentan primero las copias **que ya están en el mazo** (**«■ already in the deck»**), también las falsas, porque ya juegas con ellas;
+- lo que falta se trae de las copias libres y, como siempre, de los otros mazos que marques en el aviso;
+- las copias del mazo que **no están en la lista nueva** pasan a **«Unsorted»** (**«N leave the deck»**: la comprobación las enseña), para que luego las guardes donde toque;
+- la lista se guarda como **versión nueva** del mazo y pasa a ser la principal; las listas anteriores quedan en su historial.
+
+La lista de recogida tiene entonces también el apartado **«Take out of “Mazo X” → Unsorted»** con las cartas que hay que sacar de la caja del mazo.
+
+### El mazo que se crea
+
 El mazo nuevo se queda con las copias que tienes (primero las libres) y guarda **la lista completa como lista principal, también lo que falta**, así que la vista del mazo te enseña lo que aún necesitas («the box doesn't match the main list: −N»).
 
 En la comprobación, cada carta libre dice dónde está, por ejemplo **«✓ 2 free (Caja 1, Archivador ×1)»**. Al crear el mazo aparece **«Where to get the cards»** (dónde coger las cartas), una lista para ir a buscarlas físicamente:

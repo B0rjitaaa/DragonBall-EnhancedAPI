@@ -331,7 +331,8 @@ class DeckImportTests(TestCase):
         self.assertEqual((rows["EX20-03"]["in_use"][0]["deck"], rows["EX20-03"]["missing"]), ("Mazo intocable", 1))
         self.assertEqual(rows["BT21-070"]["missing"], 1)
         self.assertTrue(data["has_leader"])
-        self.assertEqual(data["totals"], {"cards": 9, "free": 3, "in_use": 3, "missing": 3})
+        self.assertEqual(data["totals"], {"cards": 9, "in_deck": 0, "free": 3, "in_use": 3, "missing": 3, "leaving": 0})
+        self.assertEqual((data["existing_decks"], data["target"], data["leaving"]), ([], None, []))
         self.assertIn(str(self.a.id), {str(k) for k in data["catalog"]})
         self.assertEqual(goku["from"], [{"location": "Caja 1", "quantity": 2}])
 
@@ -386,6 +387,47 @@ class DeckImportTests(TestCase):
         self.assertEqual(self.client.delete(url).status_code, 204)
         self.assertIsNone(self.client.get(f"/api/my-collection/decks/{deck_id}/").data["pick_list"])
         self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_leader_you_already_have_adds_a_list_to_that_deck(self):
+        from decks.services import principal_version, version_list
+
+        cell = Location.objects.create(name="Cell de siempre", kind="deck")
+        extra = Card.objects.create(id=9, card_number="BT1-001", name="Champa", card_type="BATTLE")
+        CollectionEntry.objects.create(card=self.leader, location=cell, quantity=1, notes="caja azul")
+        CollectionEntry.objects.create(card=self.z, location=cell, quantity=1)
+        CollectionEntry.objects.create(card=extra, location=cell, quantity=3)  # no está en la lista nueva
+        self.Side.objects.create(deck=cell, card=extra, quantity=1)
+        data = self.preview(self.text).data
+        self.assertEqual(data["existing_decks"], [{"id": cell.id, "name": "Cell de siempre"}])
+        body = {"lines": data["lines"], "source": "text", "target": cell.id}
+        data = self.client.post("/api/my-collection/decks/import/preview/", body, format="json").data
+        self.assertEqual(data["target"], {"id": cell.id, "name": "Cell de siempre"})
+        rows = {r["number"]: r for r in data["rows"]}
+        self.assertEqual((rows["EX20-01"]["in_deck"], rows["EX20-01"]["free"]), (1, 0))  # el Leader ya está en el mazo
+        self.assertEqual((rows["BT21-070"]["in_deck"], rows["BT21-070"]["missing"]), (1, 0))
+        self.assertEqual(data["leaving"], [{"bandai_id": 9, "number": "BT1-001", "name": "Champa", "quantity": 3, "fake": False}])
+        self.assertEqual((data["totals"]["in_deck"], data["totals"]["leaving"]), (2, 3))
+
+        response = self.client.post("/api/my-collection/decks/import/", {**body, "take_from": []}, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        result = response.data
+        self.assertEqual((result["deck"]["id"], result["created"], result["removed"]), (cell.id, False, 3))
+        self.assertFalse(Location.objects.filter(name="text").exists())
+        self.assertEqual(Location.objects.filter(kind="deck").count(), 3)  # no se crea otro mazo
+        # Lo que no está en la lista nueva, a «Unsorted»; lo que estaba y sigue, se queda.
+        unsorted = Location.default()
+        self.assertEqual(CollectionEntry.objects.get(location=unsorted, card=extra).quantity, 3)
+        have = {e.card_id: e.quantity for e in CollectionEntry.objects.filter(location=cell)}
+        self.assertEqual(have, {1: 1, 5: 1, 2: 1, 3: 1})  # Leader y Z de antes + 2 Goku libres (dos impresiones)
+        self.assertFalse(self.Side.objects.filter(deck=cell, card=extra).exists())
+        version = principal_version(cell)
+        self.assertEqual((version.number, version.name), (1, "Imported from a text list"))
+        self.assertEqual(sum(version_list(version).values()), 9)
+        # Lista de recogida: lo que entra (de la caja) y lo que hay que sacar del mazo.
+        groups = result["pick_list"]
+        self.assertEqual(groups[-1]["kind"], "out")
+        self.assertEqual([(c["bandai_id"], c["quantity"]) for c in groups[-1]["cards"]], [(9, 3)])
+        self.assertEqual(groups[0]["location"], "Caja 1")
 
     def test_name_must_be_new(self):
         lines = self.preview(self.text).data["lines"]

@@ -27,9 +27,28 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     setBusy(true)
     setError(null)
     try {
-      const data = await api.previewDeckImport(source)
+      let data = await api.previewDeckImport(source)
+      // Ese Leader ya está en un mazo tuyo: por defecto, la lista se añade a ese mazo.
+      if (data.existing_decks.length) {
+        data = await api.previewDeckImportFor(data.lines, data.source, data.name, data.existing_decks[0].id)
+      }
       setPreview(data)
       setName(data.name)
+      setTakeFrom(new Set())
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Elegir a qué mazo va la lista (o crear uno nuevo): se recalcula lo que ya está, lo que entra y lo que sale.
+  const chooseTarget = async (target: number | null) => {
+    if (!preview) return
+    setBusy(true)
+    setError(null)
+    try {
+      setPreview(await api.previewDeckImportFor(preview.lines, preview.source, preview.name, target))
       setTakeFrom(new Set())
     } catch (e) {
       setError((e as Error).message)
@@ -43,7 +62,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     setBusy(true)
     setError(null)
     try {
-      setResult(await api.importDeck(preview.lines, name, preview.source, [...takeFrom]))
+      setResult(await api.importDeck(preview.lines, name, preview.source, [...takeFrom], preview.target?.id ?? null))
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -81,7 +100,22 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
         {result ? (
           <div className="deck-import-done">
             <p>
-              ✔ <strong>“{result.deck.name}”</strong> is ready: <strong>{result.moved}</strong> copies moved into it
+              ✔{' '}
+              {result.created ? (
+                <>
+                  <strong>“{result.deck.name}”</strong> is ready
+                </>
+              ) : (
+                <>
+                  <strong>“{result.deck.name}”</strong> has a new main list (v{result.version})
+                </>
+              )}
+              : <strong>{result.moved}</strong> copies moved into it
+              {result.removed > 0 && (
+                <>
+                  , <strong>{result.removed}</strong> moved out to “Unsorted”
+                </>
+              )}
               {result.missing > 0 && (
                 <>
                   , <strong>{result.missing}</strong> still missing (they're in its list so you can see them)
@@ -148,12 +182,39 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
               From {preview.source_label} · {preview.totals.cards} cards
               {!preview.has_leader && <strong className="deck-import-warn"> · no Leader in the list</strong>}
             </p>
-            <label>
-              Deck name
-              <input className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="e.g. Goku Black" />
-            </label>
+            {preview.existing_decks.length > 0 && (
+              <fieldset className="deck-import-target" disabled={busy}>
+                <legend>You already have a deck with this Leader</legend>
+                {preview.existing_decks.map((d) => (
+                  <label key={d.id} className={preview.target?.id === d.id ? 'on' : ''}>
+                    <input type="radio" name="import-target" checked={preview.target?.id === d.id} onChange={() => void chooseTarget(d.id)} />
+                    <span>
+                      <span>
+                        Add it as a <strong>new list</strong> of <strong>“{d.name}”</strong>
+                      </span>
+                      <small>It becomes the main list; cards that aren't in it go to “Unsorted”. Older lists stay in its history.</small>
+                    </span>
+                  </label>
+                ))}
+                <label className={preview.target == null ? 'on' : ''}>
+                  <input type="radio" name="import-target" checked={preview.target == null} onChange={() => void chooseTarget(null)} />
+                  <span>Create a new deck</span>
+                </label>
+              </fieldset>
+            )}
+            {preview.target == null && (
+              <label>
+                Deck name
+                <input className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="e.g. Goku Black" />
+              </label>
+            )}
 
             <div className="deck-import-totals">
+              {preview.target && (
+                <span className="in">
+                  <strong>{preview.totals.in_deck}</strong> already in the deck
+                </span>
+              )}
               <span className="ok">
                 <strong>{preview.totals.free}</strong> free
               </span>
@@ -164,6 +225,11 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
                 <strong>{totals?.missing ?? 0}</strong> missing
                 {!!totals?.cost && <small> · ≈ {formatEur(totals.cost)}</small>}
               </span>
+              {preview.totals.leaving > 0 && (
+                <span className="out">
+                  <strong>{preview.totals.leaving}</strong> leave the deck
+                </span>
+              )}
             </div>
 
             {preview.in_use.length > 0 && (
@@ -185,6 +251,22 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
               </div>
             )}
 
+            {preview.target && preview.leaving.length > 0 && (
+              <div className="deck-import-leaving">
+                <strong>
+                  ↩ {preview.totals.leaving} {preview.totals.leaving === 1 ? 'copy leaves' : 'copies leave'} “{preview.target.name}”
+                </strong>
+                <p className="small muted">They aren't in the new list: they move to “Unsorted” so you can put them away later.</p>
+                <ul className="deck-import-leaving-list">
+                  {preview.leaving.map((c) => (
+                    <li key={`${c.bandai_id}-${c.fake}`}>
+                      {c.quantity}× {c.name} <span className="muted">({c.number}{c.fake ? ', fake' : ''})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <ul className="deck-import-rows">
               {preview.rows.map((r) => {
                 const card = preview.catalog[r.bandai_id]
@@ -192,7 +274,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
                 const taken = r.in_use.filter((u) => takeFrom.has(u.deck_id)).reduce((n, u) => n + u.quantity, 0)
                 const blocked = r.in_use.filter((u) => !takeFrom.has(u.deck_id))
                 return (
-                  <li key={r.number} className={missing ? 'miss' : taken ? 'use' : 'ok'}>
+                  <li key={r.number} className={missing ? 'miss' : taken ? 'use' : r.free ? 'ok' : 'in'}>
                     {card && <img src={cardThumb(card)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
                     <span className="deck-import-card">
                       <strong>
@@ -203,6 +285,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
                       </small>
                     </span>
                     <span className="deck-import-status">
+                      {r.in_deck > 0 && <span className="in">■ {r.in_deck} already in the deck</span>}
                       {r.free > 0 && (
                         <span className="ok" title={r.from.map((f) => `${f.quantity} in “${f.location}”`).join(' · ')}>
                           ✓ {r.free} free <small>({r.from.map((f) => `${f.location}${r.from.length > 1 || f.quantity !== r.free ? ` ×${f.quantity}` : ''}`).join(', ')})</small>
@@ -233,8 +316,15 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
                 ← Back
               </button>
               <span className="spacer" />
-              <button type="button" className="btn primary" onClick={() => void create()} disabled={busy || !name.trim()}>
-                {busy ? 'Creating…' : `Create deck${totals?.taken ? ` (taking ${totals.taken} from other decks)` : ''}`}
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => void create()}
+                disabled={busy || (preview.target == null && !name.trim())}
+              >
+                {busy
+                  ? 'Saving…'
+                  : `${preview.target ? `Add the list to “${preview.target.name}”` : 'Create deck'}${totals?.taken ? ` (taking ${totals.taken} from other decks)` : ''}`}
               </button>
             </div>
           </div>

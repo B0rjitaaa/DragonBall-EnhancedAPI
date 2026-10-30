@@ -312,17 +312,24 @@ class DeckImportPreviewView(APIView):
     """Importar un mazo (enlace de DeckPlanet / Top Deck Diffusion / Time Chamber o lista en texto): qué tienes."""
 
     def post(self, request):
-        from .importer import DeckImportError, parse_source, preview
+        from .importer import DeckImportError, parse_source, parsed_from_lines, preview
 
         try:
-            data = preview(parse_source(str(request.data.get("source") or "")))
+            # Con `lines` (otra vez, al elegir el mazo destino) no se vuelve a descargar la página.
+            if request.data.get("lines"):
+                deck = parsed_from_lines(request.data["lines"], str(request.data.get("source") or "text"),
+                                         str(request.data.get("name") or ""))
+            else:
+                deck = parse_source(str(request.data.get("source") or ""))
+            data = preview(deck, request.data.get("target"))
         except DeckImportError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_with_catalog(data))
 
 
 class DeckImportView(APIView):
-    """Crea el mazo importado: `lines` (de la vista previa), `name` y `take_from` (mazos de los que coger copias)."""
+    """Crea el mazo importado (o, con `target`, guarda la lista como versión nueva de ese mazo): `lines` (de la
+    vista previa), `name` y `take_from` (mazos de los que coger copias)."""
 
     def post(self, request):
         from .importer import DeckImportError, create_deck, parsed_from_lines
@@ -330,7 +337,7 @@ class DeckImportView(APIView):
         take_from = {int(d) for d in request.data.get("take_from") or [] if str(d).isdigit()}
         try:
             deck = parsed_from_lines(request.data.get("lines"), str(request.data.get("source") or "text"))
-            result = create_deck(deck, str(request.data.get("name") or ""), take_from)
+            result = create_deck(deck, str(request.data.get("name") or ""), take_from, request.data.get("target"))
         except DeckImportError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_with_catalog(result), status=status.HTTP_201_CREATED)

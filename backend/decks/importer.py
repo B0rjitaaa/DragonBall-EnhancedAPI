@@ -338,26 +338,91 @@ def _order_numbers(location_id: int) -> dict[int, int]:
     return out
 
 
-def preview(deck: ParsedDeck) -> dict:
-    """Qué cartas de la lista tienes libres, cuáles están en otros mazos y cuáles te faltan."""
+def leader_decks(deck: ParsedDeck) -> list[Location]:
+    """Mazos en uso que ya tienen el Leader de la lista (cualquier impresión): en la caja o en su lista principal."""
+    need, catalog, _unknown = _requirements(deck)
+    leader_key = next((key for key, sections in need.items() if "leader" in sections), None)
+    if leader_key is None:
+        return []
+    ids = catalog[leader_key].ids
+    in_box = CollectionEntry.objects.filter(card_id__in=ids, location__kind=Location.Kind.DECK).values_list("location_id", flat=True)
+    in_list = DeckVersionCard.objects.filter(card_id__in=ids, version__principal=True).values_list("version__deck_id", flat=True)
+    return list(Location.objects.filter(pk__in={*in_box, *in_list}, kind=Location.Kind.DECK,
+                                        status=Location.Status.ACTIVE).order_by("position", "name"))
+
+
+def _target_deck(target_id) -> Location | None:
+    if target_id in (None, "", 0):
+        return None
+    target = Location.objects.filter(pk=target_id, kind=Location.Kind.DECK).first()
+    if target is None:
+        raise DeckImportError("That deck doesn't exist any more")
+    return target
+
+
+def _plan(deck: ParsedDeck, target: Location | None, take_from: set[int] | None):
+    """Para cada número: lo que ya está en el mazo destino, lo que entra (libres y mazos aceptados), lo que falta y,
+    con un mazo destino, lo que sale de él (lo que no está en la lista nueva) hacia «Sin ubicar».
+
+    `take_from=None` es la vista previa: se cuentan todos los mazos para enseñar qué hay en cada uno.
+    """
     need, catalog, unknown = _requirements(deck)
     cards = {key: catalog[key] for key in need}
-    available = _available(cards)
-    decks = {loc.pk: loc for rows in available.values() for r in rows for loc in [r["location"]]}
+    available = _available(cards, exclude=target)
+    id_key = {card_id: key for key, card in catalog.items() for card_id in card.ids}
+    in_target: dict[tuple[str, int], list[dict]] = defaultdict(list)
+    leaving: list[dict] = []
+    if target is not None:
+        for e in CollectionEntry.objects.filter(location=target).select_related("card").order_by("fake", "card_id"):
+            row = {"card_id": e.card_id, "fake": e.fake, "quantity": e.quantity, "notes": e.notes, "position": e.position}
+            key = id_key.get(e.card_id)
+            if key in need:
+                in_target[key].append(row)
+            else:
+                leaving.append(row)
+    plans = {}
+    for key, sections in need.items():
+        want = sum(sections.values())
+        kept = []
+        for row in in_target.get(key, []):  # primero lo que ya está en el mazo (auténticas antes que falsas)
+            n = min(want, row["quantity"])
+            if n:
+                kept.append((row["card_id"], row["fake"], n))
+                want -= n
+            if row["quantity"] - n:
+                leaving.append({**row, "quantity": row["quantity"] - n})
+        plans[key] = {"kept": kept, "alloc": _allocate({"all": want}, available.get(key, []), take_from)}
+    return need, cards, plans, available, leaving, unknown
+
+
+def preview(deck: ParsedDeck, target_id=None) -> dict:
+    """Qué cartas de la lista tienes libres, cuáles están en otros mazos y cuáles te faltan; con un mazo destino
+    (uno que ya tiene ese Leader), también las que ya están en él y las que saldrían a «Sin ubicar»."""
+    target = _target_deck(target_id)
+    need, cards, plans, available, leaving, unknown = _plan(deck, target, take_from=None)
+    decks = {r["location"].pk: r["location"] for rows in available.values() for r in rows}
     rows, in_use = [], defaultdict(list)
     for key, sections in need.items():
-        card = cards[key]
-        plan = _allocate(sections, available.get(key, []), take_from=None)
+        card, plan = cards[key], plans[key]
+        alloc = plan["alloc"]
         rows.append({
             "bandai_id": card.primary, "number": card.number, "name": card.name,
             "sections": {s: sections[s] for s in SECTIONS if sections.get(s)},
-            "quantity": sum(sections.values()), "free": plan["free"], "missing": plan["missing"],
-            "from": _from_free(plan["picks"]),
-            "in_use": [{"deck_id": d, "deck": decks[d].name, "quantity": n} for d, n in plan["from_decks"].items()],
+            "quantity": sum(sections.values()), "in_deck": sum(n for _c, _f, n in plan["kept"]),
+            "free": alloc["free"], "missing": alloc["missing"], "from": _from_free(alloc["picks"]),
+            "in_use": [{"deck_id": d, "deck": decks[d].name, "quantity": n} for d, n in alloc["from_decks"].items()],
         })
-        for d, n in plan["from_decks"].items():
+        for d, n in alloc["from_decks"].items():
             in_use[d].append({"bandai_id": card.primary, "number": card.number, "name": card.name, "quantity": n})
     rows.sort(key=lambda r: (min(SECTIONS.index(s) for s in r["sections"]), number_key(r["number"])))
+    names = Card.objects.in_bulk({r["card_id"] for r in leaving})
+    grouped: dict[tuple[str, bool], dict] = {}  # una línea por número (las impresiones se juntan) y autenticidad
+    for r in leaving:
+        card = names[r["card_id"]]
+        row = grouped.setdefault((card.card_number, r["fake"]), {"bandai_id": card.pk, "number": card.card_number,
+                                                                 "name": card.name, "quantity": 0, "fake": r["fake"]})
+        row["quantity"] += r["quantity"]
+    out_rows = sorted(grouped.values(), key=lambda r: (number_key(r["number"]) or ("", 0), r["fake"]))
     total = sum(sum(s.values()) for s in need.values())
     return {
         "source": deck.source,
@@ -366,54 +431,65 @@ def preview(deck: ParsedDeck) -> dict:
         "lines": [list(line) for line in deck.lines],
         "rows": rows,
         "has_leader": any("leader" in s for s in need.values()),
+        "existing_decks": [{"id": d.pk, "name": d.name} for d in leader_decks(deck)],
+        "target": {"id": target.pk, "name": target.name} if target else None,
         "totals": {
             "cards": total,
+            "in_deck": sum(r["in_deck"] for r in rows),
             "free": sum(r["free"] for r in rows),
             "in_use": sum(i["quantity"] for r in rows for i in r["in_use"]),
             "missing": sum(r["missing"] for r in rows),
+            "leaving": sum(r["quantity"] for r in out_rows),
         },
         "in_use": [{"deck_id": d, "deck": decks[d].name, "cards": items, "copies": sum(i["quantity"] for i in items)}
                    for d, items in in_use.items()],
+        "leaving": out_rows,
         "unknown": unknown,
         "unread": deck.unread[:20],
     }
 
 
-# --- Crear el mazo --------------------------------------------------------------------------------------------
+# --- Crear el mazo o añadir la lista ----------------------------------------------------------------------------
 
-def create_deck(deck: ParsedDeck, name: str, take_from: set[int]) -> dict:
-    """Crea el mazo con las copias que tienes (libres y de los mazos aceptados) y guarda su lista completa."""
+def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None) -> dict:
+    """Crea el mazo (o, con `target_id`, guarda la lista como versión nueva de ese mazo) con las copias que tienes:
+    las que ya estaban en él, las libres y las de los mazos aceptados. Lo que sobra del mazo va a «Sin ubicar»."""
     from collection.services import move_copies
 
-    name = (name or deck.name or "").strip()[:80]
-    if not name:
-        raise DeckImportError("Give the deck a name")
-    if Location.objects.filter(name__iexact=name).exists():
-        raise DeckImportError(f"There's already a location called “{name}”")
-    need, catalog, unknown = _requirements(deck)
-    if not need:
+    target = _target_deck(target_id)
+    if target is None:
+        name = (name or deck.name or "").strip()[:80]
+        if not name:
+            raise DeckImportError("Give the deck a name")
+        if Location.objects.filter(name__iexact=name).exists():
+            raise DeckImportError(f"There's already a location called “{name}”")
+    if not _requirements(deck)[0]:
         raise DeckImportError("None of the cards in the list are in the catalog")
     with transaction.atomic():
-        position = (Location.objects.filter(kind=Location.Kind.DECK).aggregate(m=Max("position"))["m"] or 0) + 1
-        new = Location.objects.create(name=name, kind=Location.Kind.DECK, position=position)
-        cards = {key: catalog[key] for key in need}
-        available = _available(cards, exclude=new)
-        # «Mi orden» de cada ubicación de origen, antes de sacar nada (para la lista de recogida).
+        if target is None:
+            position = (Location.objects.filter(kind=Location.Kind.DECK).aggregate(m=Max("position"))["m"] or 0) + 1
+            target = Location.objects.create(name=name, kind=Location.Kind.DECK, position=position)
+            created = True
+        else:
+            Location.objects.select_for_update().filter(pk=target.pk).first()
+            created = False
+        need, cards, plans, available, leaving, unknown = _plan(deck, target, take_from)
+        # «Mi orden» de cada ubicación de origen (y del propio mazo), antes de mover nada: para la lista de recogida.
         orders = {loc_id: _order_numbers(loc_id)
-                  for loc_id in {r["location"].pk for rows in available.values() for r in rows}}
+                  for loc_id in {r["location"].pk for rows in available.values() for r in rows} | {target.pk}}
         listing: dict[tuple[int, str], int] = defaultdict(int)
         side_by_card: dict[int, int] = defaultdict(int)
         given: dict[int, dict] = {}
         all_picks: list = []
         moved = missing = 0
         for key, sections in need.items():
-            card = cards[key]
-            plan = _allocate(sections, available.get(key, []), take_from)
-            # Las copias que llegan, por impresión, se reparten por secciones (Leader/Main/Z primero, side al final).
-            pool: list[list[int]] = []
-            all_picks.extend(plan["picks"])
-            for card_id, src, n, _row in plan["picks"]:
-                move_copies(Card.objects.get(pk=card_id), src, new, n)
+            card, plan = cards[key], plans[key]
+            # Las copias del mazo, por impresión: las que ya estaban y las que llegan. Se reparten por secciones
+            # (Leader/Main/Z primero, side al final).
+            pool: list[list[int]] = [[card_id, n] for card_id, _fake, n in plan["kept"]]
+            all_picks.extend(plan["alloc"]["picks"])
+            for card_id, src, n, _row in plan["alloc"]["picks"]:
+                move_copies(Card.objects.get(pk=card_id), src, target, n)
                 pool.append([card_id, n])
                 moved += n
                 if src.kind == Location.Kind.DECK:
@@ -433,13 +509,24 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int]) -> dict:
                 if want:  # te faltan: entran en la lista con la impresión principal
                     _add(listing, side_by_card, card.primary, section, want, catalog_type=card.card_type)
                     missing += want
+        # Lo que no está en la lista nueva sale del mazo a «Sin ubicar» (para guardarlo luego donde toque).
+        unsorted = Location.default()
+        removed = 0
+        for row in leaving:
+            move_copies(Card.objects.get(pk=row["card_id"]), target, unsorted, row["quantity"], source_fake=row["fake"])
+            removed += row["quantity"]
+        target.side_cards.all().delete()
         for card_id, n in side_by_card.items():
-            services.set_side(new, Card.objects.get(pk=card_id), n)
-        picked = pick_list(all_picks, Card.objects.in_bulk({p[0] for p in all_picks}), orders)
+            services.set_side(target, Card.objects.get(pk=card_id), n)
+        bulk = Card.objects.in_bulk({p[0] for p in all_picks} | {r["card_id"] for r in leaving})
+        picked = pick_list(all_picks, bulk, orders)
+        if leaving:
+            picked.append(_out_group(target, leaving, bulk, orders.get(target.pk) or {}))
+        PickList.objects.filter(deck=target).delete()
         if picked:
-            PickList.objects.create(deck=new, groups=picked)
+            PickList.objects.create(deck=target, groups=picked)
         source = SOURCE_LABELS.get(deck.source, deck.source)
-        version = services.save_version(new, name=f"Imported from {source}", listing=dict(listing))
+        version = services.save_version(target, name=f"Imported from {source}", listing=dict(listing))
         services.make_principal(version)
         affected = []
         for row in given.values():
@@ -448,16 +535,30 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int]) -> dict:
                 side = other.side_cards.filter(card_id=card_id).first()
                 if side is not None:
                     services.set_side(other, side.card, side.quantity)
-            saved = services.save_version(other, name=f"Gave cards to “{name}”", automatic=True)
+            saved = services.save_version(other, name=f"Gave cards to “{target.name}”", automatic=True)
             affected.append({"deck_id": other.pk, "deck": other.name, "copies": row["copies"], "version": saved.number})
     return {
-        "deck": {"id": new.pk, "uid": str(new.uid), "name": new.name},
+        "deck": {"id": target.pk, "uid": str(target.uid), "name": target.name},
+        "created": created,
+        "version": version.number,
         "moved": moved,
         "missing": missing,
+        "removed": removed,
         "unknown": unknown,
         "decks_changed": affected,
         "pick_list": picked,
     }
+
+
+def _out_group(deck: Location, leaving: list[dict], cards: dict[int, Card], order: dict[int, int]) -> dict:
+    """En la lista de recogida: las copias que salen del mazo a «Sin ubicar» (hay que sacarlas de su caja)."""
+    rows = [{
+        "bandai_id": r["card_id"], "number": cards[r["card_id"]].card_number, "name": cards[r["card_id"]].name,
+        "rarity": cards[r["card_id"]].rarity_code + (" · fake" if r["fake"] else ""), "quantity": r["quantity"],
+        "position": order.get(r["card_id"]), "notes": [line for line in (r["notes"] or "").splitlines() if line.strip()],
+    } for r in leaving]
+    rows.sort(key=lambda c: (c["position"] or 0, number_key(c["number"]) or ("", 0)))
+    return {"location_id": deck.pk, "location": f"Take out of “{deck.name}” → Unsorted", "kind": "out", "cards": rows}
 
 
 def _add(listing, side_by_card, card_id: int, section: str, n: int, catalog_type: str) -> None:

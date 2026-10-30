@@ -26,6 +26,18 @@ In **Locations → Decks**, **⇩ Import deck** creates a deck from a list you f
 3. If some cards are **in use in other decks**, a warning lists them deck by deck. **Tick a deck to take its copies**: they move to the new deck and that deck **saves a new version** with what it has left (named “Gave cards to “…””), so its old list stays in its history. Leave it unticked and those cards count as missing.
 4. Check the **Deck name** (it comes from the original site when there is one) and press **Create deck**.
 
+### When you already have a deck with that Leader
+
+If the list's Leader (any printing) is the Leader of one of your decks in use, the check offers **Add it as a new list of “Deck X”** (selected by default; if several decks have that Leader, pick one) or **Create a new deck**. Adding it to the deck:
+- counts first the copies **already in the deck** (**■ already in the deck**), fakes included, since you're already playing them;
+- brings what's missing from free copies and, as always, from the other decks you tick in the warning;
+- moves the copies of the deck that **aren't in the new list** to **Unsorted** (**N leave the deck**: the check lists them), so you can put them away later by hand;
+- saves the list as a **new version** of the deck and makes it the main list; the older lists stay in its history.
+
+The pick list then also has a **Take out of “Deck X” → Unsorted** section with the cards to take out of the deck box.
+
+### The deck that's created
+
 The new deck gets the copies you have (free ones first) and saves the **complete list as its main list, missing cards included**, so the deck view shows what you still need (“the box doesn't match the main list: −N”).
 
 In the check, each free card says where it is, for example **✓ 2 free (Caja 1, Archivador ×1)**. After creating the deck you get **Where to get the cards**, a pick list to gather them physically:

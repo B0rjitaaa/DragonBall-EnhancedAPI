@@ -155,9 +155,12 @@ export const api = {
   deleteLocation: (id: number) => request<void>(`/my-collection/locations/${id}/`, { method: 'DELETE' }),
   /** Importar un mazo (enlace de DeckPlanet / Top Deck Diffusion / Time Chamber o lista en texto): qué tienes. */
   previewDeckImport: (source: string) => request<DeckImportPreview>('/my-collection/decks/import/preview/', post({ source })),
-  /** Crear el mazo importado: `lines` de la vista previa y los mazos de los que coger copias. */
-  importDeck: (lines: DeckImportPreview['lines'], name: string, source: string, takeFrom: number[]) =>
-    request<DeckImportResult>('/my-collection/decks/import/', post({ lines, name, source, take_from: takeFrom })),
+  /** La misma vista previa (sin volver a descargar la página) para añadir la lista a `target` o (null) a un mazo nuevo. */
+  previewDeckImportFor: (lines: DeckImportPreview['lines'], source: string, name: string, target: number | null) =>
+    request<DeckImportPreview>('/my-collection/decks/import/preview/', post({ lines, source, name, target })),
+  /** Crear el mazo importado (o añadir la lista a `target`): `lines` de la vista previa y los mazos de los que coger copias. */
+  importDeck: (lines: DeckImportPreview['lines'], name: string, source: string, takeFrom: number[], target: number | null = null) =>
+    request<DeckImportResult>('/my-collection/decks/import/', post({ lines, name, source, take_from: takeFrom, target })),
   /** Lista de recogida de un mazo importado: leerla, guardar lo ya sacado y quitarla. */
   pickList: (deck: number) => request<SavedPickList>(`/my-collection/decks/${deck}/pick-list/`),
   savePicked: (deck: number, done: string[]) =>

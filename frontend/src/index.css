@@ -1756,3 +1756,26 @@ button.deck-chip:hover { border-color: var(--accent); }
   border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .deck-picks:hover { border-color: var(--accent); }
+/* Importar a un mazo que ya tiene ese Leader */
+.deck-import-target { display: grid; gap: 0.4rem; margin: 0; padding: 0.7rem; border: 1px solid var(--line); border-radius: 10px; }
+.deck-import-target legend { padding: 0 0.3rem; font-weight: 700; font-size: 0.9rem; }
+.deck-import-target label {
+  display: flex !important; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0.6rem; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-2); color: var(--text) !important; cursor: pointer; font-size: 0.92rem !important;
+}
+.deck-import-target label.on { border-color: var(--accent); }
+.deck-import-target input { margin-top: 0.2rem; }
+.deck-import-target label > span { display: grid; gap: 0.15rem; }
+.deck-import-target small { color: var(--muted); font-size: 0.78rem; }
+.deck-import-totals .in, .deck-import-status .in { color: #8ab4ff; }
+.deck-import-totals .in { border-color: color-mix(in srgb, #8ab4ff 40%, transparent); }
+.deck-import-totals .out { color: var(--muted); }
+.deck-import-rows li.in { border-left-color: #8ab4ff; }
+.deck-import-leaving { display: grid; gap: 0.3rem; padding: 0.7rem; border-radius: 10px; border: 1px dashed var(--line); }
+.deck-import-leaving p { margin: 0; }
+.pick-group h4.pick-out { color: var(--accent-2); }
+.deck-import-leaving-list {
+  margin: 0; padding: 0 0 0 1.1rem; max-height: 9.5rem; overflow-y: auto; font-size: 0.85rem;
+  columns: 2 16rem; column-gap: 1.5rem;
+}
+.deck-import-leaving-list li { break-inside: avoid; }

@@ -525,6 +525,8 @@ export interface DeckImportRow {
   /** Copias por sección: leader, main, z, side. */
   sections: Partial<Record<'leader' | 'main' | 'z' | 'side', number>>
   quantity: number
+  /** Copias que ya están en el mazo destino (al añadir la lista a un mazo que ya tienes). */
+  in_deck: number
   /** Copias libres (Sin ubicar, archivadores, cajas). */
   free: number
   /** Copias que están en otros mazos. */
@@ -539,7 +541,8 @@ export interface DeckImportRow {
 export interface PickGroup {
   location_id: number
   location: string
-  kind: LocationKind
+  /** «out»: copias que hay que sacar del mazo (han pasado a «Sin ubicar»). */
+  kind: LocationKind | 'out'
   cards: {
     bandai_id: number
     number: string
@@ -562,7 +565,13 @@ export interface DeckImportPreview {
   lines: [string, string, number][]
   rows: DeckImportRow[]
   has_leader: boolean
-  totals: { cards: number; free: number; in_use: number; missing: number }
+  /** Mazos en uso que ya tienen este Leader: se puede añadir la lista a uno de ellos en vez de crear otro. */
+  existing_decks: { id: number; name: string }[]
+  /** Mazo al que se añadiría la lista (null: mazo nuevo). */
+  target: { id: number; name: string } | null
+  totals: { cards: number; in_deck: number; free: number; in_use: number; missing: number; leaving: number }
+  /** Copias del mazo destino que no están en la lista nueva: salen a «Sin ubicar». */
+  leaving: { bandai_id: number; number: string; name: string; quantity: number; fake: boolean }[]
   /** Mazos que tienen cartas de la lista: cuáles y cuántas. */
   in_use: { deck_id: number; deck: string; copies: number; cards: { bandai_id: number; number: string; name: string; quantity: number }[] }[]
   /** Números que no están en el catálogo. */
@@ -574,7 +583,12 @@ export interface DeckImportPreview {
 
 export interface DeckImportResult {
   deck: { id: number; uid: string; name: string }
+  /** false: la lista se ha añadido como versión nueva de un mazo que ya tenías. */
+  created: boolean
+  version: number
   moved: number
+  /** Copias que han salido del mazo a «Sin ubicar». */
+  removed: number
   missing: number
   unknown: string[]
   decks_changed: { deck_id: number; deck: string; copies: number; version: number }[]
