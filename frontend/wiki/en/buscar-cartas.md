@@ -149,9 +149,8 @@ At the bottom are **← Previous** and **Next →** (on mobile, ‹ and ›). Th
 ## Filtering from a card
 
 On a card's page you can click on:
-- any **[skill in brackets]** in the text;
-- the buttons under **This card's keyword skills**;
-- the ones under **Special traits**.
+- any **[skill in brackets]** in the text, then **Filter cards with [skill] →** in the box with its explanation;
+- the **Type**, **Character**, **Special trait** or **Era** tiles.
 
 That value is **added** to the filters and the card page closes. It's the fastest way to search for “more cards with [Barrier]” or “more Saiyans”.
 

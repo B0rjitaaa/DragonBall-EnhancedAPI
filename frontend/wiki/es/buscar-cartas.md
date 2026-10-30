@@ -149,9 +149,8 @@ Abajo están **«← Previous»** y **«Next →»** (en el móvil, ‹ y ›). 
 ## Filtrar desde una carta
 
 En la ficha de una carta puedes hacer clic en:
-- cualquier **[habilidad entre corchetes]** del texto;
-- los botones de **«This card's keyword skills»**;
-- los de **«Special traits»** (rasgos).
+- cualquier **[habilidad entre corchetes]** del texto y, en el recuadro con su explicación, **«Filter cards with [habilidad] →»**;
+- las baldosas **«Type»**, **«Character»**, **«Special trait»** (rasgo) o **«Era»**.
 
 Ese valor se **añade** a los filtros y la ficha se cierra. Es la forma más rápida de buscar «más cartas con [Barrier]» o «más Saiyan».
 

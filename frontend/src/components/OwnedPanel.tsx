@@ -147,7 +147,7 @@ function OwnedRow({
       <div className="owned-row">
         <span className="owned-name">
           {loc.name}
-          {loc.kind !== 'other' && <small>{KIND_LABELS[loc.kind]}</small>}
+          {loc.kind === 'deck' ? <span className="owned-tag deck">In deck</span> : loc.kind !== 'other' && <span className="owned-tag">{KIND_LABELS[loc.kind]}</span>}
           {loc.fake && <span className="fake-badge">Fake</span>}
         </span>
         <span className="owned-qty">

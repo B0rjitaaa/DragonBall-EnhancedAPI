@@ -394,6 +394,10 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
     [location],
   )
 
+  // Ficha abierta: su posición en los resultados de la página (para ‹ › y ← →).
+  const results = data?.results ?? []
+  const openIndex = openId == null ? -1 : results.findIndex((c) => c.id === openId)
+
   // Móvil: el menú plegable de copia y CSV de Mi colección.
   const [actionsOpen, setActionsOpen] = useState(false)
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
@@ -723,6 +727,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           key={openId}
           id={openId}
           onOpenPrint={setOpenId}
+          onPrev={openIndex > 0 ? () => setOpenId(results[openIndex - 1].id) : undefined}
+          onNext={openIndex >= 0 && openIndex < results.length - 1 ? () => setOpenId(results[openIndex + 1].id) : undefined}
           skills={skills}
           onClose={() => {
             setOpenId(null)

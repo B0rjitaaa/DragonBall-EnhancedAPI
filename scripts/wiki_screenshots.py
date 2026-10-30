@@ -80,6 +80,19 @@ def shots():
         go(page, f"/?q=goku&filters={FILTERS}")
         return None, False
 
+    def leader_awaken(page: Page):
+        go(page, "/?card=EX20-01", 2500)
+        page.locator(".cd-face button", has_text="Awaken").click()
+        page.wait_for_timeout(600)
+        return ".modal.card-detail", False
+
+    def collection_card(page: Page):
+        # El panel de copias solo sale con cartas de la página abierta: se abre desde la cuadrícula.
+        go(page, "/collection", 2500)
+        page.locator(".grid .tile").nth(2).click()
+        page.wait_for_timeout(1800)
+        return ".modal.card-detail", False
+
     def deck_history(page: Page):
         go(page, "/locations")
         return None, True
@@ -88,15 +101,15 @@ def shots():
         ("buscador.jpg", DESKTOP, at("/")),
         ("buscador-filtros.jpg", DESKTOP, open_filters),
         ("modo-avanzado.jpg", DESKTOP, at(f"/?advanced={ADVANCED}")),
-        ("ficha-carta.jpg", DESKTOP, at("/?card=BT20-149", 2500)),
-        ("ficha-leader.jpg", DESKTOP, at("/?card=BT10-060", 2500)),
-        ("enlace-carta.jpg", DESKTOP, at("/?card=BT20-149", 2500, element=".detail-info")),
-        ("precio-ficha.jpg", DESKTOP, at("/?card=BT20-149", 2500, element=".modal")),
+        ("ficha-carta.jpg", DESKTOP, at("/?card=BT9-101", 2500, element=".modal.card-detail")),
+        ("ficha-leader.jpg", DESKTOP, leader_awaken),
+        ("enlace-carta.jpg", DESKTOP, at("/?card=BT20-149", 2500, element=".cd-head")),
+        ("precio-ficha.jpg", DESKTOP, at("/?card=BT20-149", 2500, element=".cd-price")),
         ("novedades.jpg", DESKTOP, at("/news", 2500)),
         ("coleccion.jpg", DESKTOP, at("/collection", 2500)),
         ("coleccion-lista.jpg", DESKTOP, at("/collection?view=list", 2500)),
         ("coleccion-ubicacion.jpg", DESKTOP, at(f"/collection/location/{BOX}", 2500)),
-        ("coleccion-ficha.jpg", DESKTOP, at("/collection?card=BT20-149", 2500)),
+        ("coleccion-ficha.jpg", DESKTOP, collection_card),
         ("ubicaciones.jpg", DESKTOP, deck_history),
         ("mazo.jpg", DESKTOP, at(f"/collection/deck/{DECK}", 3000)),
         ("csv.jpg", DESKTOP, at("/collection", 2500)),

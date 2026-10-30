@@ -1,30 +1,56 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
 import { cardLink, showCardRef } from '../lib/cardLink'
+import { colorClass } from '../lib/colors'
 import { formatEur, priceLabel } from '../lib/prices'
 import PriceChart from './PriceChart'
-import { CATEGORY_LABEL, type SkillIndex } from '../lib/skills'
-import type { CardDetail, CardPrice, SkillCategory } from '../lib/types'
-import CardText from './CardText'
-import Tooltip from './Tooltip'
+import type { SkillIndex } from '../lib/skills'
+import type { CardDetail, CardPrice } from '../lib/types'
+import CardText, { errataText } from './CardText'
 
 interface Props {
   id: number
   skills: SkillIndex
   onClose: () => void
   onFilter: (field: string, value: string) => void
-  /** Mi colección: copias de la carta por ubicación (se pinta bajo el título). */
+  /** Mi colección: copias de la carta por ubicación (se pinta bajo la imagen, en «Your copies»). */
   children?: ReactNode
-  /** Abrir otra impresión del mismo número (fila «Otras impresiones»). */
+  /** Abrir otra impresión del mismo número (miniaturas bajo la imagen). */
   onOpenPrint?: (id: number) => void
+  /** Carta anterior / siguiente de los resultados (‹ › y las teclas ← →). */
+  onPrev?: () => void
+  onNext?: () => void
 }
 
-const HIDDEN_CONFIG = new Set(['Notes'])
+const TYPE_LABEL: Record<string, string> = { LEADER: 'Leader', BATTLE: 'Battle', EXTRA: 'Extra', UNISON: 'Unison' }
+const typeLabel = (t: string) => TYPE_LABEL[t] ?? t.split('-').map((w) => (w.length <= 1 ? w : w[0] + w.slice(1).toLowerCase())).join('-')
 
-export default function CardModal({ id, skills, onClose, onFilter, children, onOpenPrint }: Props) {
+/** «2 red + 1 blue» a partir de ['Red', 'Red', 'Blue']. */
+function colorCostText(colors: string[]): string {
+  const count = new Map<string, number>()
+  for (const c of colors) count.set(c, (count.get(c) ?? 0) + 1)
+  return [...count].map(([c, n]) => `${n} ${c.toLowerCase()}`).join(' + ')
+}
+
+function Dots({ colors, small }: { colors: string[]; small?: boolean }) {
+  return (
+    <span className="dots">
+      {colors.map((c, i) => (
+        <i key={i} className={`dot ${small ? 'sm' : ''} ${colorClass(c)}`} title={c} />
+      ))}
+    </span>
+  )
+}
+
+/** La ficha de una carta, ordenada como la lee un jugador: si se puede jugar, sus números, sus datos, qué hace
+ *  (con la errata aplicada) y cómo se resuelve (Q&A). A la izquierda, la carta física: imagen, impresiones,
+ *  tus copias y su precio. */
+export default function CardModal({ id, skills, onClose, onFilter, children, onOpenPrint, onPrev, onNext }: Props) {
   const [card, setCard] = useState<CardDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [side, setSide] = useState<'front' | 'back'>('front')
+  const [printed, setPrinted] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // El componente se monta con key={id}, así que el estado arranca limpio para cada carta
   useEffect(() => {
@@ -37,181 +63,286 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
   }, [card])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      // ← → para pasar de carta, salvo escribiendo (una nota, un selector…).
+      const target = e.target as HTMLElement
+      if (target.closest('input, textarea, select, [contenteditable]')) return
+      if (e.key === 'ArrowLeft' && onPrev) onPrev()
+      if (e.key === 'ArrowRight' && onNext) onNext()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, onPrev, onNext])
 
-  const back = side === 'back' && card?.has_back
-  const config = card ? (back ? card.back_config : card.config) : {}
-  const cardSkills: [SkillCategory, string[]][] = card
-    ? [
-        ['timing', card.timing],
-        ['skill', card.keyword_skills],
-        ['keyword', card.keyword_rules],
-      ]
-    : []
+  const back = side === 'back' && !!card?.has_back
+  const name = card ? (back ? card.back_name : card.name) : ''
   const deckRules = card ? card.keyword_skills.map((s) => skills.deckRule(s)).filter(Boolean) : []
+  const isLeader = card?.card_type === 'LEADER'
+  const text = card ? (back ? card.back_text : card.errata ? errataText(card.text, card.errata.before, card.errata.after, printed) : card.text) : ''
+
+  const copyText = async () => {
+    if (!card) return
+    const plain = (back ? card.back_text : card.errata ? errataText(card.text, card.errata.before, card.errata.after).replace(/⟦\+([^⟧]*)⟧/g, '$1') : card.text)
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+    try {
+      await navigator.clipboard.writeText(plain)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      /* sin portapapeles: el texto se puede seleccionar a mano */
+    }
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <button className="icon-btn close" onClick={onClose} aria-label="Close">
+      <div className="modal card-detail" role="dialog" aria-modal="true" aria-label={name || 'Card'} onClick={(e) => e.stopPropagation()}>
+        {/* Móvil: barra fija con el nombre, ‹ › y cerrar */}
+        <div className="cd-topbar">
+          <button className="icon-btn" onClick={onPrev} disabled={!onPrev} aria-label="Previous card">
+            ‹
+          </button>
+          <span className="cd-topbar-name">{name}</span>
+          <button className="icon-btn" onClick={onNext} disabled={!onNext} aria-label="Next card">
+            ›
+          </button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <button className="icon-btn close cd-close" onClick={onClose} aria-label="Close">
           ✕
         </button>
+        {onPrev && (
+          <button className="cd-nav prev" onClick={onPrev} aria-label="Previous card" title="Previous card (←)">
+            ‹
+          </button>
+        )}
+        {onNext && (
+          <button className="cd-nav next" onClick={onNext} aria-label="Next card" title="Next card (→)">
+            ›
+          </button>
+        )}
         {error && <p className="error">{error}</p>}
-        {!card && !error && <p className="muted">Loading…</p>}
+        {!card && !error && <p className="muted cd-loading">Loading…</p>}
         {card && (
-          <div className="detail">
-            <div className="detail-img">
-              <img src={back ? card.back_image_url : card.image_url} alt={card.name} referrerPolicy="no-referrer" />
-              {card.has_back && (
-                <div className="seg">
-                  <button className={side === 'front' ? 'on' : ''} onClick={() => setSide('front')}>
-                    Front
-                  </button>
-                  <button className={side === 'back' ? 'on' : ''} onClick={() => setSide('back')}>
-                    Back
-                  </button>
-                </div>
-              )}
-              {card.prints.length > 1 && (
-                <section className="card-prints">
-                  <strong className="small">Printings of {card.card_number}</strong>
-                  <div>
-                    {card.prints.map((p) => (
-                      <button
-                        key={p.id}
-                        className={p.id === card.id ? 'on' : ''}
-                        onClick={() => p.id !== card.id && onOpenPrint?.(p.id)}
-                        disabled={!onOpenPrint && p.id !== card.id}
-                        title={`${p.ref} · ${p.rarity_code} · ${p.card_set}`}
-                      >
-                        <img src={p.thumb_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
-                        <span>{p.rarity_code || '—'}</span>
-                      </button>
-                    ))}
+          <div className="cd-layout">
+            <aside className="cd-art">
+              <div className="cd-art-top">
+                {card.has_back && (
+                  <div className="cd-face" role="group" aria-label="Side">
+                    <button className={side === 'front' ? 'on' : ''} onClick={() => setSide('front')} aria-pressed={side === 'front'}>
+                      Front
+                    </button>
+                    <button className={side === 'back' ? 'on' : ''} onClick={() => setSide('back')} aria-pressed={side === 'back'}>
+                      {isLeader ? 'Awaken' : 'Back'}
+                    </button>
                   </div>
-                </section>
-              )}
-              {card.price && card.price.counts && <PriceChart points={card.price_history ?? []} />}
-            </div>
-            <div className="detail-info">
-              <p className="muted small detail-meta">
-                <span>
-                  {card.card_number} · {card.card_set}
-                </span>
-                <CopyLink cardRef={card.ref} />
-              </p>
-              <h2>{back ? card.back_name : card.name}</h2>
-              {card.price && <PriceBox price={card.price} />}
-              {card.legality !== 'legal' && (
-                <div className={`legal-banner ${card.legality}`}>
-                  <strong>{card.legality === 'banned' ? '⛔ Banned in official tournaments' : '⚠️ Limited: 1 copy max'}</strong>
-                  {card.legality === 'banned'
-                    ? " — it can't be in the deck or the side deck."
-                    : ' across deck and side deck.'}
-                  {card.legality_since && <small> {card.legality_since}</small>}
-                </div>
-              )}
-              {deckRules.length > 0 && (
-                <div className="legal-banner deck">
-                  <strong>🃏 Deck building:</strong> {deckRules.join(' · ')}
-                </div>
-              )}
-              {card.errata && (
-                <div className="legal-banner errata">
-                  <strong>✎ Official erratum{card.errata.date && <small> {card.errata.date}</small>}</strong>
-                  <div className="errata-cols">
+                )}
+                <img className="cd-img" src={back ? card.back_image_url : card.image_url} alt={name} referrerPolicy="no-referrer" />
+                {card.prints.length > 1 && (
+                  <section className="card-prints">
+                    <span className="cd-label">Printings of {card.card_number}</span>
                     <div>
-                      <span className="errata-tag">Before</span>
-                      <p>{card.errata.before}</p>
+                      {card.prints.map((p) => (
+                        <button
+                          key={p.id}
+                          className={p.id === card.id ? 'on' : ''}
+                          onClick={() => p.id !== card.id && onOpenPrint?.(p.id)}
+                          disabled={!onOpenPrint && p.id !== card.id}
+                          title={`${p.ref} · ${p.rarity_code} · ${p.card_set}`}
+                        >
+                          <img src={p.thumb_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                          <span>{p.rarity_code || '—'}</span>
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <span className="errata-tag after">After</span>
-                      <p>{card.errata.after}</p>
-                    </div>
-                  </div>
-                  {card.errata.notes && <p className="errata-notes">{card.errata.notes}</p>}
+                  </section>
+                )}
+              </div>
+              {children && <div className="cd-owned">{children}</div>}
+              {card.price && (
+                <div className="cd-price">
+                  <PriceBox price={card.price} />
+                  {card.price.counts && <PriceChart points={card.price_history ?? []} />}
                 </div>
               )}
-              {children}
-              <CardText text={back ? card.back_text : card.text} skills={skills} onKeyword={(kw) => onFilter('keyword', kw)} />
+            </aside>
 
-              <table className="attrs">
-                <tbody>
-                  {Object.entries(config)
-                    .filter(([k, v]) => v && !HIDDEN_CONFIG.has(k))
-                    .map(([k, v]) => (
-                      <tr key={k}>
-                        <th>{k}</th>
-                        <td>{v}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+            <div className="cd-info">
+              <header className="cd-head">
+                <h2>{name}</h2>
+                <p className="cd-meta">
+                  <b>{card.card_number}</b> · {card.card_set}
+                </p>
+                <div className="cd-badges">
+                  {card.rarity && (
+                    <span className="cd-badge rarity">
+                      {card.rarity}
+                      {card.rarity_code && ` · ${card.rarity_code}`}
+                    </span>
+                  )}
+                  <span className="cd-badge">{card.errata ? '✎ Errata' : 'Errata: none'}</span>
+                  <span className="cd-badge">Q&amp;A: {card.rulings.length}</span>
+                  <CopyLink cardRef={card.ref} />
+                </div>
+              </header>
 
-              {cardSkills.some(([, names]) => names.length > 0) && (
-                <>
-                  <h3>This card's keyword skills</h3>
-                  <dl className="glossary">
-                    {cardSkills.flatMap(([category, names]) =>
-                      names.map((name) => {
-                        const skill = skills.describe(name)
-                        return (
-                          <div key={`${category}-${name}`} className="glossary-item">
-                            <dt>
-                              <Tooltip text={`Filter by [${name}]`}>
-                                <button className="chip" onClick={() => onFilter(skills.fieldFor(name), name)}>
-                                  {name}
-                                </button>
-                              </Tooltip>
-                              <small>{CATEGORY_LABEL[category]}</small>
-                            </dt>
-                            <dd>{skill?.description ?? 'Not listed on the official keyword skills page.'}</dd>
-                          </div>
-                        )
-                      }),
-                    )}
-                  </dl>
-                </>
-              )}
-              {card.special_traits.length > 0 && (
-                <>
-                  <h3>Special traits</h3>
-                  <div className="chips">
-                    {card.special_traits.map((t) => (
-                      <button key={t} className="chip" onClick={() => onFilter('special_trait', t)}>
-                        {t}
+              <Status card={card} deckRules={deckRules as string[]} />
+
+              <div className="cd-stats" aria-label="Card numbers">
+                <div>
+                  <span className="cd-label">{card.card_type.startsWith('Z-') ? 'Z-Energy' : 'Cost'}</span>
+                  <b>
+                    {card.card_type.startsWith('Z-') ? (card.z_energy_cost ?? '—') : (card.energy ?? '—')}
+                    {card.color_cost_colors.length > 0 && <Dots colors={card.color_cost_colors} />}
+                  </b>
+                  <small>{card.color_cost_colors.length ? colorCostText(card.color_cost_colors) : isLeader ? 'Leader' : 'no colour cost'}</small>
+                </div>
+                <div>
+                  <span className="cd-label">Power</span>
+                  <b>{(back ? card.back_power : card.power)?.toLocaleString('en-GB') ?? '—'}</b>
+                  <small>{back ? 'awakened' : card.has_back ? 'front side' : ' '}</small>
+                </div>
+                <div>
+                  <span className="cd-label">Combo</span>
+                  <b>{card.combo_power != null ? `+${card.combo_power.toLocaleString('en-GB')}` : '—'}</b>
+                  <small>{card.combo_energy != null ? `costs ${card.combo_energy} energy` : "can't combo"}</small>
+                </div>
+              </div>
+
+              <div className="cd-tiles">
+                <div>
+                  <span className="cd-label">Type</span>
+                  <button className="cd-tile-value" onClick={() => onFilter('type', card.card_type)} title="Filter by this type">
+                    {typeLabel(card.card_type)}
+                  </button>
+                </div>
+                <div>
+                  <span className="cd-label">Color</span>
+                  <span className="cd-tile-value">
+                    <Dots colors={card.colors} small /> {card.colors.join(' / ')}
+                  </span>
+                </div>
+                <div>
+                  <span className="cd-label">Rarity</span>
+                  <span className="cd-tile-value">{card.rarity || '—'}</span>
+                </div>
+                <TileList label="Character" values={card.characters} onPick={(v) => onFilter('character', v)} />
+                <TileList label="Special trait" values={card.special_traits} onPick={(v) => onFilter('special_trait', v)} />
+                <TileList label="Era" values={card.eras} onPick={(v) => onFilter('era', v)} />
+              </div>
+
+              <section>
+                <div className="cd-section-head">
+                  <span className="cd-label">Card text{back ? ' · Awaken side' : ''}</span>
+                  <button type="button" className="btn small ghost" onClick={copyText}>
+                    {copied ? 'Copied ✓' : '⧉ Copy text'}
+                  </button>
+                </div>
+                {card.errata && !back && (
+                  <div className="cd-errata">
+                    <span aria-hidden>✎</span>
+                    <span>
+                      <b>Errata{card.errata.date && ` (${card.errata.date})`}</b> — this is the current wording; the change is
+                      highlighted.{' '}
+                      <button type="button" className="link" onClick={() => setPrinted(!printed)}>
+                        {printed ? 'Show current text' : 'Show printed text'}
                       </button>
-                    ))}
+                      {card.errata.notes && <small>{card.errata.notes}</small>}
+                    </span>
                   </div>
-                </>
-              )}
-              {card.rulings.length > 0 && (
-                <details className="rulings">
-                  <summary>
-                    Q&A <span className="count">{card.rulings.length}</span>
-                  </summary>
-                  <dl className="qa">
-                    {card.rulings.map((r) => (
-                      <div key={r.order} className="qa-item">
-                        <dt>
-                          <span className="qa-q">Q{r.order}</span>
-                          {r.is_new && <span className="qa-new">new</span>}
+                )}
+                <CardText text={text} skills={skills} onKeyword={(kw) => onFilter('keyword', kw)} />
+              </section>
+
+              <section>
+                <div className="cd-section-head">
+                  <span className="cd-label">Official Q&amp;A · {card.rulings.length}</span>
+                </div>
+                {card.rulings.length ? (
+                  <div className="cd-qa">
+                    {card.rulings.map((r, i) => (
+                      <details key={r.order} open={i < 2}>
+                        <summary>
                           {r.question}
-                        </dt>
-                        <dd>{r.answer}</dd>
-                      </div>
+                          {r.is_new && <span className="qa-new">new</span>}
+                        </summary>
+                        <p className="cd-answer">{r.answer}</p>
+                        {r.set_label && <small>{r.set_label}</small>}
+                      </details>
                     ))}
-                  </dl>
-                </details>
-              )}
-              {card.notes && <p className="muted small">Notes: {card.notes.split('|').pop()}</p>}
+                  </div>
+                ) : (
+                  <p className="muted small cd-empty">No official questions for this card yet.</p>
+                )}
+              </section>
+              {card.notes && <p className="muted small">Notes: {card.notes.split('|').pop()?.replace(/<br\s*\/?>/gi, ' · ')}</p>}
             </div>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/** ¿Se puede jugar? Banned / Limited / límites de construcción (Ultimate…) o legal, y en qué formatos. */
+function Status({ card, deckRules }: { card: CardDetail; deckRules: string[] }) {
+  const formats = card.regulations.join(' · ')
+  if (card.legality === 'banned') {
+    return (
+      <div className="cd-status banned">
+        <span aria-hidden>⛔</span>
+        <div>
+          <strong>Banned in official tournaments</strong>
+          <span>It can't be in the deck or the side deck.{card.legality_since && ` ${card.legality_since}`}</span>
+        </div>
+      </div>
+    )
+  }
+  if (card.legality === 'limited' || deckRules.length) {
+    return (
+      <div className="cd-status limit">
+        <span aria-hidden>⚠</span>
+        <div>
+          <strong>{[card.legality === 'limited' && 'Limited · 1 copy max (deck + side deck)', ...deckRules].filter(Boolean).join(' · ')}</strong>
+          <span>
+            {formats && `Legal in ${formats}`}
+            {card.legality === 'limited' && card.legality_since && ` · ${card.legality_since}`}
+          </span>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="cd-status ok">
+      <span aria-hidden>✓</span>
+      <div>
+        <strong>Legal · up to 4 copies</strong>
+        {formats && <span>{formats}</span>}
+      </div>
+    </div>
+  )
+}
+
+/** Baldosa con uno o varios valores que filtran la búsqueda al pulsarlos. */
+function TileList({ label, values, onPick }: { label: string; values: string[]; onPick: (v: string) => void }) {
+  return (
+    <div>
+      <span className="cd-label">{label}</span>
+      <span className="cd-tile-value">
+        {values.length
+          ? values.map((v, i) => (
+              <span key={v}>
+                {i > 0 && ' / '}
+                <button className="cd-tile-link" onClick={() => onPick(v)} title={`Filter by ${v}`}>
+                  {v}
+                </button>
+              </span>
+            ))
+          : '—'}
+      </span>
     </div>
   )
 }
@@ -231,7 +362,7 @@ function Change({ label, value }: { label: string; value: number | null | undefi
 }
 
 /** El precio de la carta: de dónde sale (Cardmarket, TCGplayer o a mano), su variación y los enlaces a
- * las ofertas en España y Europa (Cardmarket) y en TCGplayer. Su evolución va bajo la foto (PriceChart). */
+ * las ofertas en España y Europa (Cardmarket) y en TCGplayer. Su evolución va debajo (PriceChart). */
 function PriceBox({ price }: { price: CardPrice }) {
   const what = price.manual
     ? 'price set by hand'
@@ -282,7 +413,7 @@ function CopyLink({ cardRef }: { cardRef: string }) {
     return <input className="input copy-link-input" readOnly value={link} onFocus={(e) => e.currentTarget.select()} autoFocus />
   }
   return (
-    <button type="button" className="link small copy-link" onClick={copy} title={link}>
+    <button type="button" className="cd-badge link copy-link" onClick={copy} title={link}>
       {state === 'copied' ? 'Link copied ✓' : '🔗 Copy link'}
     </button>
   )

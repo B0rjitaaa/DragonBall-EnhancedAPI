@@ -251,6 +251,8 @@ export interface CardDetail extends CardSummary {
   back_power: number | null
   series: string
   color_cost: string
+  /** El coste de color en colores sueltos: «(Red)(Red)(Blue)» → ['Red', 'Red', 'Blue']. */
+  color_cost_colors: string[]
   combo_energy: number | null
   combo_power: number | null
   z_energy_cost: number | null
