@@ -356,7 +356,8 @@ class DeckImportTests(TestCase):
         listing = version_list(principal_version(new))
         self.assertEqual(sum(n for (_c, s), n in listing.items() if s == "side"), 1)
         self.assertEqual(sum(listing.values()), 9)
-        self.assertEqual(sum(self.Side.objects.filter(deck=new).values_list("quantity", flat=True)), 1)
+        # Las 4 copias que hay de Goku van al Main Deck: la del side falta, así que en la caja no hay side.
+        self.assertFalse(self.Side.objects.filter(deck=new).exists())
         # El mazo del que salen cartas guarda una versión nueva con lo que le queda (y su side se ajusta).
         self.assertEqual(data["decks_changed"], [{"deck_id": self.other.id, "deck": "Mazo viejo", "copies": 2, "version": 1}])
         version = principal_version(self.other)
@@ -428,6 +429,31 @@ class DeckImportTests(TestCase):
         self.assertEqual(groups[-1]["kind"], "out")
         self.assertEqual([(c["bandai_id"], c["quantity"]) for c in groups[-1]["cards"]], [(9, 3)])
         self.assertEqual(groups[0]["location"], "Caja 1")
+
+    def test_missing_side_copy_does_not_take_one_from_the_main_deck(self):
+        from decks.services import current_list, principal_version, version_list
+
+        # 3 en el Main Deck y 1 en el Side Deck, y solo hay 3: las 3 van al Main Deck y falta la del Side Deck.
+        CollectionEntry.objects.create(card=self.b, location=self.box, quantity=3)
+        text = "1 EX20-01\n3 EX20-03\nSide Deck\n1 EX20-03"
+        lines = self.preview(text).data["lines"]
+        body = {"lines": lines, "name": "Sin side", "take_from": []}
+        data = self.client.post("/api/my-collection/decks/import/", body, format="json").data
+        self.assertEqual((data["moved"], data["missing"]), (4, 1))
+        new = Location.objects.get(name="Sin side")
+        self.assertEqual(current_list(new), {(1, "main"): 1, (4, "main"): 3})  # la caja: nada en el side
+        self.assertFalse(self.Side.objects.filter(deck=new).exists())
+        self.assertEqual(version_list(principal_version(new)), {(1, "main"): 1, (4, "main"): 3, (4, "side"): 1})
+
+    def test_side_copies_you_have_go_to_the_side_deck(self):
+        from decks.services import current_list
+
+        CollectionEntry.objects.create(card=self.b, location=self.box, quantity=3)
+        lines = self.preview("1 EX20-01\n1 EX20-03\nSide Deck\n2 EX20-03").data["lines"]
+        body = {"lines": lines, "name": "Con side", "take_from": []}
+        data = self.client.post("/api/my-collection/decks/import/", body, format="json").data
+        self.assertEqual(data["missing"], 0)
+        self.assertEqual(current_list(Location.objects.get(name="Con side")), {(1, "main"): 1, (4, "main"): 1, (4, "side"): 2})
 
     def test_name_must_be_new(self):
         lines = self.preview(self.text).data["lines"]

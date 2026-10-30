@@ -507,7 +507,8 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None
                     if not pool[0][1]:
                         pool.pop(0)
                 if want:  # te faltan: entran en la lista con la impresión principal
-                    _add(listing, side_by_card, card.primary, section, want, catalog_type=card.card_type)
+                    # (solo en la lista: el side de la caja cuenta las copias que hay de verdad)
+                    _add(listing, None, card.primary, section, want, catalog_type=card.card_type)
                     missing += want
         # Lo que no está en la lista nueva sale del mazo a «Sin ubicar» (para guardarlo luego donde toque).
         unsorted = Location.default()
@@ -564,7 +565,8 @@ def _out_group(deck: Location, leaving: list[dict], cards: dict[int, Card], orde
 def _add(listing, side_by_card, card_id: int, section: str, n: int, catalog_type: str) -> None:
     if section == "side":
         listing[(card_id, Section.SIDE)] += n
-        side_by_card[card_id] += n
+        if side_by_card is not None:
+            side_by_card[card_id] += n
     elif section == "z" or catalog_type.upper().startswith("Z-"):
         listing[(card_id, Section.Z)] += n
     else:
