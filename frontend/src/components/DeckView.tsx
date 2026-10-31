@@ -66,19 +66,26 @@ type Draft = Record<string, number>
 const draftKey = (id: number, part: Part) => `${id}:${part}`
 const storageKey = (deckId: number) => `deck-draft:${deckId}`
 
-function loadDraft(deckId: number): { draft: Draft; added: Record<number, CardSummary> } {
+/** `order`: el orden arrastrado mientras se edita (incluye las cartas añadidas, que aún no están en la caja). */
+interface DraftState {
+  draft: Draft
+  added: Record<number, CardSummary>
+  order: number[]
+}
+
+function loadDraft(deckId: number): DraftState {
   try {
     const raw = window.localStorage.getItem(storageKey(deckId))
-    if (raw) return JSON.parse(raw)
+    if (raw) return { order: [], ...JSON.parse(raw) }
   } catch {
     /* sin almacenamiento: el borrador solo vive en esta pestaña */
   }
-  return { draft: {}, added: {} }
+  return { draft: {}, added: {}, order: [] }
 }
 
-function saveDraft(deckId: number, draft: Draft, added: Record<number, CardSummary>) {
+function saveDraft(deckId: number, { draft, added, order }: DraftState) {
   try {
-    if (Object.keys(draft).length) window.localStorage.setItem(storageKey(deckId), JSON.stringify({ draft, added }))
+    if (Object.keys(draft).length) window.localStorage.setItem(storageKey(deckId), JSON.stringify({ draft, added, order }))
     else window.localStorage.removeItem(storageKey(deckId))
   } catch {
     /* sin almacenamiento */
@@ -96,8 +103,8 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
   // Lo editado en la lista principal (copias absolutas por carta y parte) y las cartas añadidas desde el catálogo.
-  const [{ draft, added }, setDraftState] = useState(() => loadDraft(deck.id))
-  useEffect(() => saveDraft(deck.id, draft, added), [deck.id, draft, added])
+  const [{ draft, added, order: draftOrder }, setDraftState] = useState(() => loadDraft(deck.id))
+  useEffect(() => saveDraft(deck.id, { draft, added, order: draftOrder }), [deck.id, draft, added, draftOrder])
 
   const reload = useCallback(() => {
     api
@@ -166,9 +173,10 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
   const setQty = (id: number, part: Part, n: number) =>
     setDraftState((st) => ({ ...st, draft: { ...st.draft, [draftKey(id, part)]: Math.max(0, Math.min(99, n)) } }))
   const qtyOf = (id: number, part: Part) => listing[draftKey(id, part)] ?? 0
-  const discard = () => setDraftState({ draft: {}, added: {} })
+  const discard = () => setDraftState({ draft: {}, added: {}, order: [] })
   const addCard = (card: CardSummary) => {
     setDraftState((st) => ({
+      ...st,
       added: { ...st.added, [card.id]: card },
       draft: { ...st.draft, [draftKey(card.id, 'deck')]: (listing[draftKey(card.id, 'deck')] ?? 0) + 1 },
     }))
@@ -185,12 +193,12 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
       return { pool: of('main'), side: of('side') }
     }
     // En el orden de la caja («Mi orden»); lo añadido, al final.
-    const order = [...cards.map((c) => c.id), ...Object.keys(listing).map((k) => Number(k.split(':')[0]))]
+    const order = [...draftOrder, ...cards.map((c) => c.id), ...Object.keys(listing).map((k) => Number(k.split(':')[0]))]
     const ids = [...new Set(order)].filter((id) => known[id])
     const of = (part: Part) =>
       ids.filter((id) => listing[draftKey(id, part)]).map((id) => ({ ...known[id], quantity: listing[draftKey(id, part)] }))
     return { pool: of('deck'), side: of('side') }
-  }, [selected, version, cards, listing, known])
+  }, [selected, version, cards, listing, known, draftOrder])
 
   const leaders = pool.filter((c) => sectionOf(c) === 'leader')
   const leader = leaders[0]
@@ -228,8 +236,8 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
         deltaOf: (c) => qtyOf(c.id, 'side') - (base[draftKey(c.id, 'side')] ?? 0),
       }
     : undefined
-  // Reordenar solo con la lista de la caja sin editar (lo añadido aún no está en la ubicación).
-  const canReorderNow = viewingCurrent && !dirty && onReorder
+  // También con cambios sin guardar: lo que está en la caja guarda su orden al momento y lo añadido, en el borrador.
+  const canReorderNow = viewingCurrent && onReorder
   const listCards = (): DeckListCard[] =>
     Object.entries(listing).map(([k, n]) => {
       const [id, part] = k.split(':')
@@ -332,7 +340,13 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
       ...(section === 'main' ? ids : main.map((c) => c.id)),
       ...(section === 'z' ? ids : zDeck.map((c) => c.id)),
     ]
-    onReorder([...order, ...side.map((c) => c.id).filter((id) => !order.includes(id))])
+    const full = [...order, ...side.map((c) => c.id).filter((id) => !order.includes(id))]
+    // Las de la caja que el borrador ha quitado siguen en la ubicación: conservan su sitio por si vuelven.
+    cards.forEach((c, i) => {
+      if (!full.includes(c.id)) full.splice(Math.min(i, full.length), 0, c.id)
+    })
+    if (dirty) setDraftState((st) => ({ ...st, order: full }))
+    onReorder(full)
   }
 
   const leaderImage = leader && (showFront || !leader.back_image_url ? leader.image_url : leader.back_image_url)
@@ -594,11 +608,14 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
           onClose={() => setSaving(false)}
           onSaved={(result) => {
             setSaving(false)
+            const order = draftOrder
             discard()
             setSelected(null)
             if (result) {
               setRestored(result)
-              onCollectionChanged?.()
+              // Lo añadido ya está en la caja: se coloca donde lo dejaste al arrastrar.
+              const placed = order.length ? api.reorderCollection(deck.id, order).catch(() => {}) : Promise.resolve()
+              void placed.then(() => onCollectionChanged?.())
             }
             reload()
           }}

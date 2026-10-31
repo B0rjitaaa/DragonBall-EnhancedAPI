@@ -146,7 +146,9 @@ The draft is saved in your browser: if you reload the page, it isn't lost. **Dis
 
 ### Ordering the cards
 
-With no pending changes and no filters, you can **drag the cards** within their section to order them however you like. On mobile, press and hold the card before dragging.
+With no filters active, you can **drag the cards** of the Main Deck and the Z Deck within their section to order them however you like, also **while you have unsaved changes**. On mobile, press and hold the card before dragging. Sort by **My order** to be able to drag.
+
+Cards already in the box keep their new order right away. A card you've just added keeps its place in the draft; if saving the list brings it into the box, it goes where you left it.
 
 ## Saving the list
 

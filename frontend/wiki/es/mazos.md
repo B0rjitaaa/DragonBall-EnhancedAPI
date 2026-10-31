@@ -146,7 +146,9 @@ El borrador se guarda en tu navegador: si recargas la página, no se pierde. **�
 
 ### Ordenar las cartas
 
-Sin cambios pendientes y sin filtros, puedes **arrastrar las cartas** dentro de su sección para ordenarlas a tu gusto. En el móvil, mantén pulsada la carta antes de arrastrar.
+Sin filtros activos, puedes **arrastrar las cartas** del Main Deck y del Z Deck dentro de su sección para ordenarlas a tu gusto, también **con cambios sin guardar**. En el móvil, mantén pulsada la carta antes de arrastrar. Para poder arrastrar, ordena por **«My order»**.
+
+Las cartas que ya están en la caja guardan su orden nuevo al momento. Una carta recién añadida guarda su sitio en el borrador; si al guardar la lista pasa a la caja, se coloca donde la dejaste.
 
 ## Guardar la lista
 
