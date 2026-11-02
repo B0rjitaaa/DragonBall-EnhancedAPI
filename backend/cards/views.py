@@ -735,7 +735,8 @@ class BinderView(APIView):
 
 
 class BinderActionView(APIView):
-    """Mover una copia (`move`) o una página (`move_page`), meter (`insert_page`) o quitar (`delete_page`) una."""
+    """Mover copias (`move`) o una página (`move_page`), meter (`insert_page`) o quitar (`delete_page`) una, o juntar
+    las copias sueltas con su carta (`stack`)."""
 
     def post(self, request, pk, action):
         from collection import binder
@@ -743,7 +744,9 @@ class BinderActionView(APIView):
         body = request.data
         try:
             if action == "move":
-                payload = binder.move(pk, body.get("source") or {}, body.get("target"))
+                payload = binder.move(pk, body.get("source") or {}, body.get("target"), bool(body.get("one")))
+            elif action == "stack":
+                payload = binder.stack(pk)
             elif action == "insert-page":
                 payload = binder.insert_page(pk, int(body.get("page") or 0))
             elif action == "delete-page":

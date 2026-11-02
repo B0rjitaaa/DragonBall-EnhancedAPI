@@ -70,15 +70,16 @@ Cada archivador tiene **«📖 Open binder»** (abrir el archivador), que enseñ
 ![La vista de archivador: dos páginas abiertas con sus bolsillos y la bandeja «Not placed»](../img/binder.jpg)
 
 - **Las posiciones** son las notas de las copias, **«P. 12 · row 2 · col 3»** (las que escribe el [modo archivador](escaner.md#modo-archivador) del escáner; la antigua «Pág. 12 · fila 2 · col 3» también vale). Mover cartas aquí reescribe esas líneas; el resto del texto de la nota se conserva.
-- **«Not placed»** (sin colocar) es una bandeja con las copias que no tienen posición (o tienen una que no cabe en el archivador), con buscador.
+- **Varias copias en un bolsillo:** hay una línea de posición por copia, así que las copias que guardas juntas en un bolsillo repiten la misma línea. El bolsillo enseña **×N**.
+- **«Not placed»** (sin colocar) es una bandeja con las copias que no tienen posición (o tienen una que no cabe en el archivador), con buscador. Si algunas son copias de una carta que ya tiene bolsillo (por ejemplo, añadidas con + o desde un CSV), **«⧉ Put N loose copies with their card»** (juntar las copias sueltas con su carta) las pone detrás de ella, en el mismo bolsillo (si la carta tiene más de un bolsillo, en el que tenga menos copias).
 - **Como un libro:** en el ordenador la página 1 se abre sola a la derecha (a la izquierda queda el interior de la tapa), y luego 2-3, 4-5… Si la última página es par, sale sola a la izquierda.
 - **Pasar páginas:** las flechas grandes **‹ ›** a los lados del archivador, las de arriba, la casilla del número de página (escribe la página y pulsa <kbd>Intro</kbd>) o las teclas <kbd>←</kbd> <kbd>→</kbd>.
 - **«+ Add page»** (añadir página, arriba): eliges una página y si la nueva, vacía, va **«Before»** (delante) o **«After»** (detrás); las de detrás se corren una y la vista va a la página nueva.
 
 **Mover cartas:**
 - **Tocando un bolsillo vacío** eliges qué carta va ahí: sale una ventana con las copias de este archivador que aún no tienen bolsillo (**«Not placed»**), con buscador.
-- **Arrastrando** una carta a otro bolsillo. Si está ocupado, las dos cartas **se intercambian**. Arrastrarla a **«Not placed»** la saca de su bolsillo. Una carta de la bandeja soltada en un bolsillo ocupado manda la que había a la bandeja.
-- **Tocando** (cómodo en el móvil, o para llegar a una página lejana): toca la carta, cambia de página si hace falta y toca el bolsillo. Con una carta cogida de un bolsillo, **«↓ Take the picked card out»** la manda a la bandeja. <kbd>Esc</kbd> cancela.
+- **Arrastrando** una carta a otro bolsillo. Si está ocupado, las dos cartas **se intercambian**; si es de la misma carta, **se juntan**. Arrastrar un bolsillo con **×N** mueve todas sus copias. Arrastrarla a **«Not placed»** la saca de su bolsillo. Una carta de la bandeja soltada en un bolsillo ocupado manda la que había a la bandeja.
+- **Tocando** (cómodo en el móvil, o para llegar a una página lejana): toca la carta, cambia de página si hace falta y toca el bolsillo. En un bolsillo con varias copias eliges **«All N»** (todas) o **«Just 1»** (solo una). Con una carta cogida de un bolsillo, **«↓ Take the picked card out»** la manda a la bandeja. <kbd>Esc</kbd> cancela.
 
 **Menú ⋯ de cada página:**
 - **«Insert an empty page before / after»**: mete una página vacía delante o detrás; las de detrás se corren una.

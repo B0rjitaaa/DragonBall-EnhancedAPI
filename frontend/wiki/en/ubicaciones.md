@@ -70,15 +70,16 @@ Each binder has **📖 Open binder**, which shows its pages like a real binder: 
 ![The binder view: two open pages with their pockets and the “Not placed” tray](../img/binder.jpg)
 
 - **Positions** are the copies' notes, **P. 12 · row 2 · col 3** (the ones the scanner's [binder mode](escaner.md#binder-mode) writes; the old “Pág. 12 · fila 2 · col 3” works too). Moving cards here rewrites those lines; any other text in the note is kept.
-- **Not placed** is a tray with the copies that have no position (or one that doesn't fit the binder), with a search box.
+- **Several copies in one pocket:** one position line per copy, so copies kept together in a pocket repeat the same line. The pocket shows **×N**.
+- **Not placed** is a tray with the copies that have no position (or one that doesn't fit the binder), with a search box. If some of them are copies of a card that already has a pocket (for example, added with + or from a CSV), **⧉ Put N loose copies with their card** puts them behind it, in the same pocket (if the card has more than one pocket, in the one with fewer copies).
 - **Like a book:** on a computer page 1 opens on its own on the right (the inside cover is on the left), then 2-3, 4-5… If the last page is even, it shows alone on the left.
 - **Turning pages:** the big **‹ ›** arrows on both sides of the binder, the ones at the top, the page number box (type the page and press <kbd>Enter</kbd>) or the <kbd>←</kbd> <kbd>→</kbd> keys.
 - **+ Add page** (at the top): choose a page and whether the new empty page goes **Before** or **After** it; the pages behind move one place and the view goes to the new page.
 
 **Moving cards:**
 - **Tap an empty pocket** to choose its card: a window lists the copies of this binder that have no pocket yet (**Not placed**), with a search box.
-- **Drag** a card to another pocket. If the pocket is taken, the two cards **swap**. Dragging it to **Not placed** takes it out of its pocket. A card from the tray dropped on a taken pocket sends that one to the tray.
-- **Tap** (handy on a phone, or to reach a far page): tap the card, change page if you need to, and tap the pocket. With a card picked from a pocket, **↓ Take the picked card out** sends it to the tray. <kbd>Esc</kbd> cancels.
+- **Drag** a card to another pocket. If the pocket is taken, the two cards **swap**; if it holds the same card, they **go together**. Dragging a pocket with **×N** moves all its copies. Dragging it to **Not placed** takes it out of its pocket. A card from the tray dropped on a taken pocket sends that one to the tray.
+- **Tap** (handy on a phone, or to reach a far page): tap the card, change page if you need to, and tap the pocket. In a pocket with several copies, choose **All N** or **Just 1**. With a card picked from a pocket, **↓ Take the picked card out** sends it to the tray. <kbd>Esc</kbd> cancels.
 
 **Each page's ⋯ menu:**
 - **Insert an empty page before / after**: the pages behind move one place.

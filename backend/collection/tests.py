@@ -395,6 +395,27 @@ class BinderViewTests(TestCase):
         data = post("insert-page", {"page": 4}).data  # una vacía al final
         self.assertEqual(data["pages"], 4)
 
+    def test_several_copies_in_one_pocket(self):
+        post = lambda action, body=None: self.client.post(self.url + action + "/", body or {}, format="json").data
+        # 4 Vegeta y una sola posición: las otras 3 están sueltas; «stack» las junta en su bolsillo.
+        self.Entry.objects.filter(pk=self.eb.pk).update(quantity=4)
+        data = self.client.get(self.url).data
+        self.assertEqual((data["stackable"], data["placed"]), (3, 3))  # Cell no tiene bolsillo: no se junta
+        data = post("stack")
+        self.assertEqual([s["count"] for s in data["slots"] if s["bandai_id"] == 2], [4])
+        self.assertEqual(self.notes(self.eb), ["P. 1 · row 1 · col 2"] * 4)
+        self.assertEqual((data["stackable"], data["unplaced"]), (0, [{"bandai_id": 3, "fake": False, "quantity": 2}]))
+        # Mover el bolsillo entero (se intercambia con Goku) y luego solo una copia a un bolsillo vacío.
+        post("move", {"source": {"page": 1, "slot": 2}, "target": {"page": 1, "slot": 1}})
+        self.assertEqual(self.notes(self.eb), ["P. 1 · row 1 · col 1"] * 4)
+        data = post("move", {"source": {"page": 1, "slot": 1}, "target": {"page": 2, "slot": 5}, "one": True})
+        self.assertEqual(sorted((s["page"], s["slot"], s["count"]) for s in data["slots"] if s["bandai_id"] == 2), [(1, 1, 3), (2, 5, 1)])
+        # Volver a juntarla y sacar una copia a sin colocar.
+        post("move", {"source": {"page": 2, "slot": 5}, "target": {"page": 1, "slot": 1}})
+        data = post("move", {"source": {"page": 1, "slot": 1}, "target": None, "one": True})
+        self.assertEqual([s["count"] for s in data["slots"] if s["bandai_id"] == 2], [3])
+        self.assertIn({"bandai_id": 2, "fake": False, "quantity": 1}, data["unplaced"])
+
     def test_positions_that_dont_fit_are_unplaced(self):
         self.Entry.objects.filter(pk=self.eb.pk).update(notes="P. 1 · row 4 · col 1")  # 4.ª fila en un 3×3
         data = self.client.get(self.url).data

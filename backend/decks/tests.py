@@ -519,6 +519,17 @@ class DeckImportTests(TestCase):
         group = next(g for g in result["pick_list"] if g["location"] == "Archivador")
         self.assertEqual(group["cards"][0]["notes"], ["Pág. 30 · fila 2 · col 2"])
 
+    def test_take_copies_from_a_pocket_with_several(self):
+        # 3 Android 17 en el mismo bolsillo: se cogen 2 de ahí y la tercera se queda (con su línea).
+        binder = Location.objects.create(name="Archivador", kind="binder")
+        CollectionEntry.objects.create(card=self.b, location=binder, quantity=3, notes="P. 7 · row 1 · col 1\n" * 3)
+        lines = self.preview("1 EX20-01\n2 EX20-03").data["lines"]
+        body = {"lines": lines, "name": "Montón", "take_from": [],
+                "choices": {f"{binder.id}-{self.b.id}": ["P. 7 · row 1 · col 1"] * 5}}  # de más: solo hay 3
+        result = self.client.post("/api/my-collection/decks/import/", body, format="json").data
+        self.assertEqual((result["moved"], result["extra"]), (4, 1))
+        self.assertFalse(CollectionEntry.objects.filter(location=binder, card=self.b).exists())
+
     def test_name_must_be_new(self):
         lines = self.preview(self.text).data["lines"]
         body = {"lines": lines, "name": "caja 1", "take_from": []}

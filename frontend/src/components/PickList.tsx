@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { KIND_LABELS } from './OwnedPanel'
 import { api } from '../lib/api'
-import { cardThumb, type CardSummary, type PickGroup, type SavedPickList } from '../lib/types'
+import { cardThumb, groupNotes, type CardSummary, type PickGroup, type SavedPickList } from '../lib/types'
 
 /** La lista en texto (para copiarla al móvil, a una nota…). */
 function asText(deckName: string, groups: PickGroup[]): string {
@@ -9,7 +9,7 @@ function asText(deckName: string, groups: PickGroup[]): string {
   for (const g of groups) {
     lines.push('', g.kind === 'out' ? g.location : `${g.location} (${KIND_LABELS[g.kind] ?? g.kind})`)
     for (const c of g.cards) {
-      const where = [c.position ? `#${c.position}` : '', ...c.notes].filter(Boolean).join(' · ')
+      const where = [c.position ? `#${c.position}` : '', ...groupNotes(c.notes)].filter(Boolean).join(' · ')
       lines.push(`- ${c.quantity}× ${c.name} [${c.number}${c.rarity ? ` ${c.rarity}` : ''}]${where ? ` — ${where}` : ''}`)
     }
   }
@@ -120,7 +120,7 @@ export default function PickList({
                     </span>
                     <span className="pick-where">
                       {c.position != null && <span className="pick-pos">#{c.position}</span>}
-                      {c.notes.map((n) => (
+                      {groupNotes(c.notes).map((n) => (
                         <span key={n} className="pick-note">
                           {n}
                         </span>

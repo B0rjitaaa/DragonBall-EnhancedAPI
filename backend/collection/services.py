@@ -118,7 +118,8 @@ def move_copies(
         if note_line:
             if note_line not in lines:
                 raise ValueError(f"“{note_line}” is not in the note of those copies")
-            remaining = [line for line in lines if line != note_line]
+            remaining = list(lines)
+            remaining.remove(note_line)  # solo una: puede haber varias copias en el mismo bolsillo
             carried = note_line
         elif quantity == entry.quantity:
             remaining, carried = [], entry.notes

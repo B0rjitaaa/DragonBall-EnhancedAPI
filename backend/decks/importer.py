@@ -17,7 +17,7 @@ from __future__ import annotations
 import html
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from urllib.parse import parse_qs, urlparse
 
@@ -301,6 +301,17 @@ def _from_free(picks) -> list[dict]:
     return [{"location": name, "quantity": n} for name, n in out.items()]
 
 
+def _within(chosen: list[str], options: list[str]) -> list[str]:
+    """Las elegidas que están en las opciones, cada una como mucho tantas veces como sale (copias en un bolsillo)."""
+    left = Counter(options)
+    out = []
+    for line in chosen:
+        if left[line] > 0:
+            left[line] -= 1
+            out.append(line)
+    return out
+
+
 def position_options(notes: str) -> list[str]:
     """Las posiciones de archivador de una nota, de la página más alta a la más baja (como se van sacando)."""
     from collection.binder import POSITION
@@ -341,7 +352,7 @@ def pick_list(picks: list[tuple[int, Location, int, dict]], cards: dict[int, Car
         options = position_options(src["notes"])
         chosen = (choices or {}).get(choice_key(loc.pk, card_id))
         if options:
-            chosen = [line for line in chosen if line in options] if chosen is not None else options[:n]
+            chosen = _within(chosen, options) if chosen is not None else options[:n]
             notes = chosen
         else:
             notes = [line for line in (src["notes"] or "").splitlines() if line.strip()]
@@ -537,7 +548,7 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None
                     # Archivador: las copias que se cogen son posiciones concretas (las elegidas o, por defecto,
                     # las de página más alta); su línea de la nota se va con cada copia.
                     chosen = (choices or {}).get(choice_key(src.pk, card_id))
-                    lines = [x for x in chosen if x in options] if chosen is not None else options[:n]
+                    lines = _within(chosen, options) if chosen is not None else options[:n]
                     lines = lines[:row["quantity"]]
                     for line in lines:
                         move_copies(card_obj, src, target, 1, note_line=line)

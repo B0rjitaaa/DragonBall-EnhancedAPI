@@ -170,8 +170,11 @@ export const api = {
   deletePickList: (deck: number) => request<void>(`/my-collection/decks/${deck}/pick-list/`, { method: 'DELETE' }),
   /** Vista de archivador de un Binder: leerla, mover una copia (a otro bolsillo o a «sin colocar») y sus páginas. */
   binder: (id: number) => request<BinderData>(`/my-collection/binders/${id}/`),
-  binderMove: (id: number, source: BinderSpot, target: { page: number; slot: number } | null) =>
-    request<BinderData>(`/my-collection/binders/${id}/move/`, post({ source, target })),
+  /** `one`: solo una copia del bolsillo (si no, todas las de ese bolsillo). */
+  binderMove: (id: number, source: BinderSpot, target: { page: number; slot: number } | null, one = false) =>
+    request<BinderData>(`/my-collection/binders/${id}/move/`, post({ source, target, one })),
+  /** Junta las copias sueltas de cada carta con las que ya tienen bolsillo. */
+  binderStack: (id: number) => request<BinderData>(`/my-collection/binders/${id}/stack/`, post({})),
   binderPage: (id: number, action: 'insert-page' | 'delete-page' | 'move-page', page: number, to?: number) =>
     request<BinderData>(`/my-collection/binders/${id}/${action}/`, post({ page, ...(to ? { to } : {}) })),
   /** Mazos: lista actual, versiones guardadas y partidas. */

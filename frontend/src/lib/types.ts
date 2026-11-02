@@ -477,9 +477,14 @@ export interface DeckDetail {
 export interface BinderData {
   binder: { id: number; uid: string; name: string; rows: number; cols: number }
   pages: number
-  slots: { page: number; slot: number; bandai_id: number; fake: boolean }[]
+  /** `count`: copias de esa carta en el bolsillo (una detrás de otra). */
+  slots: { page: number; slot: number; bandai_id: number; fake: boolean; count: number }[]
   unplaced: { bandai_id: number; fake: boolean; quantity: number }[]
   copies: number
+  /** Copias con bolsillo. */
+  placed: number
+  /** Copias sueltas de cartas que ya tienen bolsillo (se pueden juntar con ellas). */
+  stackable: number
   catalog: Record<number, CardSummary>
 }
 export type BinderSpot = { page: number; slot: number } | { bandai_id: number; fake: boolean }
@@ -617,4 +622,11 @@ export interface DeckImportResult {
   decks_changed: { deck_id: number; deck: string; copies: number; version: number }[]
   pick_list: PickGroup[]
   catalog: Record<number, CardSummary>
+}
+
+/** Líneas de nota iguales juntas: «P. 7 · row 1 · col 1 ×2» (varias copias en el mismo bolsillo). */
+export function groupNotes(lines: string[]): string[] {
+  const counts = new Map<string, number>()
+  for (const l of lines) counts.set(l, (counts.get(l) ?? 0) + 1)
+  return [...counts].map(([l, n]) => (n > 1 ? `${l} ×${n}` : l))
 }

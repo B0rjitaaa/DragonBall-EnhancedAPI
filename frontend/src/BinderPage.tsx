@@ -100,15 +100,18 @@ export default function BinderPage() {
   }, [go])
 
   const bySpot = useMemo(() => {
-    const m = new Map<string, { bandai_id: number; fake: boolean }>()
+    const m = new Map<string, { bandai_id: number; fake: boolean; count: number }>()
     for (const s of data?.slots ?? []) m.set(`${s.page}:${s.slot}`, s)
     return m
   }, [data])
 
-  const move = (source: BinderSpot, target: { page: number; slot: number } | null) => {
+  // Con una carta cogida de un bolsillo con varias copias: mover todas (por defecto) o solo una.
+  const [justOne, setJustOne] = useState(false)
+  const move = (source: BinderSpot, target: { page: number; slot: number } | null, one = false) => {
     if (!data) return
     if (target && 'page' in source && source.page === target.page && source.slot === target.slot) return
-    void run(() => api.binderMove(data.binder.id, source, target))
+    setJustOne(false)
+    void run(() => api.binderMove(data.binder.id, source, target, one))
   }
   const pageAction = (action: 'insert-page' | 'delete-page' | 'move-page', page: number, to?: number) => {
     if (!data) return
@@ -133,14 +136,15 @@ export default function BinderPage() {
   // Tocar: primero la carta, luego el bolsillo (o la bandeja) de destino. Sirve en el móvil y para páginas lejanas.
   const tapCard = (spot: BinderSpot) => setSelected((s) => (s && spotKey(s) === spotKey(spot) ? null : spot))
   const tapPocket = (page: number, slot: number) => {
-    if (selected) move(selected, { page, slot })
+    if (selected) move(selected, { page, slot }, justOne)
     else setFilling({ page, slot })
   }
 
   if (error && !data) return <main className="binder-page"><p className="error">{error}</p></main>
   if (!data || !loc) return <main className="binder-page"><p className="muted">Loading the binder…</p></main>
 
-  const placed = data.slots.length
+  const placed = data.placed
+  const pickedCount = selected && 'page' in selected ? (bySpot.get(`${selected.page}:${selected.slot}`)?.count ?? 1) : 1
   const unplacedTotal = data.unplaced.reduce((n, u) => n + u.quantity, 0)
   const card = (id: number): CardSummary | undefined => data.catalog[id]
   const q = query.trim().toLowerCase()
@@ -199,6 +203,16 @@ export default function BinderPage() {
       {selected && (
         <p className="binder-hint">
           Card picked: tap a pocket to move it there{'page' in selected ? ' (or “Not placed” to take it out)' : ''}. You can change pages first.{' '}
+          {pickedCount > 1 && (
+            <span className="seg binder-how-many" role="radiogroup" aria-label="How many copies">
+              <button type="button" role="radio" aria-checked={!justOne} className={!justOne ? 'on' : ''} onClick={() => setJustOne(false)}>
+                All {pickedCount}
+              </button>
+              <button type="button" role="radio" aria-checked={justOne} className={justOne ? 'on' : ''} onClick={() => setJustOne(true)}>
+                Just 1
+              </button>
+            </span>
+          )}{' '}
           <button className="link" onClick={() => setSelected(null)}>Cancel</button>
         </p>
       )}
@@ -231,13 +245,21 @@ export default function BinderPage() {
         <button className="binder-turn next" onClick={() => go(1)} disabled={!canForward} aria-label="Next pages" title="Next pages">›</button>
         </div>
 
-        <Tray selected={selected} canDropHere={!!selected && 'page' in selected} onTap={() => selected && 'page' in selected && move(selected, null)}>
+        <Tray selected={selected} canDropHere={!!selected && 'page' in selected} onTap={() => selected && 'page' in selected && move(selected, null, justOne)}>
           <div className="tray-head">
             <h2>
               Not placed <small>{unplacedTotal}</small>
             </h2>
             <input className="input" type="search" placeholder="Search by name or number…" value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
+          {data.stackable > 0 && (
+            <p className="tray-stack">
+              <button className="btn small" onClick={() => void run(() => api.binderStack(data.binder.id))}>
+                ⧉ Put {data.stackable} loose {data.stackable === 1 ? 'copy' : 'copies'} with their card
+              </button>
+              <span className="muted small">For cards that already have a pocket: the copies go behind it, in the same pocket.</span>
+            </p>
+          )}
           {data.unplaced.length === 0 ? (
             <p className="muted small">Every copy has its pocket.</p>
           ) : (
@@ -271,7 +293,7 @@ export default function BinderPage() {
         />
       )}
       <p className="muted small binder-help">
-        Drag a card to another pocket (if it's taken, they swap) or to “Not placed”. On a phone, or to reach a far page: tap the card, change page and tap the pocket.
+        Drag a card to another pocket (if it's taken, they swap; if it's the same card, they go together) or to “Not placed”. ×N means N copies in that pocket: dragging moves them all, and with a tap you can move just one. On a phone, or to reach a far page: tap the card, change page and tap the pocket.
       </p>
     </main>
   )
@@ -284,7 +306,7 @@ function BinderSheet({
   pages: number
   rows: number
   cols: number
-  bySpot: Map<string, { bandai_id: number; fake: boolean }>
+  bySpot: Map<string, { bandai_id: number; fake: boolean; count: number }>
   card: (id: number) => CardSummary | undefined
   selected: Selected
   onTapCard: (spot: BinderSpot) => void
@@ -350,6 +372,7 @@ function BinderSheet({
                   id={spotKey(spot)}
                   card={card(here.bandai_id)}
                   fake={here.fake}
+                  count={here.count}
                   picked={!!selected && spotKey(selected) === spotKey(spot)}
                   onTap={() => (selected && spotKey(selected) !== spotKey(spot) ? onTapPocket(page, slot) : onTapCard(spot))}
                 />

@@ -4,7 +4,7 @@ import { formatEur } from '../lib/prices'
 import { locationPath } from '../lib/query'
 import PickList from './PickList'
 import { KIND_LABELS } from './OwnedPanel'
-import { cardThumb, type DeckImportPreview, type DeckImportResult, type DeckImportRow, type PickGroup } from '../lib/types'
+import { cardThumb, groupNotes, type DeckImportPreview, type DeckImportResult, type DeckImportRow, type PickGroup } from '../lib/types'
 
 const SECTION_LABEL: Record<string, string> = { leader: 'Leader', main: 'Main', z: 'Z', side: 'Side' }
 
@@ -94,8 +94,9 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
   const missingBase = (r: DeckImportRow) => r.missing + r.in_use.filter((u) => !takeFrom.has(u.deck_id)).reduce((n, u) => n + u.quantity, 0)
   const missingNow = (r: DeckImportRow) => Math.max(0, missingBase(r) - (choiceDelta.get(r.number) ?? 0))
   const extraOf = (r: DeckImportRow) => Math.max(0, (choiceDelta.get(r.number) ?? 0) - missingBase(r))
-  const toggleChoice = (key: string, line: string, current: string[]) =>
-    setChoices((all) => ({ ...all, [key]: current.includes(line) ? current.filter((l) => l !== line) : [...current, line] }))
+  // Cuántas copias se cogen de una posición (puede haber varias en el mismo bolsillo: la línea sale repetida).
+  const setChoice = (key: string, line: string, k: number, current: string[]) =>
+    setChoices((all) => ({ ...all, [key]: [...current.filter((l) => l !== line), ...Array<string>(k).fill(line)] }))
   const totals = preview && {
     taken: preview.rows.reduce((n, r) => n + r.in_use.filter((u) => takeFrom.has(u.deck_id)).reduce((m, u) => m + u.quantity, 0), 0),
     missing: preview.rows.reduce((n, r) => n + missingNow(r), 0),
@@ -309,7 +310,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
               <ByPlace
                 groups={groups}
                 choices={choices}
-                onToggle={toggleChoice}
+                onSet={setChoice}
                 inDeck={preview.target ? preview.rows.filter((r) => r.in_deck > 0) : []}
                 deckName={preview.target?.name}
                 missing={preview.rows.filter((r) => missingNow(r) > 0).map((r) => ({ row: r, n: missingNow(r) }))}
@@ -387,11 +388,11 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
 /** La comprobación por sitio: un bloque por Binder / caja / mazo con las cartas que hay que coger de ahí (en su
  *  orden y con su posición) y, al final, lo que ya está en el mazo y lo que falta. */
 function ByPlace({
-  groups, choices, onToggle, inDeck, deckName, missing, catalog,
+  groups, choices, onSet, inDeck, deckName, missing, catalog,
 }: {
   groups: PickGroup[]
   choices: Record<string, string[]>
-  onToggle: (key: string, line: string, current: string[]) => void
+  onSet: (key: string, line: string, k: number, current: string[]) => void
   inDeck: DeckImportRow[]
   deckName?: string
   missing: { row: DeckImportRow; n: number }[]
@@ -423,19 +424,36 @@ function ByPlace({
                 {i.where?.filter((w) => w.startsWith('#')).map((w) => (
                   <span key={w} className="pick-pos">{w}</span>
                 ))}
-                {i.pick.options.map((line) => {
-                  const on = i.pick!.chosen.includes(line)
+                {[...new Set(i.pick.options)].map((line) => {
+                  const { key, options, chosen } = i.pick!
+                  const have = options.filter((l) => l === line).length
+                  const k = chosen.filter((l) => l === line).length
+                  if (have === 1) {
+                    const on = k > 0
+                    return (
+                      <button
+                        key={line}
+                        type="button"
+                        className={`pick-option ${on ? 'on' : ''}`}
+                        aria-pressed={on}
+                        title={on ? 'Taking this copy (tap to leave it in the binder)' : 'Tap to take this copy too'}
+                        onClick={() => onSet(key, line, on ? 0 : 1, chosen)}
+                      >
+                        {on ? '✓ ' : ''}{line}
+                      </button>
+                    )
+                  }
+                  // Varias copias en el mismo bolsillo: cuántas se cogen.
                   return (
-                    <button
-                      key={line}
-                      type="button"
-                      className={`pick-option ${on ? 'on' : ''}`}
-                      aria-pressed={on}
-                      title={on ? 'Taking this copy (tap to leave it in the binder)' : 'Tap to take this copy too'}
-                      onClick={() => onToggle(i.pick!.key, line, i.pick!.chosen)}
-                    >
-                      {on ? '✓ ' : ''}{line}
-                    </button>
+                    <span key={line} className={`pick-option stacked ${k ? 'on' : ''}`} title={`${have} copies in this pocket`}>
+                      <button type="button" onClick={() => onSet(key, line, k - 1, chosen)} disabled={k === 0} aria-label={`Take one copy less from ${line}`}>
+                        −
+                      </button>
+                      {k ? '✓ ' : ''}{line} · <strong>{k}/{have}</strong>
+                      <button type="button" onClick={() => onSet(key, line, k + 1, chosen)} disabled={k >= have} aria-label={`Take one more copy from ${line}`}>
+                        +
+                      </button>
+                    </span>
                   )
                 })}
               </span>
@@ -468,7 +486,7 @@ function ByPlace({
             return {
               id: c.bandai_id, qty: multi ? chosen.length : c.quantity, name: c.name,
               sub: `${c.number}${c.rarity ? ` · ${c.rarity}` : ''}${multi && chosen.length !== c.needed ? ` · the list needs ${c.needed}` : ''}`,
-              where: [...(c.position ? [`#${c.position}`] : []), ...(multi ? [] : c.notes)],
+              where: [...(c.position ? [`#${c.position}`] : []), ...(multi ? [] : groupNotes(c.notes))],
               pick: multi ? { key, options: c.options!, chosen } : undefined,
             }
           }),

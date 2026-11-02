@@ -5,12 +5,14 @@ col 3» (o la antigua «Pág. 12 · fila 2 · col 3»), la misma que escribe el 
 que ya usa esas notas (mover copias, lista de recogida, copia de seguridad) sigue funcionando: aquí solo se
 leen y se reescriben. Las líneas que no son posiciones se conservan tal cual.
 
-Un bolsillo se numera de 1 a filas×columnas, por filas. Las copias sin posición (o con una posición que no
-cabe en el archivador, o repetida) salen como «sin colocar».
+Un bolsillo se numera de 1 a filas×columnas, por filas. Un bolsillo puede guardar varias copias de la misma
+carta, una detrás de otra: su línea sale repetida, una vez por copia. Las copias sin posición (o con una
+posición que no cabe en el archivador, o que ya ocupa otra carta) salen como «sin colocar».
 """
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 
 from django.db import transaction
@@ -33,8 +35,13 @@ def position_line(page: int, row: int, col: int) -> str:
 class _Row:
     entry: CollectionEntry
     other_lines: list[str] = field(default_factory=list)
-    # (página, bolsillo) de cada copia colocada
+    # (página, bolsillo) de cada copia colocada (repetido si hay varias copias en el mismo bolsillo)
     spots: list[tuple[int, int]] = field(default_factory=list)
+
+    @property
+    def loose(self) -> int:
+        """Copias sin bolsillo."""
+        return self.entry.quantity - len(self.spots)
 
 
 @dataclass
@@ -82,10 +89,10 @@ def layout(binder: Location, lock: bool = False) -> Layout:
             page, r, c = (int(x) for x in m.groups())
             slot = (r - 1) * binder.binder_cols + c
             valid = 1 <= r <= binder.binder_rows and 1 <= c <= binder.binder_cols and 1 <= page <= MAX_PAGES
-            if valid and len(row.spots) < entry.quantity and (page, slot) not in slots:
+            if valid and len(row.spots) < entry.quantity and slots.get((page, slot), row) is row:
                 row.spots.append((page, slot))
                 slots[(page, slot)] = row
-            # Si no cabe, está repetida o sobra (más líneas que copias), esa copia queda sin colocar.
+            # Si no cabe, el bolsillo es de otra carta o sobra (más líneas que copias), esa copia queda sin colocar.
         rows.append(row)
     return Layout(binder, rows, slots)
 
@@ -98,14 +105,18 @@ def data(location_id: int) -> dict:
         "binder": {"id": b.pk, "uid": str(b.uid), "name": b.name, "rows": b.binder_rows, "cols": b.binder_cols},
         "pages": lay.pages,
         "slots": [
-            {"page": page, "slot": slot, "bandai_id": row.entry.card_id, "fake": row.entry.fake}
+            {"page": page, "slot": slot, "bandai_id": row.entry.card_id, "fake": row.entry.fake,
+             "count": row.spots.count((page, slot))}
             for (page, slot), row in sorted(lay.slots.items())
         ],
         "unplaced": [
-            {"bandai_id": row.entry.card_id, "fake": row.entry.fake, "quantity": row.entry.quantity - len(row.spots)}
-            for row in lay.rows if row.entry.quantity > len(row.spots)
+            {"bandai_id": row.entry.card_id, "fake": row.entry.fake, "quantity": row.loose}
+            for row in lay.rows if row.loose > 0
         ],
         "copies": sum(row.entry.quantity for row in lay.rows),
+        "placed": sum(len(row.spots) for row in lay.rows),
+        # Copias sueltas de cartas que ya tienen bolsillo: se pueden juntar con ellas (`stack`).
+        "stackable": sum(row.loose for row in lay.rows if row.spots),
     }
 
 
@@ -133,10 +144,13 @@ def _check_spot(lay: Layout, page, slot) -> tuple[int, int]:
     return page, slot
 
 
-def move(location_id: int, source: dict, target: dict | None) -> dict:
-    """Mueve una copia: de un bolsillo (`{page, slot}`) o de lo sin colocar (`{bandai_id, fake}`) a otro bolsillo
-    (si está ocupado, se intercambian; si la copia venía de lo sin colocar, la que estaba pasa a sin colocar) o,
-    con `target=None`, la saca a lo sin colocar."""
+def move(location_id: int, source: dict, target: dict | None, one: bool = False) -> dict:
+    """Mueve copias: de un bolsillo (`{page, slot}`: todas las de ese bolsillo o, con `one`, una) o una de lo sin
+    colocar (`{bandai_id, fake}`) a otro bolsillo, o con `target=None` a lo sin colocar.
+
+    En el destino: si está vacío, se colocan ahí; si es de la misma carta, se juntan; si es de otra y se mueve un
+    bolsillo entero, se intercambian; si no (una sola copia), las que había pasan a sin colocar.
+    """
     with transaction.atomic():
         lay = layout(_binder(location_id, lock=True), lock=True)
         if "page" in source:
@@ -144,32 +158,54 @@ def move(location_id: int, source: dict, target: dict | None) -> dict:
             mover = lay.slots.get(src_spot)
             if mover is None:
                 raise BinderError("That pocket is empty")
+            n = 1 if one else mover.spots.count(src_spot)
         else:
-            src_spot = None
+            src_spot, n = None, 1
             mover = next(
                 (r for r in lay.rows if r.entry.card_id == source.get("bandai_id") and r.entry.fake == bool(source.get("fake"))
-                 and r.entry.quantity > len(r.spots)),
+                 and r.loose > 0),
                 None,
             )
             if mover is None:
                 raise BinderError("There's no copy of that card left to place")
+        whole = src_spot is not None and n == mover.spots.count(src_spot)
+
+        def take() -> None:
+            for _ in range(n if src_spot is not None else 0):
+                mover.spots.remove(src_spot)
+
         touched = {mover.entry.pk}
         if target is None:
-            if src_spot is not None:
-                mover.spots.remove(src_spot)
+            take()
         else:
             dst_spot = _check_spot(lay, target.get("page"), target.get("slot"))
             if dst_spot == src_spot:
                 return data(location_id)
             occupant = lay.slots.get(dst_spot)
-            if src_spot is not None:
-                mover.spots.remove(src_spot)
-            if occupant is not None:
+            if occupant is not None and occupant is not mover:
                 touched.add(occupant.entry.pk)
-                occupant.spots.remove(dst_spot)
-                if src_spot is not None:  # intercambio
-                    occupant.spots.append(src_spot)
-            mover.spots.append(dst_spot)
+                count = occupant.spots.count(dst_spot)
+                occupant.spots = [s for s in occupant.spots if s != dst_spot]
+                if whole:  # intercambio
+                    occupant.spots.extend([src_spot] * count)
+            take()
+            mover.spots.extend([dst_spot] * n)
+        _save(lay, touched)
+    return data(location_id)
+
+
+def stack(location_id: int) -> dict:
+    """Junta las copias sueltas de cada carta con las que ya tienen bolsillo (en el suyo con menos copias)."""
+    with transaction.atomic():
+        lay = layout(_binder(location_id, lock=True), lock=True)
+        touched = set()
+        for row in lay.rows:
+            if not row.spots or row.loose <= 0:
+                continue
+            for _ in range(row.loose):
+                counts = Counter(row.spots)
+                row.spots.append(min(counts, key=lambda s: (counts[s], s)))
+            touched.add(row.entry.pk)
         _save(lay, touched)
     return data(location_id)
 
