@@ -63,6 +63,25 @@ When you create a **binder**, you also choose its **Pockets per page**: **2×2**
 
 The scanner's [binder mode](escaner.md#binder-mode) uses it: the grid has that many slots and each copy's position note is counted with those columns. You can change it later in **Edit…**. Binders created before this option exist are 3×3.
 
+## The binder view
+
+Each binder has **📖 Open binder**, which shows its pages like a real binder: two open pages on a computer (one on a phone), with a pocket grid of the binder's size and each copy in its pocket.
+
+![The binder view: two open pages with their pockets and the “Not placed” tray](../img/binder.jpg)
+
+- **Positions** are the copies' notes, **P. 12 · row 2 · col 3** (the ones the scanner's [binder mode](escaner.md#binder-mode) writes; the old “Pág. 12 · fila 2 · col 3” works too). Moving cards here rewrites those lines; any other text in the note is kept.
+- **Not placed** is a tray with the copies that have no position (or one that doesn't fit the binder), with a search box.
+- **Pages:** **‹ ›**, the page number box or the <kbd>←</kbd> <kbd>→</kbd> keys.
+
+**Moving cards:**
+- **Drag** a card to another pocket. If the pocket is taken, the two cards **swap**. Dragging it to **Not placed** takes it out of its pocket. A card from the tray dropped on a taken pocket sends that one to the tray.
+- **Tap** (handy on a phone, or to reach a far page): tap the card, change page if you need to, and tap the pocket. With a card picked from a pocket, **↓ Take the picked card out** sends it to the tray. <kbd>Esc</kbd> cancels.
+
+**Each page's ⋯ menu:**
+- **Insert an empty page before / after**: the pages behind move one place.
+- **Move this page to N**: the page and its cards go to that place; the pages in between move along.
+- **Remove this page**: only empty pages; the pages behind move one place back.
+
 ## Reordering locations
 
 With more than one location in a section, the **Reorder** button appears:

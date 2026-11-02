@@ -27,5 +27,7 @@ urlpatterns = [
     path("my-collection/reorder/", views.MyCollectionReorderView.as_view(), name="my-collection-reorder"),
     path("my-collection/locations/", views.LocationsView.as_view(), name="my-collection-locations"),
     path("my-collection/locations/<int:pk>/", views.LocationDetailView.as_view(), name="my-collection-location"),
+    path("my-collection/binders/<int:pk>/", views.BinderView.as_view(), name="my-collection-binder"),
+    path("my-collection/binders/<int:pk>/<str:action>/", views.BinderActionView.as_view(), name="my-collection-binder-action"),
     *router.urls,
 ]

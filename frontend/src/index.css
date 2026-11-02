@@ -1951,3 +1951,68 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
   .place-group li { grid-template-columns: 2rem minmax(0, 1fr); }
   .place-group .pick-where { grid-column: 2; justify-content: flex-start; }
 }
+
+/* ---------- Vista de archivador (/locations/binder/<uid>) ---------- */
+.binder-page { max-width: 1280px; margin: 0 auto; padding: 1rem 1.25rem 2rem; display: grid; gap: 1rem; }
+.binder-page.busy { cursor: progress; }
+.binder-page.busy .binder-spread, .binder-page.busy .binder-tray { opacity: 0.7; pointer-events: none; }
+.binder-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 0.8rem; }
+.binder-head h1 { margin: 0.2rem 0; font-size: 1.5rem; }
+.binder-head p { margin: 0; }
+.binder-nav { display: flex; align-items: center; gap: 0.5rem; }
+.binder-nav .btn { min-width: 2.6rem; font-size: 1.2rem; }
+.binder-jump { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.9rem; }
+.binder-jump .input { width: 4.2rem; }
+.binder-hint { margin: 0; padding: 0.5rem 0.8rem; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: 0.9rem; }
+.binder-spread { display: grid; gap: 1.2rem; }
+.binder-spread.pages-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.binder-sheet {
+  padding: 0.8rem; border-radius: 12px; background: linear-gradient(180deg, #232838, #1a1e2a); border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.15), 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+.sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+.sheet-menu { position: relative; }
+.sheet-menu-pop {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; gap: 0.2rem; min-width: 15rem; padding: 0.4rem;
+  border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+.sheet-menu-pop > button { text-align: left; padding: 0.5rem 0.6rem; border: 0; border-radius: 7px; background: none; }
+.sheet-menu-pop > button:hover:not(:disabled) { background: var(--bg-3); }
+.sheet-move { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.4rem 0.6rem; font-size: 0.9rem; color: var(--muted); }
+.sheet-move .input { width: 4rem; }
+.sheet-grid { display: grid; gap: 0.5rem; margin: 0 auto; }
+.pocket {
+  position: relative; aspect-ratio: 63 / 88; border-radius: 8px; border: 1px dashed rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03); display: grid; place-items: stretch; overflow: hidden;
+}
+.pocket.targetable { border-color: color-mix(in srgb, var(--accent) 50%, transparent); cursor: pointer; }
+.pocket.over { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.pocket-empty { display: grid; place-items: center; color: rgba(255, 255, 255, 0.18); font-size: 0.8rem; font-weight: 700; }
+.card-chip {
+  position: relative; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 8px; background: var(--bg-3); cursor: grab;
+  touch-action: manipulation; overflow: hidden;
+}
+.card-chip img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; user-select: none; }
+.card-chip.dragging { z-index: 50; cursor: grabbing; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6); }
+.card-chip.picked { outline: 3px solid var(--accent); outline-offset: -3px; }
+.chip-number {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 0.1rem 0.25rem; font-size: 0.62rem; font-weight: 700; text-align: left;
+  color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+}
+.chip-fake { position: absolute; top: 4px; left: 4px; padding: 0 0.3rem; border-radius: 4px; font-size: 0.62rem; font-weight: 800; color: #fff; background: var(--fake, #e5484d); }
+.chip-count { position: absolute; top: 4px; right: 4px; padding: 0 0.35rem; border-radius: 999px; font-size: 0.7rem; font-weight: 800; color: #1a1205; background: var(--accent); }
+.binder-tray { display: grid; gap: 0.6rem; padding: 0.8rem; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-2); }
+.binder-tray.over, .binder-tray.targetable { border-color: var(--accent); }
+.tray-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.tray-head h2 { margin: 0; font-size: 1.05rem; }
+.tray-head h2 small { color: var(--muted); font-weight: 500; }
+.tray-head .input { flex: 0 1 18rem; }
+.tray-drop { justify-self: start; }
+.tray-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 0.5rem; max-height: 22rem; overflow-y: auto; }
+.tray-cards li { aspect-ratio: 63 / 88; }
+.binder-help { margin: 0; }
+.loc-open-binder { flex-shrink: 0; text-decoration: none; }
+@media (max-width: 900px) {
+  .binder-page { padding: 0.75rem; }
+  .sheet-grid { gap: 0.35rem; }
+}

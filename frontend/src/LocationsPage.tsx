@@ -9,6 +9,7 @@ import { api } from './lib/api'
 import { colorClass } from './lib/colors'
 import { formatEur } from './lib/prices'
 import { locationPath } from './lib/query'
+import { binderPath } from './lib/routes'
 import type { HistoryCard, Location, LocationKind } from './lib/types'
 import { DEFAULT_BINDER, binderLabel, type BinderSize } from './lib/binder'
 import BinderSizePicker from './components/BinderSizePicker'
@@ -487,6 +488,11 @@ function ListSection({
           <i style={{ width: `${(100 * l.copies) / max}%` }} />
         </span>
       </a>
+      {l.kind === 'binder' && !sorting && (
+        <a className="btn small loc-open-binder" href={binderPath(l.uid)} title="See its pages like a real binder and move the cards around">
+          📖 Open binder
+        </a>
+      )}
       {sorting && handle ? (
         <span className="drag-handle" aria-hidden="true">⠿</span>
       ) : (

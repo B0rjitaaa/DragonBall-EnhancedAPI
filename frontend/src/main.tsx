@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import LocationsPage from './LocationsPage.tsx'
+import BinderPage from './BinderPage.tsx'
 import NewsPage from './NewsPage.tsx'
 import PricesPage from './PricesPage.tsx'
 import NotFoundPage from './NotFoundPage.tsx'
@@ -24,10 +25,12 @@ const page = currentPage()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <SiteNav active={page} />
+    <SiteNav active={page === 'binder' ? 'locations' : page} />
     <HealthBanner />
     {page === 'locations' ? (
       <LocationsPage />
+    ) : page === 'binder' ? (
+      <BinderPage />
     ) : page === 'news' ? (
       <NewsPage />
     ) : page === 'prices' ? (

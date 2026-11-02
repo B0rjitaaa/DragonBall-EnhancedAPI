@@ -471,6 +471,17 @@ export interface DeckDetail {
   catalog: Record<number, CardSummary>
 }
 
+/** Vista de archivador: qué hay en cada bolsillo de cada página y lo que está sin colocar. */
+export interface BinderData {
+  binder: { id: number; uid: string; name: string; rows: number; cols: number }
+  pages: number
+  slots: { page: number; slot: number; bandai_id: number; fake: boolean }[]
+  unplaced: { bandai_id: number; fake: boolean; quantity: number }[]
+  copies: number
+  catalog: Record<number, CardSummary>
+}
+export type BinderSpot = { page: number; slot: number } | { bandai_id: number; fake: boolean }
+
 /** La lista de recogida guardada de un mazo importado. */
 export interface SavedPickList {
   deck: string

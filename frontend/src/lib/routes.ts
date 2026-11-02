@@ -2,7 +2,7 @@
  * Rutas de la web (en inglés). Los enlaces antiguos en español (/coleccion/mazo/…,
  * ?orden=…) se reescriben a los nuevos al cargar, así siguen funcionando.
  */
-export type Page = 'search' | 'collection' | 'locations' | 'prices' | 'scan' | 'news' | 'wiki' | 'notfound'
+export type Page = 'search' | 'collection' | 'locations' | 'binder' | 'prices' | 'scan' | 'news' | 'wiki' | 'notfound'
 
 const LEGACY_PATHS: [RegExp, string][] = [
   [/^\/coleccion\/mazo\//, '/collection/deck/'],
@@ -45,6 +45,7 @@ export function currentPage(): Page {
   const path = window.location.pathname.replace(/\/+$/, '')
   if (path === '/collection' || path.startsWith('/collection/')) return 'collection'
   if (path === '/locations') return 'locations'
+  if (path.startsWith('/locations/binder/')) return 'binder'
   if (path === '/scan') return 'scan'
   if (path === '/news') return 'news'
   if (path === '/prices') return 'prices'
@@ -52,3 +53,6 @@ export function currentPage(): Page {
   if (path === '' || path === '/index.html') return 'search'
   return 'notfound'
 }
+
+/** Vista de archivador de un Binder: /locations/binder/<uid>. */
+export const binderPath = (uid: string) => `/locations/binder/${uid}`

@@ -93,6 +93,13 @@ def shots():
         page.wait_for_timeout(1800)
         return ".modal.card-detail", False
 
+    def binder_view(page: Page):
+        go(page, "/locations", 1500)
+        page.locator(".loc-open-binder").first.click()
+        page.wait_for_selector(".binder-sheet")
+        page.wait_for_timeout(2500)
+        return None, False
+
     def deck_history(page: Page):
         go(page, "/locations")
         return None, True
@@ -111,6 +118,7 @@ def shots():
         ("coleccion-ubicacion.jpg", DESKTOP, at(f"/collection/location/{BOX}", 2500)),
         ("coleccion-ficha.jpg", DESKTOP, collection_card),
         ("ubicaciones.jpg", DESKTOP, deck_history),
+        ("binder.jpg", DESKTOP, binder_view),
         ("mazo.jpg", DESKTOP, at(f"/collection/deck/{DECK}", 3000)),
         ("csv.jpg", DESKTOP, at("/collection", 2500)),
         ("escaner.jpg", PHONE, at("/scan", 3000)),

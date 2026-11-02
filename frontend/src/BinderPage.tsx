@@ -1,0 +1,368 @@
+// Vista de archivador de un Binder (/locations/binder/<uid>): sus páginas como un archivador abierto, con cada
+// copia en su bolsillo. Se pueden mover copias arrastrando (o tocando una carta y luego el bolsillo), dejarlas
+// «sin colocar» y meter, quitar o reordenar páginas. Las posiciones son las notas de las copias («P. 12 · row
+// 2 · col 3», ver backend/collection/binder.py).
+import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { api } from './lib/api'
+import { collectionUrl } from './LocationsPage'
+import type { BinderData, BinderSpot, CardSummary, Location } from './lib/types'
+import { cardThumb } from './lib/types'
+
+type Selected = BinderSpot | null
+const spotKey = (s: BinderSpot) => ('page' in s ? `p:${s.page}:${s.slot}` : `u:${s.bandai_id}:${s.fake ? 1 : 0}`)
+const parseKey = (key: string): BinderSpot | null => {
+  const [kind, a, b] = key.split(':')
+  if (kind === 'p') return { page: Number(a), slot: Number(b) }
+  if (kind === 'u') return { bandai_id: Number(a), fake: b === '1' }
+  return null
+}
+
+function uidFromPath(): string {
+  return window.location.pathname.replace(/\/+$/, '').split('/').pop() ?? ''
+}
+
+export default function BinderPage() {
+  const [loc, setLoc] = useState<Location | null>(null)
+  const [data, setData] = useState<BinderData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [first, setFirst] = useState(1) // primera página a la vista
+  const [selected, setSelected] = useState<Selected>(null)
+  const [query, setQuery] = useState('')
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 900)
+  const perView = narrow ? 1 : 2
+
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < 900)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  useEffect(() => {
+    const uid = uidFromPath()
+    api
+      .locations()
+      .then((all) => {
+        const found = all.find((l) => l.uid === uid && l.kind === 'binder')
+        if (!found) throw new Error("This binder doesn't exist (or isn't a binder any more)")
+        setLoc(found)
+        document.title = `${found.name} · Binder`
+        return api.binder(found.id)
+      })
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+  }, [])
+
+  const run = useCallback(async (action: () => Promise<BinderData>) => {
+    setBusy(true)
+    setError(null)
+    try {
+      setData(await action())
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+      setSelected(null)
+    }
+  }, [])
+
+  const pages = data?.pages ?? 1
+  // En dos páginas, los pares empiezan siempre en impar (1-2, 3-4…), como un archivador abierto.
+  const start = perView === 2 ? Math.max(1, first - ((first - 1) % 2)) : first
+  const visible = Array.from({ length: perView }, (_, i) => start + i).filter((p) => p <= pages)
+  const go = useCallback((delta: number) => setFirst((f) => Math.min(Math.max(1, f + delta * perView), pages)), [perView, pages])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest('input, textarea, select')) return
+      if (e.key === 'ArrowLeft') go(-1)
+      if (e.key === 'ArrowRight') go(1)
+      if (e.key === 'Escape') setSelected(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [go])
+
+  const bySpot = useMemo(() => {
+    const m = new Map<string, { bandai_id: number; fake: boolean }>()
+    for (const s of data?.slots ?? []) m.set(`${s.page}:${s.slot}`, s)
+    return m
+  }, [data])
+
+  const move = (source: BinderSpot, target: { page: number; slot: number } | null) => {
+    if (!data) return
+    if (target && 'page' in source && source.page === target.page && source.slot === target.slot) return
+    void run(() => api.binderMove(data.binder.id, source, target))
+  }
+  const pageAction = (action: 'insert-page' | 'delete-page' | 'move-page', page: number, to?: number) => {
+    if (!data) return
+    void run(() => api.binderPage(data.binder.id, action, page, to))
+  }
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
+  )
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    const source = parseKey(String(active.id))
+    if (!source || !over) return
+    const target = String(over.id)
+    if (target === 'tray') {
+      if ('page' in source) move(source, null)
+    } else {
+      const spot = parseKey(target)
+      if (spot && 'page' in spot) move(source, spot)
+    }
+  }
+  // Tocar: primero la carta, luego el bolsillo (o la bandeja) de destino. Sirve en el móvil y para páginas lejanas.
+  const tapCard = (spot: BinderSpot) => setSelected((s) => (s && spotKey(s) === spotKey(spot) ? null : spot))
+  const tapPocket = (page: number, slot: number) => {
+    if (selected) move(selected, { page, slot })
+  }
+
+  if (error && !data) return <main className="binder-page"><p className="error">{error}</p></main>
+  if (!data || !loc) return <main className="binder-page"><p className="muted">Loading the binder…</p></main>
+
+  const placed = data.slots.length
+  const unplacedTotal = data.unplaced.reduce((n, u) => n + u.quantity, 0)
+  const card = (id: number): CardSummary | undefined => data.catalog[id]
+  const q = query.trim().toLowerCase()
+  const tray = data.unplaced.filter((u) => {
+    const c = card(u.bandai_id)
+    return !q || (c && `${c.name} ${c.card_number}`.toLowerCase().includes(q))
+  })
+
+  return (
+    <main className={`binder-page ${busy ? 'busy' : ''}`}>
+      <header className="binder-head">
+        <div>
+          <a className="muted small" href="/locations">← Locations</a>
+          <h1>{data.binder.name}</h1>
+          <p className="muted small">
+            {data.binder.cols}×{data.binder.rows} · {pages} {pages === 1 ? 'page' : 'pages'} · {data.copies} copies: {placed} placed,{' '}
+            {unplacedTotal} not placed · <a href={collectionUrl(loc)}>Open in My collection</a>
+          </p>
+        </div>
+        <div className="binder-nav">
+          <button className="btn" onClick={() => go(-1)} disabled={start <= 1} aria-label="Previous pages">‹</button>
+          <label className="binder-jump">
+            Page
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={pages}
+              value={start}
+              onChange={(e) => setFirst(Math.min(Math.max(1, Number(e.target.value) || 1), pages))}
+            />
+            of {pages}
+          </label>
+          <button className="btn" onClick={() => go(1)} disabled={start + perView > pages} aria-label="Next pages">›</button>
+        </div>
+      </header>
+
+      {selected && (
+        <p className="binder-hint">
+          Card picked: tap a pocket to move it there{'page' in selected ? ' (or “Not placed” to take it out)' : ''}. You can change pages first.{' '}
+          <button className="link" onClick={() => setSelected(null)}>Cancel</button>
+        </p>
+      )}
+      {error && <p className="error">{error}</p>}
+
+      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+        <div className={`binder-spread pages-${visible.length}`}>
+          {visible.map((page) => (
+            <BinderSheet
+              key={page}
+              page={page}
+              pages={pages}
+              rows={data.binder.rows}
+              cols={data.binder.cols}
+              bySpot={bySpot}
+              card={card}
+              selected={selected}
+              onTapCard={tapCard}
+              onTapPocket={tapPocket}
+              onAction={pageAction}
+            />
+          ))}
+        </div>
+
+        <Tray selected={selected} canDropHere={!!selected && 'page' in selected} onTap={() => selected && 'page' in selected && move(selected, null)}>
+          <div className="tray-head">
+            <h2>
+              Not placed <small>{unplacedTotal}</small>
+            </h2>
+            <input className="input" type="search" placeholder="Search by name or number…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
+          {data.unplaced.length === 0 ? (
+            <p className="muted small">Every copy has its pocket.</p>
+          ) : (
+            <ul className="tray-cards">
+              {tray.map((u) => (
+                <li key={`${u.bandai_id}-${u.fake}`}>
+                  <CardChip
+                    id={spotKey({ bandai_id: u.bandai_id, fake: u.fake })}
+                    card={card(u.bandai_id)}
+                    fake={u.fake}
+                    count={u.quantity}
+                    picked={!!selected && spotKey(selected) === spotKey({ bandai_id: u.bandai_id, fake: u.fake })}
+                    onTap={() => tapCard({ bandai_id: u.bandai_id, fake: u.fake })}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tray>
+      </DndContext>
+      <p className="muted small binder-help">
+        Drag a card to another pocket (if it's taken, they swap) or to “Not placed”. On a phone, or to reach a far page: tap the card, change page and tap the pocket.
+      </p>
+    </main>
+  )
+}
+
+function BinderSheet({
+  page, pages, rows, cols, bySpot, card, selected, onTapCard, onTapPocket, onAction,
+}: {
+  page: number
+  pages: number
+  rows: number
+  cols: number
+  bySpot: Map<string, { bandai_id: number; fake: boolean }>
+  card: (id: number) => CardSummary | undefined
+  selected: Selected
+  onTapCard: (spot: BinderSpot) => void
+  onTapPocket: (page: number, slot: number) => void
+  onAction: (action: 'insert-page' | 'delete-page' | 'move-page', page: number, to?: number) => void
+}) {
+  const [menu, setMenu] = useState(false)
+  const [to, setTo] = useState(page)
+  const pockets = Array.from({ length: rows * cols }, (_, i) => i + 1)
+  const empty = pockets.every((slot) => !bySpot.has(`${page}:${slot}`))
+  return (
+    <section className="binder-sheet" aria-label={`Page ${page}`}>
+      <div className="sheet-head">
+        <strong>Page {page}</strong>
+        <span className="sheet-menu">
+          <button className="icon-btn" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label={`Options for page ${page}`}>
+            ⋯
+          </button>
+          {menu && (
+            <div className="sheet-menu-pop" role="menu">
+              <button role="menuitem" onClick={() => (setMenu(false), onAction('insert-page', page))}>Insert an empty page before</button>
+              <button role="menuitem" onClick={() => (setMenu(false), onAction('insert-page', page + 1))}>Insert an empty page after</button>
+              <form
+                className="sheet-move"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  setMenu(false)
+                  onAction('move-page', page, to)
+                }}
+              >
+                Move this page to
+                <input className="input" type="number" min={1} max={pages} value={to} onChange={(e) => setTo(Number(e.target.value))} />
+                <button className="btn small" disabled={to < 1 || to > pages || to === page}>Move</button>
+              </form>
+              <button
+                role="menuitem"
+                className="danger-text"
+                disabled={!empty || pages <= 1}
+                title={empty ? undefined : 'Only empty pages can be removed'}
+                onClick={() => (setMenu(false), onAction('delete-page', page))}
+              >
+                Remove this page{empty ? '' : ' (it has cards)'}
+              </button>
+            </div>
+          )}
+        </span>
+      </div>
+      {/* Que la página entera quepa en pantalla: el ancho sale del alto disponible (cartas 63×88). */}
+      <div
+        className="sheet-grid"
+        style={{
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          maxWidth: `calc(${cols} * (min(68vh, 760px) / ${rows}) * 0.716)`,
+        }}
+      >
+        {pockets.map((slot) => {
+          const here = bySpot.get(`${page}:${slot}`)
+          const spot = { page, slot }
+          return (
+            <Pocket key={slot} id={spotKey(spot)} onTap={() => !here && onTapPocket(page, slot)} targetable={!!selected}>
+              {here ? (
+                <CardChip
+                  id={spotKey(spot)}
+                  card={card(here.bandai_id)}
+                  fake={here.fake}
+                  picked={!!selected && spotKey(selected) === spotKey(spot)}
+                  onTap={() => (selected && spotKey(selected) !== spotKey(spot) ? onTapPocket(page, slot) : onTapCard(spot))}
+                />
+              ) : (
+                <span className="pocket-empty">{slot}</span>
+              )}
+            </Pocket>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function Pocket({ id, children, onTap, targetable }: { id: string; children: React.ReactNode; onTap: () => void; targetable: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div ref={setNodeRef} className={`pocket ${isOver ? 'over' : ''} ${targetable ? 'targetable' : ''}`} onClick={onTap}>
+      {children}
+    </div>
+  )
+}
+
+function Tray({ children, onTap, canDropHere }: { children: React.ReactNode; selected: Selected; onTap: () => void; canDropHere: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'tray' })
+  return (
+    <section ref={setNodeRef} className={`binder-tray ${isOver ? 'over' : ''} ${canDropHere ? 'targetable' : ''}`} onClick={(e) => e.target === e.currentTarget && onTap()}>
+      {canDropHere && (
+        <button className="btn small tray-drop" onClick={onTap}>
+          ↓ Take the picked card out (Not placed)
+        </button>
+      )}
+      {children}
+    </section>
+  )
+}
+
+function CardChip({
+  id, card, fake, count, picked, onTap,
+}: {
+  id: string
+  card?: CardSummary
+  fake: boolean
+  count?: number
+  picked: boolean
+  onTap: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id })
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className={`card-chip ${picked ? 'picked' : ''} ${isDragging ? 'dragging' : ''}`}
+      style={style}
+      title={card ? `${card.card_number} · ${card.name}${fake ? ' · fake' : ''}` : ''}
+      onClick={(e) => {
+        e.stopPropagation()
+        onTap()
+      }}
+      {...listeners}
+      {...attributes}
+    >
+      {card ? <img src={cardThumb(card)} alt={card.name} loading="lazy" referrerPolicy="no-referrer" draggable={false} /> : <span>?</span>}
+      {fake && <span className="chip-fake">Fake</span>}
+      {count != null && count > 1 && <span className="chip-count">×{count}</span>}
+      <span className="chip-number">{card?.card_number}</span>
+    </button>
+  )
+}

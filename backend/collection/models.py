@@ -42,6 +42,8 @@ class Location(models.Model):
     binder_cols = models.PositiveSmallIntegerField(
         default=3, validators=[MinValueValidator(1), MaxValueValidator(BINDER_MAX_SIDE)], help_text="Pockets per page: columns"
     )
+    # Páginas del archivador (también las vacías del final); las que tienen cartas cuentan aunque sean más.
+    binder_pages = models.PositiveSmallIntegerField(default=0, help_text="Pages in the binder (including empty ones)")
     # "Sin ubicar": destino por defecto de lo escaneado y de lo que queda al
     # borrar una ubicación. Siempre existe y no se puede borrar.
     is_default = models.BooleanField(default=False)

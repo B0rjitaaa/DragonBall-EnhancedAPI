@@ -63,6 +63,25 @@ Al crear un **archivador** eliges también sus bolsillos por página (**«Pocket
 
 Lo usa el [modo archivador](escaner.md#modo-archivador) del escáner: la rejilla tiene esas casillas y la nota de posición de cada copia cuenta con esas columnas. Puedes cambiarlo después en **«Edit…»**. Los archivadores creados antes de esta opción son de 3×3.
 
+## La vista de archivador
+
+Cada archivador tiene **«📖 Open binder»** (abrir el archivador), que enseña sus páginas como un archivador de verdad: dos páginas abiertas en el ordenador (una en el móvil), con la cuadrícula de bolsillos de su tamaño y cada copia en su bolsillo.
+
+![La vista de archivador: dos páginas abiertas con sus bolsillos y la bandeja «Not placed»](../img/binder.jpg)
+
+- **Las posiciones** son las notas de las copias, **«P. 12 · row 2 · col 3»** (las que escribe el [modo archivador](escaner.md#modo-archivador) del escáner; la antigua «Pág. 12 · fila 2 · col 3» también vale). Mover cartas aquí reescribe esas líneas; el resto del texto de la nota se conserva.
+- **«Not placed»** (sin colocar) es una bandeja con las copias que no tienen posición (o tienen una que no cabe en el archivador), con buscador.
+- **Pasar páginas:** **‹ ›**, la casilla del número de página o las teclas <kbd>←</kbd> <kbd>→</kbd>.
+
+**Mover cartas:**
+- **Arrastrando** una carta a otro bolsillo. Si está ocupado, las dos cartas **se intercambian**. Arrastrarla a **«Not placed»** la saca de su bolsillo. Una carta de la bandeja soltada en un bolsillo ocupado manda la que había a la bandeja.
+- **Tocando** (cómodo en el móvil, o para llegar a una página lejana): toca la carta, cambia de página si hace falta y toca el bolsillo. Con una carta cogida de un bolsillo, **«↓ Take the picked card out»** la manda a la bandeja. <kbd>Esc</kbd> cancela.
+
+**Menú ⋯ de cada página:**
+- **«Insert an empty page before / after»**: mete una página vacía delante o detrás; las de detrás se corren una.
+- **«Move this page to N»**: lleva la página, con sus cartas, a esa posición; las de en medio se corren.
+- **«Remove this page»**: solo páginas vacías; las de detrás se corren una hacia atrás.
+
 ## Ordenar las ubicaciones
 
 Con más de una ubicación en una sección aparece el botón **«Reorder»** (ordenar):

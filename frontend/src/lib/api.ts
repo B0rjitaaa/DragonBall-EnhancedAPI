@@ -1,5 +1,5 @@
 import type {
-  CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  BinderData, BinderSpot, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
 
@@ -166,6 +166,12 @@ export const api = {
   savePicked: (deck: number, done: string[]) =>
     request<SavedPickList>(`/my-collection/decks/${deck}/pick-list/`, { method: 'PATCH', body: JSON.stringify({ done }) }),
   deletePickList: (deck: number) => request<void>(`/my-collection/decks/${deck}/pick-list/`, { method: 'DELETE' }),
+  /** Vista de archivador de un Binder: leerla, mover una copia (a otro bolsillo o a «sin colocar») y sus páginas. */
+  binder: (id: number) => request<BinderData>(`/my-collection/binders/${id}/`),
+  binderMove: (id: number, source: BinderSpot, target: { page: number; slot: number } | null) =>
+    request<BinderData>(`/my-collection/binders/${id}/move/`, post({ source, target })),
+  binderPage: (id: number, action: 'insert-page' | 'delete-page' | 'move-page', page: number, to?: number) =>
+    request<BinderData>(`/my-collection/binders/${id}/${action}/`, post({ page, ...(to ? { to } : {}) })),
   /** Mazos: lista actual, versiones guardadas y partidas. */
   deck: (id: number) => request<DeckDetail>(`/my-collection/decks/${id}/`),
   /** Guarda una lista: `cards` (la editada) o, sin ella, lo que hay en la caja. */

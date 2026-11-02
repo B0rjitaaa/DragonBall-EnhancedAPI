@@ -719,3 +719,48 @@ def card_thumb(request, card_id: int, version: str):
     response = FileResponse(open(path, "rb"), content_type="image/webp")
     response["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
+
+
+class BinderView(APIView):
+    """Vista de archivador: páginas, qué hay en cada bolsillo y lo sin colocar (las posiciones viven en las notas)."""
+
+    def get(self, request, pk):
+        from collection import binder
+
+        try:
+            payload = binder.data(pk)
+        except binder.BinderError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        return Response(_binder_catalog(payload))
+
+
+class BinderActionView(APIView):
+    """Mover una copia (`move`) o una página (`move_page`), meter (`insert_page`) o quitar (`delete_page`) una."""
+
+    def post(self, request, pk, action):
+        from collection import binder
+
+        body = request.data
+        try:
+            if action == "move":
+                payload = binder.move(pk, body.get("source") or {}, body.get("target"))
+            elif action == "insert-page":
+                payload = binder.insert_page(pk, int(body.get("page") or 0))
+            elif action == "delete-page":
+                payload = binder.delete_page(pk, int(body.get("page") or 0))
+            elif action == "move-page":
+                payload = binder.move_page(pk, int(body.get("page") or 0), int(body.get("to") or 0))
+            else:
+                return Response({"detail": "Unknown action"}, status=status.HTTP_404_NOT_FOUND)
+        except (binder.BinderError, ValueError, TypeError) as exc:
+            return Response({"detail": str(exc) or "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_binder_catalog(payload))
+
+
+def _binder_catalog(payload: dict) -> dict:
+    """Añade los datos de catálogo (imagen, nombre…) de las cartas del archivador."""
+    from cards.serializers import CardListSerializer
+
+    ids = {s["bandai_id"] for s in payload["slots"]} | {u["bandai_id"] for u in payload["unplaced"]}
+    cards = Card.objects.filter(id__in=ids)
+    return {**payload, "catalog": {c["id"]: c for c in CardListSerializer(cards, many=True).data}}

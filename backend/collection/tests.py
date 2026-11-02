@@ -329,3 +329,74 @@ class BinderSizeTests(TestCase):
         created = self.client.post("/api/my-collection/locations/", {"name": "Archivador", "kind": "binder"},
                                    format="json")
         self.assertEqual((created.data["binder_rows"], created.data["binder_cols"]), (3, 3))
+
+
+class BinderViewTests(TestCase):
+    """Vista de archivador: posiciones leídas de las notas, mover copias y reordenar páginas."""
+
+    def setUp(self):
+        from collection.models import CollectionEntry, Location
+
+        self.client, self.Entry = APIClient(), CollectionEntry
+        self.binder = Location.objects.create(name="Archivador", kind="binder")  # 3×3
+        self.a = Card.objects.create(id=1, card_number="BT1-001", name="Goku")
+        self.b = Card.objects.create(id=2, card_number="BT1-002", name="Vegeta")
+        self.c = Card.objects.create(id=3, card_number="BT1-003", name="Cell")
+        # 2 Goku: una en la pág. 1 (formato antiguo) y otra en la 3; la nota tiene otra línea que se conserva.
+        self.ea = CollectionEntry.objects.create(card=self.a, location=self.binder, quantity=2,
+                                                 notes="comprada en la tienda\nPág. 1 · fila 1 · col 1\nP. 3 · row 2 · col 3")
+        self.eb = CollectionEntry.objects.create(card=self.b, location=self.binder, quantity=1, notes="P. 1 · row 1 · col 2")
+        self.ec = CollectionEntry.objects.create(card=self.c, location=self.binder, quantity=2)  # sin posición
+        self.url = f"/api/my-collection/binders/{self.binder.id}/"
+
+    def notes(self, entry):
+        entry.refresh_from_db()
+        return entry.notes.splitlines()
+
+    def test_layout_from_notes(self):
+        data = self.client.get(self.url).data
+        self.assertEqual(data["pages"], 3)
+        self.assertEqual([(s["page"], s["slot"], s["bandai_id"]) for s in data["slots"]], [(1, 1, 1), (1, 2, 2), (3, 6, 1)])
+        self.assertEqual(data["unplaced"], [{"bandai_id": 3, "fake": False, "quantity": 2}])
+        self.assertEqual((data["binder"]["rows"], data["binder"]["cols"], data["copies"]), (3, 3, 5))
+        self.assertIn(1, data["catalog"])
+
+    def test_move_swap_place_and_unplace(self):
+        post = lambda body: self.client.post(self.url + "move/", body, format="json")
+        # Goku (1,1) ↔ Vegeta (1,2): se intercambian
+        data = post({"source": {"page": 1, "slot": 1}, "target": {"page": 1, "slot": 2}}).data
+        self.assertEqual([(s["page"], s["slot"], s["bandai_id"]) for s in data["slots"]][:2], [(1, 1, 2), (1, 2, 1)])
+        self.assertEqual(self.notes(self.ea), ["comprada en la tienda", "P. 1 · row 1 · col 2", "P. 3 · row 2 · col 3"])
+        self.assertEqual(self.notes(self.eb), ["P. 1 · row 1 · col 1"])
+        # Cell sin colocar → pág. 2, bolsillo 9
+        post({"source": {"bandai_id": 3, "fake": False}, "target": {"page": 2, "slot": 9}})
+        self.assertEqual(self.notes(self.ec), ["P. 2 · row 3 · col 3"])
+        # Otra Cell al bolsillo de Vegeta: Vegeta pasa a sin colocar
+        data = post({"source": {"bandai_id": 3, "fake": False}, "target": {"page": 1, "slot": 1}}).data
+        self.assertEqual(self.notes(self.eb), [])
+        self.assertEqual(data["unplaced"], [{"bandai_id": 2, "fake": False, "quantity": 1}])
+        # Sacar una Cell a sin colocar
+        post({"source": {"page": 2, "slot": 9}, "target": None})
+        self.assertEqual(self.notes(self.ec), ["P. 1 · row 1 · col 1"])
+        self.assertEqual(post({"source": {"page": 2, "slot": 9}, "target": None}).status_code, 400)  # vacío
+        self.assertEqual(post({"source": {"page": 1, "slot": 1}, "target": {"page": 9, "slot": 1}}).status_code, 400)
+
+    def test_pages_insert_delete_move(self):
+        post = lambda action, body: self.client.post(self.url + action + "/", body, format="json")
+        data = post("insert-page", {"page": 2}).data  # la 3 pasa a ser la 4
+        self.assertEqual((data["pages"], self.notes(self.ea)[-1]), (4, "P. 4 · row 2 · col 3"))
+        self.assertEqual(post("delete-page", {"page": 4}).status_code, 400)  # tiene cartas
+        data = post("delete-page", {"page": 2}).data  # vacía: la 4 vuelve a ser la 3
+        self.assertEqual((data["pages"], self.notes(self.ea)[-1]), (3, "P. 3 · row 2 · col 3"))
+        data = post("move-page", {"page": 3, "to": 1}).data  # la 3 delante: la 1 pasa a la 2
+        self.assertEqual(self.notes(self.ea)[1:], ["P. 1 · row 2 · col 3", "P. 2 · row 1 · col 1"])
+        self.assertEqual(self.notes(self.eb), ["P. 2 · row 1 · col 2"])
+        self.assertEqual(data["pages"], 3)
+        data = post("insert-page", {"page": 4}).data  # una vacía al final
+        self.assertEqual(data["pages"], 4)
+
+    def test_positions_that_dont_fit_are_unplaced(self):
+        self.Entry.objects.filter(pk=self.eb.pk).update(notes="P. 1 · row 4 · col 1")  # 4.ª fila en un 3×3
+        data = self.client.get(self.url).data
+        self.assertIn({"bandai_id": 2, "fake": False, "quantity": 1}, data["unplaced"])
+        self.assertEqual(self.client.get("/api/my-collection/binders/999/").status_code, 404)
