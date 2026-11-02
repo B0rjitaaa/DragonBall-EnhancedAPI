@@ -71,7 +71,9 @@ Each binder has **📖 Open binder**, which shows its pages like a real binder: 
 
 - **Positions** are the copies' notes, **P. 12 · row 2 · col 3** (the ones the scanner's [binder mode](escaner.md#binder-mode) writes; the old “Pág. 12 · fila 2 · col 3” works too). Moving cards here rewrites those lines; any other text in the note is kept.
 - **Not placed** is a tray with the copies that have no position (or one that doesn't fit the binder), with a search box.
-- **Pages:** **‹ ›**, the page number box or the <kbd>←</kbd> <kbd>→</kbd> keys.
+- **Like a book:** on a computer page 1 opens on its own on the right (the inside cover is on the left), then 2-3, 4-5… If the last page is even, it shows alone on the left.
+- **Turning pages:** the big **‹ ›** arrows on both sides of the binder, the ones at the top, the page number box or the <kbd>←</kbd> <kbd>→</kbd> keys.
+- **+ Add page** (at the top): choose a page and whether the new empty page goes **Before** or **After** it; the pages behind move one place and the view goes to the new page.
 
 **Moving cards:**
 - **Drag** a card to another pocket. If the pocket is taken, the two cards **swap**. Dragging it to **Not placed** takes it out of its pocket. A card from the tray dropped on a taken pocket sends that one to the tray.

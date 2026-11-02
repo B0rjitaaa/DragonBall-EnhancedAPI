@@ -97,6 +97,9 @@ def shots():
         go(page, "/locations", 1500)
         page.locator(".loc-open-binder").first.click()
         page.wait_for_selector(".binder-sheet")
+        # La 1 sale sola (como un libro): se pasa a la 2-3 para que se vean dos páginas.
+        page.locator(".binder-turn.next").click()
+        page.mouse.move(0, 0)
         page.wait_for_timeout(2500)
         return None, False
 

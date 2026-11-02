@@ -68,10 +68,16 @@ export default function BinderPage() {
   }, [])
 
   const pages = data?.pages ?? 1
-  // En dos páginas, los pares empiezan siempre en impar (1-2, 3-4…), como un archivador abierto.
-  const start = perView === 2 ? Math.max(1, first - ((first - 1) % 2)) : first
-  const visible = Array.from({ length: perView }, (_, i) => start + i).filter((p) => p <= pages)
+  // En dos páginas, como un libro: la 1 sale sola a la derecha (a la izquierda, el interior de la tapa) y
+  // luego 2-3, 4-5…; si la última es par, sale sola a la izquierda. 0 o más allá de la última = hueco.
+  const left = perView === 2 ? first - (first % 2) : first
+  const spread = perView === 2 ? [left, left + 1] : [first]
+  const visible = spread.filter((p) => p >= 1 && p <= pages)
+  const start = visible[0] ?? 1
+  const canBack = perView === 2 ? left > 0 : first > 1
+  const canForward = spread[spread.length - 1] < pages
   const go = useCallback((delta: number) => setFirst((f) => Math.min(Math.max(1, f + delta * perView), pages)), [perView, pages])
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -145,7 +151,8 @@ export default function BinderPage() {
           </p>
         </div>
         <div className="binder-nav">
-          <button className="btn" onClick={() => go(-1)} disabled={start <= 1} aria-label="Previous pages">‹</button>
+          <button className="btn" onClick={() => setAdding((v) => !v)} aria-expanded={adding}>+ Add page</button>
+          <button className="btn" onClick={() => go(-1)} disabled={!canBack} aria-label="Previous pages">‹</button>
           <label className="binder-jump">
             Page
             <input
@@ -158,9 +165,21 @@ export default function BinderPage() {
             />
             of {pages}
           </label>
-          <button className="btn" onClick={() => go(1)} disabled={start + perView > pages} aria-label="Next pages">›</button>
+          <button className="btn" onClick={() => go(1)} disabled={!canForward} aria-label="Next pages">›</button>
         </div>
       </header>
+      {adding && (
+        <AddPage
+          pages={pages}
+          around={start}
+          onCancel={() => setAdding(false)}
+          onAdd={(at) => {
+            setAdding(false)
+            pageAction('insert-page', at)
+            setFirst(at)
+          }}
+        />
+      )}
 
       {selected && (
         <p className="binder-hint">
@@ -171,8 +190,14 @@ export default function BinderPage() {
       {error && <p className="error">{error}</p>}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className={`binder-spread pages-${visible.length}`}>
-          {visible.map((page) => (
+        <div className="binder-book">
+        <button className="binder-turn prev" onClick={() => go(-1)} disabled={!canBack} aria-label="Previous pages" title="Previous pages">‹</button>
+        <div className={`binder-spread pages-${spread.length}`}>
+          {spread.map((page) => page < 1 || page > pages ? (
+            <div key={`blank-${page}`} className="binder-sheet blank" aria-hidden="true">
+              <span>{page < 1 ? 'Inside cover' : 'End of the binder'}</span>
+            </div>
+          ) : (
             <BinderSheet
               key={page}
               page={page}
@@ -187,6 +212,8 @@ export default function BinderPage() {
               onAction={pageAction}
             />
           ))}
+        </div>
+        <button className="binder-turn next" onClick={() => go(1)} disabled={!canForward} aria-label="Next pages" title="Next pages">›</button>
         </div>
 
         <Tray selected={selected} canDropHere={!!selected && 'page' in selected} onTap={() => selected && 'page' in selected && move(selected, null)}>
@@ -364,5 +391,41 @@ function CardChip({
       {count != null && count > 1 && <span className="chip-count">×{count}</span>}
       <span className="chip-number">{card?.card_number}</span>
     </button>
+  )
+}
+
+/** Añadir una página vacía: delante o detrás de la que elijas. */
+function AddPage({ pages, around, onAdd, onCancel }: { pages: number; around: number; onAdd: (at: number) => void; onCancel: () => void }) {
+  const [page, setPage] = useState(around)
+  const [where, setWhere] = useState<'before' | 'after'>('after')
+  const ok = page >= 1 && page <= pages
+  return (
+    <form
+      className="binder-add-page"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (ok) onAdd(where === 'before' ? page : page + 1)
+      }}
+    >
+      <span>Add an empty page</span>
+      <span className="seg" role="radiogroup" aria-label="Before or after">
+        {(['before', 'after'] as const).map((w) => (
+          <button key={w} type="button" role="radio" aria-checked={where === w} className={where === w ? 'on' : ''} onClick={() => setWhere(w)}>
+            {w === 'before' ? 'Before' : 'After'}
+          </button>
+        ))}
+      </span>
+      <label>
+        page
+        <input className="input" type="number" min={1} max={pages} value={page} onChange={(e) => setPage(Number(e.target.value))} />
+      </label>
+      <span className="muted small">
+        {ok ? `It will be page ${where === 'before' ? page : page + 1}; the ones after it move up one.` : `Choose a page from 1 to ${pages}.`}
+      </span>
+      <span className="binder-add-actions">
+        <button type="button" className="btn" onClick={onCancel}>Cancel</button>
+        <button className="btn primary" disabled={!ok}>Add page</button>
+      </span>
+    </form>
   )
 }

@@ -71,7 +71,9 @@ Cada archivador tiene **«📖 Open binder»** (abrir el archivador), que enseñ
 
 - **Las posiciones** son las notas de las copias, **«P. 12 · row 2 · col 3»** (las que escribe el [modo archivador](escaner.md#modo-archivador) del escáner; la antigua «Pág. 12 · fila 2 · col 3» también vale). Mover cartas aquí reescribe esas líneas; el resto del texto de la nota se conserva.
 - **«Not placed»** (sin colocar) es una bandeja con las copias que no tienen posición (o tienen una que no cabe en el archivador), con buscador.
-- **Pasar páginas:** **‹ ›**, la casilla del número de página o las teclas <kbd>←</kbd> <kbd>→</kbd>.
+- **Como un libro:** en el ordenador la página 1 se abre sola a la derecha (a la izquierda queda el interior de la tapa), y luego 2-3, 4-5… Si la última página es par, sale sola a la izquierda.
+- **Pasar páginas:** las flechas grandes **‹ ›** a los lados del archivador, las de arriba, la casilla del número de página o las teclas <kbd>←</kbd> <kbd>→</kbd>.
+- **«+ Add page»** (añadir página, arriba): eliges una página y si la nueva, vacía, va **«Before»** (delante) o **«After»** (detrás); las de detrás se corren una y la vista va a la página nueva.
 
 **Mover cartas:**
 - **Arrastrando** una carta a otro bolsillo. Si está ocupado, las dos cartas **se intercambian**. Arrastrarla a **«Not placed»** la saca de su bolsillo. Una carta de la bandeja soltada en un bolsillo ocupado manda la que había a la bandeja.
