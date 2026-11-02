@@ -731,7 +731,8 @@ class BinderView(APIView):
             payload = binder.data(pk)
         except binder.BinderError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        return Response(_binder_catalog(payload))
+        params = request.query_params
+        return Response(_binder_catalog(payload, params.get("pages"), params.get("tray") == "1"))
 
 
 class BinderActionView(APIView):
@@ -757,13 +758,25 @@ class BinderActionView(APIView):
                 return Response({"detail": "Unknown action"}, status=status.HTTP_404_NOT_FOUND)
         except (binder.BinderError, ValueError, TypeError) as exc:
             return Response({"detail": str(exc) or "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(_binder_catalog(payload))
+        return Response(_binder_catalog(payload, body.get("pages"), bool(body.get("tray"))))
 
 
-def _binder_catalog(payload: dict) -> dict:
-    """Añade los datos de catálogo (imagen, nombre…) de las cartas del archivador."""
-    from cards.serializers import CardListSerializer
+def _binder_catalog(payload: dict, pages=None, tray: bool = True) -> dict:
+    """Recorta la respuesta a lo que se ve y añade lo justo de cada carta (número, nombre e imagen).
 
-    ids = {s["bandai_id"] for s in payload["slots"]} | {u["bandai_id"] for u in payload["unplaced"]}
-    cards = Card.objects.filter(id__in=ids)
-    return {**payload, "catalog": {c["id"]: c for c in CardListSerializer(cards, many=True).data}}
+    `pages` («48,49» o una lista): solo los bolsillos de esas páginas (vacío: ninguno; sin él: todas). `tray`:
+    también las cartas de lo sin colocar (si no, solo sus filas, para los totales).
+    """
+    from .thumbs import thumb_url
+
+    if pages is not None:
+        wanted = set()
+        for p in (pages.split(",") if isinstance(pages, str) else pages if isinstance(pages, list) else []):
+            try:
+                wanted.add(int(p))
+            except (TypeError, ValueError):
+                continue
+        payload = {**payload, "slots": [s for s in payload["slots"] if s["page"] in wanted]}
+    ids = {s["bandai_id"] for s in payload["slots"]} | ({u["bandai_id"] for u in payload["unplaced"]} if tray else set())
+    cards = Card.objects.filter(id__in=ids).values("id", "card_number", "name", "image_url")
+    return {**payload, "catalog": {c["id"]: {**c, "thumb_url": thumb_url(c["id"], c["image_url"])} for c in cards}}

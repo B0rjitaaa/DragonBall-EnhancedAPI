@@ -485,7 +485,14 @@ export interface BinderData {
   placed: number
   /** Copias sueltas de cartas que ya tienen bolsillo (se pueden juntar con ellas). */
   stackable: number
-  catalog: Record<number, CardSummary>
+  /** Lo justo de cada carta (de los bolsillos pedidos y, con `tray`, de lo sin colocar). */
+  catalog: Record<number, BinderCard>
+}
+export type BinderCard = Pick<CardSummary, 'id' | 'card_number' | 'name' | 'image_url' | 'thumb_url'>
+/** Qué se pide al archivador: los bolsillos de esas páginas y, con `tray`, las cartas de lo sin colocar. */
+export interface BinderView {
+  pages: number[]
+  tray: boolean
 }
 export type BinderSpot = { page: number; slot: number } | { bandai_id: number; fake: boolean }
 

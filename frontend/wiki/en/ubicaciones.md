@@ -73,7 +73,7 @@ Each binder has **📖 Open binder**, which shows its pages like a real binder: 
 - **Several copies in one pocket:** one position line per copy, so copies kept together in a pocket repeat the same line. Every pocket always shows how many copies it holds (**×1**, **×4**…); with several, the number is orange and the card looks like a stack.
 - **Not placed** is a tray with the copies that have no position (or one that doesn't fit the binder), with a search box. If some of them are copies of a card that already has a pocket (for example, added with + or from a CSV), **⧉ Put N loose copies with their card** puts them behind it, in the same pocket (if the card has more than one pocket, in the one with fewer copies).
 - **Like a book:** on a computer page 1 opens on its own on the right (the inside cover is on the left), then 2-3, 4-5… If the last page is even, it shows alone on the left.
-- **Turning pages:** the big **‹ ›** arrows on both sides of the binder, the ones at the top, the page number box (type the page and press <kbd>Enter</kbd>) or the <kbd>←</kbd> <kbd>→</kbd> keys.
+- **Turning pages:** the big **‹ ›** arrows on both sides of the binder, the ones at the top, the page number box (type the page and press <kbd>Enter</kbd>) or the <kbd>←</kbd> <kbd>→</kbd> keys. The address keeps the page (`…?page=48`), so you can bookmark or share it and it opens there. Pages load as you look at them (plus the next and previous ones, so turning is instant).
 - **+ Add page** (at the top): choose a page and whether the new empty page goes **Before** or **After** it; the pages behind move one place and the view goes to the new page.
 
 **Moving cards:**

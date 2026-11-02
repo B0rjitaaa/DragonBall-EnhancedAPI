@@ -416,6 +416,18 @@ class BinderViewTests(TestCase):
         self.assertEqual([s["count"] for s in data["slots"] if s["bandai_id"] == 2], [3])
         self.assertIn({"bandai_id": 2, "fake": False, "quantity": 1}, data["unplaced"])
 
+    def test_only_the_pages_you_look_at(self):
+        data = self.client.get(self.url + "?pages=3").data
+        self.assertEqual([(s["page"], s["slot"]) for s in data["slots"]], [(3, 6)])
+        self.assertEqual(sorted(data["catalog"]), [1])  # sin la bandeja: solo las cartas de esas páginas
+        self.assertEqual(set(data["catalog"][1]), {"id", "card_number", "name", "image_url", "thumb_url"})
+        self.assertEqual((data["pages"], data["placed"]), (3, 3))  # los totales, de todo el archivador
+        data = self.client.get(self.url + "?pages=&tray=1").data
+        self.assertEqual((data["slots"], sorted(data["catalog"])), ([], [3]))
+        data = self.client.post(self.url + "move/", {"source": {"page": 1, "slot": 1}, "target": {"page": 2, "slot": 1},
+                                                     "pages": [2, 3]}, format="json").data
+        self.assertEqual([(s["page"], s["slot"]) for s in data["slots"]], [(2, 1), (3, 6)])
+
     def test_positions_that_dont_fit_are_unplaced(self):
         self.Entry.objects.filter(pk=self.eb.pk).update(notes="P. 1 · row 4 · col 1")  # 4.ª fila en un 3×3
         data = self.client.get(self.url).data

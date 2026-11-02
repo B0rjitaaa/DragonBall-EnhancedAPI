@@ -2094,3 +2094,8 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .card-chip.stack { box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.35), inset -7px -7px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
 .card-chip.stack img { width: calc(100% - 7px); height: calc(100% - 7px); border-radius: 7px; }
 .card-chip .chip-number { padding-right: 2.6rem; }
+/* Página cuyos bolsillos aún no han llegado */
+.binder-sheet.loading .sheet-grid { opacity: 0.45; animation: sheet-wait 1.2s ease-in-out infinite alternate; }
+@keyframes sheet-wait { from { opacity: 0.3; } to { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) { .binder-sheet.loading .sheet-grid { animation: none; } }
+.tray-more { margin-top: 0.6rem; }

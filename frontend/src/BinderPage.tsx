@@ -6,7 +6,7 @@ import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSe
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './lib/api'
 import { collectionUrl } from './LocationsPage'
-import type { BinderData, BinderSpot, CardSummary, Location } from './lib/types'
+import type { BinderCard, BinderData, BinderSpot, Location } from './lib/types'
 import { cardThumb } from './lib/types'
 
 type Selected = BinderSpot | null
@@ -22,14 +22,32 @@ function uidFromPath(): string {
   return window.location.pathname.replace(/\/+$/, '').split('/').pop() ?? ''
 }
 
+type Slot = BinderData['slots'][number]
+
+/** Páginas que se ven a partir de `first` (en dos páginas, como un libro: 1 sola, luego 2-3, 4-5…). */
+function spreadOf(first: number, perView: number): number[] {
+  const left = perView === 2 ? first - (first % 2) : first
+  return perView === 2 ? [left, left + 1] : [first]
+}
+
 export default function BinderPage() {
   const [loc, setLoc] = useState<Location | null>(null)
   const [data, setData] = useState<BinderData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [first, setFirst] = useState(1) // primera página a la vista
+  // Página a la vista; viene de la URL (?page=48) y se apunta en ella al pasar páginas.
+  const [first, setFirst] = useState(() => Math.max(1, Number(new URLSearchParams(window.location.search).get('page')) || 1))
+  // Carga por páginas: los bolsillos de cada página ya pedida y lo justo de sus cartas; lo sin colocar, al llegar a él.
+  const [pageSlots, setPageSlots] = useState<Map<number, Slot[]>>(() => new Map())
+  const [catalog, setCatalog] = useState<Record<number, BinderCard>>({})
+  const [trayLoaded, setTrayLoaded] = useState(false)
+  const [trayWanted, setTrayWanted] = useState(false)
+  const loading = useRef(new Set<number>())
+  const generation = useRef(0) // sube con cada cambio: lo que llega de antes se descarta
   const [selected, setSelected] = useState<Selected>(null)
   const [query, setQuery] = useState('')
+  // La bandeja enseña las cartas de 60 en 60 (cada una con su imagen).
+  const [trayShown, setTrayShown] = useState(60)
   const [narrow, setNarrow] = useState(() => window.innerWidth < 900)
   const perView = narrow ? 1 : 2
 
@@ -37,6 +55,20 @@ export default function BinderPage() {
     const onResize = () => setNarrow(window.innerWidth < 900)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+
+  // Guarda una respuesta: los totales y lo sin colocar, los bolsillos de `pages` y las cartas que trae.
+  // `reset`: tras un cambio, lo guardado de otras páginas ya no vale (se vuelve a pedir al verlas).
+  const absorb = useCallback((d: BinderData, pages: number[], tray: boolean, reset: boolean) => {
+    setData(d)
+    setCatalog((c) => ({ ...c, ...d.catalog }))
+    setPageSlots((m) => {
+      const next = reset ? new Map<number, Slot[]>() : new Map(m)
+      for (const p of pages) next.set(p, d.slots.filter((s) => s.page === p))
+      return next
+    })
+    if (tray) setTrayLoaded(true)
   }, [])
 
   useEffect(() => {
@@ -48,45 +80,100 @@ export default function BinderPage() {
         if (!found) throw new Error("This binder doesn't exist (or isn't a binder any more)")
         setLoc(found)
         document.title = `${found.name} · Binder`
-        return api.binder(found.id)
+        const pages = spreadOf(Math.max(1, Number(new URLSearchParams(window.location.search).get('page')) || 1), window.innerWidth < 900 ? 1 : 2).filter((p) => p >= 1)
+        return api.binder(found.id, { pages, tray: false }).then((d) => ({ d, pages }))
       })
-      .then(setData)
+      .then(({ d, pages }) => absorb(d, pages, false, true))
       .catch((e: Error) => setError(e.message))
-  }, [])
+  }, [absorb])
 
-  const run = useCallback(async (action: () => Promise<BinderData>) => {
-    setBusy(true)
-    setError(null)
-    try {
-      setData(await action())
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-      setSelected(null)
-    }
-  }, [])
+  const run = useCallback(
+    async (action: (view: { pages: number[]; tray: boolean }) => Promise<BinderData>, view: number[]) => {
+      setBusy(true)
+      setError(null)
+      generation.current += 1
+      loading.current.clear()
+      try {
+        absorb(await action({ pages: view, tray: trayLoaded }), view, trayLoaded, true)
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setBusy(false)
+        setSelected(null)
+      }
+    },
+    [absorb, trayLoaded],
+  )
 
   const pages = data?.pages ?? 1
+  // Una página de la URL (o de antes de quitar páginas) que ya no existe: la última.
+  const firstNow = Math.min(first, pages)
   // En dos páginas, como un libro: la 1 sale sola a la derecha (a la izquierda, el interior de la tapa) y
   // luego 2-3, 4-5…; si la última es par, sale sola a la izquierda. 0 o más allá de la última = hueco.
-  const left = perView === 2 ? first - (first % 2) : first
-  const spread = perView === 2 ? [left, left + 1] : [first]
+  const spread = spreadOf(firstNow, perView)
+  const left = spread[0]
   const visible = spread.filter((p) => p >= 1 && p <= pages)
   const start = visible[0] ?? 1
-  const canBack = perView === 2 ? left > 0 : first > 1
+  const canBack = perView === 2 ? left > 0 : firstNow > 1
   const canForward = spread[spread.length - 1] < pages
-  const go = useCallback((delta: number) => setFirst((f) => Math.min(Math.max(1, f + delta * perView), pages)), [perView, pages])
+  const go = useCallback((delta: number) => setFirst((f) => Math.min(Math.max(1, spreadOf(Math.min(f, pages) + delta * perView, perView)[0]), pages)), [perView, pages])
   const [adding, setAdding] = useState(false)
   // La casilla de página: lo que se escribe no se aplica hasta Intro o al salir (así se puede borrar y escribir).
   const [jump, setJump] = useState<string | null>(null)
-  const shownPage = visible.includes(first) ? first : start
+  const shownPage = visible.includes(firstNow) ? firstNow : start
   const applyJump = () => {
     if (jump != null && jump.trim() !== '') setFirst(Math.min(Math.max(1, Math.round(Number(jump)) || 1), pages))
     setJump(null)
   }
   // Bolsillo vacío tocado sin carta cogida: se elige qué carta va ahí.
   const [filling, setFilling] = useState<{ page: number; slot: number } | null>(null)
+
+  // La página, en la URL (sin llenar el historial).
+  useEffect(() => {
+    if (!data) return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('page') === String(shownPage)) return
+    url.searchParams.set('page', String(shownPage))
+    window.history.replaceState(window.history.state, '', url)
+  }, [data, shownPage])
+
+  // Pide los bolsillos de las páginas a la vista y de las de al lado (para pasar página sin esperar) que falten,
+  // y deja cargando las imágenes de las de al lado.
+  const binderId = data?.binder.id
+  useEffect(() => {
+    if (binderId == null) return
+    const near = [...spreadOf(firstNow, perView), ...spreadOf(firstNow + perView, perView), ...spreadOf(Math.max(1, firstNow - perView), perView)]
+    const missing = [...new Set(near)].filter((p) => p >= 1 && p <= pages && !pageSlots.has(p) && !loading.current.has(p))
+    if (!missing.length) return
+    missing.forEach((p) => loading.current.add(p))
+    const gen = generation.current
+    api
+      .binder(binderId, { pages: missing, tray: false })
+      .then((d) => {
+        if (gen !== generation.current) return
+        absorb(d, missing, false, false)
+        const shown = new Set(spreadOf(firstNow, perView))
+        for (const s of d.slots) {
+          const c = d.catalog[s.bandai_id]
+          if (c && !shown.has(s.page)) new Image().src = cardThumb(c)
+        }
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => missing.forEach((p) => loading.current.delete(p)))
+  }, [binderId, firstNow, perView, pages, pageSlots, absorb])
+
+  // Lo sin colocar: sus cartas se piden al llegar a la bandeja, al buscar o al elegir carta para un bolsillo
+  // (y otra vez si aparece alguna que aún no se tiene).
+  const trayMissing = !!data && trayLoaded && data.unplaced.some((u) => !catalog[u.bandai_id])
+  useEffect(() => {
+    if (binderId == null || !(trayWanted || filling) || (trayLoaded && !trayMissing)) return
+    const gen = generation.current
+    api
+      .binder(binderId, { pages: [], tray: true })
+      .then((d) => gen === generation.current && absorb(d, [], true, false))
+      .catch((e: Error) => setError(e.message))
+  }, [binderId, trayWanted, filling, trayLoaded, trayMissing, absorb])
+  const wantTray = useCallback(() => setTrayWanted(true), [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -101,9 +188,9 @@ export default function BinderPage() {
 
   const bySpot = useMemo(() => {
     const m = new Map<string, { bandai_id: number; fake: boolean; count: number }>()
-    for (const s of data?.slots ?? []) m.set(`${s.page}:${s.slot}`, s)
+    for (const slots of pageSlots.values()) for (const s of slots) m.set(`${s.page}:${s.slot}`, s)
     return m
-  }, [data])
+  }, [pageSlots])
 
   // Con una carta cogida de un bolsillo con varias copias: mover todas (por defecto) o solo una.
   const [justOne, setJustOne] = useState(false)
@@ -111,11 +198,12 @@ export default function BinderPage() {
     if (!data) return
     if (target && 'page' in source && source.page === target.page && source.slot === target.slot) return
     setJustOne(false)
-    void run(() => api.binderMove(data.binder.id, source, target, one))
+    void run((view) => api.binderMove(data.binder.id, source, target, one, view), visible)
   }
+  // Tras meter, quitar o mover una página cambia la numeración: se vuelve a pedir lo que se vaya a ver.
   const pageAction = (action: 'insert-page' | 'delete-page' | 'move-page', page: number, to?: number) => {
     if (!data) return
-    void run(() => api.binderPage(data.binder.id, action, page, to))
+    void run((view) => api.binderPage(data.binder.id, action, page, to, view), [])
   }
 
   const sensors = useSensors(
@@ -134,7 +222,12 @@ export default function BinderPage() {
     }
   }
   // Tocar: primero la carta, luego el bolsillo (o la bandeja) de destino. Sirve en el móvil y para páginas lejanas.
-  const tapCard = (spot: BinderSpot) => setSelected((s) => (s && spotKey(s) === spotKey(spot) ? null : spot))
+  // (Se apunta cuántas copias tiene el bolsillo: al cambiar de página puede dejar de estar cargado.)
+  const [pickedCount, setPickedCount] = useState(1)
+  const tapCard = (spot: BinderSpot) => {
+    setPickedCount('page' in spot ? (bySpot.get(`${spot.page}:${spot.slot}`)?.count ?? 1) : 1)
+    setSelected((s) => (s && spotKey(s) === spotKey(spot) ? null : spot))
+  }
   const tapPocket = (page: number, slot: number) => {
     if (selected) move(selected, { page, slot }, justOne)
     else setFilling({ page, slot })
@@ -144,9 +237,8 @@ export default function BinderPage() {
   if (!data || !loc) return <main className="binder-page"><p className="muted">Loading the binder…</p></main>
 
   const placed = data.placed
-  const pickedCount = selected && 'page' in selected ? (bySpot.get(`${selected.page}:${selected.slot}`)?.count ?? 1) : 1
   const unplacedTotal = data.unplaced.reduce((n, u) => n + u.quantity, 0)
-  const card = (id: number): CardSummary | undefined => data.catalog[id]
+  const card = (id: number): BinderCard | undefined => catalog[id]
   const q = query.trim().toLowerCase()
   const tray = data.unplaced.filter((u) => {
     const c = card(u.bandai_id)
@@ -231,6 +323,7 @@ export default function BinderPage() {
               key={page}
               page={page}
               pages={pages}
+              loaded={pageSlots.has(page)}
               rows={data.binder.rows}
               cols={data.binder.cols}
               bySpot={bySpot}
@@ -245,16 +338,16 @@ export default function BinderPage() {
         <button className="binder-turn next" onClick={() => go(1)} disabled={!canForward} aria-label="Next pages" title="Next pages">›</button>
         </div>
 
-        <Tray selected={selected} canDropHere={!!selected && 'page' in selected} onTap={() => selected && 'page' in selected && move(selected, null, justOne)}>
+        <Tray onVisible={wantTray} canDropHere={!!selected && 'page' in selected} onTap={() => selected && 'page' in selected && move(selected, null, justOne)}>
           <div className="tray-head">
             <h2>
               Not placed <small>{unplacedTotal}</small>
             </h2>
-            <input className="input" type="search" placeholder="Search by name or number…" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input className="input" type="search" placeholder="Search by name or number…" value={query} onChange={(e) => (setQuery(e.target.value), setTrayWanted(true))} />
           </div>
           {data.stackable > 0 && (
             <p className="tray-stack">
-              <button className="btn small" onClick={() => void run(() => api.binderStack(data.binder.id))}>
+              <button className="btn small" onClick={() => void run((view) => api.binderStack(data.binder.id, view), visible)}>
                 ⧉ Put {data.stackable} loose {data.stackable === 1 ? 'copy' : 'copies'} with their card
               </button>
               <span className="muted small">For cards that already have a pocket: the copies go behind it, in the same pocket.</span>
@@ -262,9 +355,11 @@ export default function BinderPage() {
           )}
           {data.unplaced.length === 0 ? (
             <p className="muted small">Every copy has its pocket.</p>
+          ) : !trayLoaded ? (
+            <p className="muted small">Loading the cards…</p>
           ) : (
             <ul className="tray-cards">
-              {tray.map((u) => (
+              {tray.slice(0, trayShown).map((u) => (
                 <li key={`${u.bandai_id}-${u.fake}`}>
                   <CardChip
                     id={spotKey({ bandai_id: u.bandai_id, fake: u.fake })}
@@ -278,11 +373,17 @@ export default function BinderPage() {
               ))}
             </ul>
           )}
+          {trayLoaded && tray.length > trayShown && (
+            <button className="btn small tray-more" onClick={() => setTrayShown((n) => n + 60)}>
+              Show more ({tray.length - trayShown} left)
+            </button>
+          )}
         </Tray>
       </DndContext>
       {filling && (
         <PickCard
           spot={filling}
+          ready={trayLoaded}
           unplaced={data.unplaced}
           card={card}
           onClose={() => setFilling(null)}
@@ -300,14 +401,16 @@ export default function BinderPage() {
 }
 
 function BinderSheet({
-  page, pages, rows, cols, bySpot, card, selected, onTapCard, onTapPocket, onAction,
+  page, pages, loaded, rows, cols, bySpot, card, selected, onTapCard, onTapPocket, onAction,
 }: {
   page: number
   pages: number
+  /** Ya han llegado sus bolsillos (si no, se ve vacía y atenuada mientras llegan). */
+  loaded: boolean
   rows: number
   cols: number
   bySpot: Map<string, { bandai_id: number; fake: boolean; count: number }>
-  card: (id: number) => CardSummary | undefined
+  card: (id: number) => BinderCard | undefined
   selected: Selected
   onTapCard: (spot: BinderSpot) => void
   onTapPocket: (page: number, slot: number) => void
@@ -318,7 +421,7 @@ function BinderSheet({
   const pockets = Array.from({ length: rows * cols }, (_, i) => i + 1)
   const empty = pockets.every((slot) => !bySpot.has(`${page}:${slot}`))
   return (
-    <section className="binder-sheet" aria-label={`Page ${page}`}>
+    <section className={`binder-sheet ${loaded ? '' : 'loading'}`} aria-label={`Page ${page}`} aria-busy={!loaded}>
       <div className="sheet-head">
         <strong>Page {page}</strong>
         <span className="sheet-menu">
@@ -396,10 +499,23 @@ function Pocket({ id, children, onTap, targetable }: { id: string; children: Rea
   )
 }
 
-function Tray({ children, onTap, canDropHere }: { children: React.ReactNode; selected: Selected; onTap: () => void; canDropHere: boolean }) {
+function Tray({ children, onTap, onVisible, canDropHere }: { children: React.ReactNode; onTap: () => void; onVisible: () => void; canDropHere: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'tray' })
+  // Sus cartas se piden cuando la bandeja está a punto de verse.
+  const seen = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    const el = seen.current
+    if (!el) return
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && onVisible(), { rootMargin: '0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [onVisible])
   return (
-    <section ref={setNodeRef} className={`binder-tray ${isOver ? 'over' : ''} ${canDropHere ? 'targetable' : ''}`} onClick={(e) => e.target === e.currentTarget && onTap()}>
+    <section
+      ref={(el) => {
+        setNodeRef(el)
+        seen.current = el
+      }} className={`binder-tray ${isOver ? 'over' : ''} ${canDropHere ? 'targetable' : ''}`} onClick={(e) => e.target === e.currentTarget && onTap()}>
       {canDropHere && (
         <button className="btn small tray-drop" onClick={onTap}>
           ↓ Take the picked card out (Not placed)
@@ -414,7 +530,7 @@ function CardChip({
   id, card, fake, count, copies, picked, onTap,
 }: {
   id: string
-  card?: CardSummary
+  card?: BinderCard
   fake: boolean
   /** En la bandeja: copias sueltas de esa carta. */
   count?: number
@@ -490,11 +606,13 @@ function AddPage({ pages, around, onAdd, onCancel }: { pages: number; around: nu
 
 /** Elegir la carta para un bolsillo vacío, entre las copias del archivador que no tienen bolsillo. */
 function PickCard({
-  spot, unplaced, card, onPick, onClose,
+  spot, ready, unplaced, card, onPick, onClose,
 }: {
   spot: { page: number; slot: number }
+  /** Ya han llegado las cartas de lo sin colocar. */
+  ready: boolean
   unplaced: BinderData['unplaced']
-  card: (id: number) => CardSummary | undefined
+  card: (id: number) => BinderCard | undefined
   onPick: (u: BinderData['unplaced'][number]) => void
   onClose: () => void
 }) {
@@ -528,7 +646,9 @@ function PickCard({
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
-        {unplaced.length === 0 ? (
+        {unplaced.length > 0 && !ready ? (
+          <p className="muted small">Loading the cards…</p>
+        ) : unplaced.length === 0 ? (
           <p className="muted small">Every copy in this binder already has its pocket. Take one out to “Not placed” first, or drag a card here.</p>
         ) : list.length === 0 ? (
           <p className="muted small">No card matches “{query}”.</p>

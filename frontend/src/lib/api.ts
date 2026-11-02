@@ -1,5 +1,5 @@
 import type {
-  BinderData, BinderSpot, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  BinderData, BinderSpot, BinderView, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
 
@@ -169,14 +169,15 @@ export const api = {
     request<SavedPickList>(`/my-collection/decks/${deck}/pick-list/`, { method: 'PATCH', body: JSON.stringify({ done }) }),
   deletePickList: (deck: number) => request<void>(`/my-collection/decks/${deck}/pick-list/`, { method: 'DELETE' }),
   /** Vista de archivador de un Binder: leerla, mover una copia (a otro bolsillo o a «sin colocar») y sus páginas. */
-  binder: (id: number) => request<BinderData>(`/my-collection/binders/${id}/`),
+  binder: (id: number, view: BinderView) =>
+    request<BinderData>(`/my-collection/binders/${id}/?pages=${view.pages.join(',')}${view.tray ? '&tray=1' : ''}`),
   /** `one`: solo una copia del bolsillo (si no, todas las de ese bolsillo). */
-  binderMove: (id: number, source: BinderSpot, target: { page: number; slot: number } | null, one = false) =>
-    request<BinderData>(`/my-collection/binders/${id}/move/`, post({ source, target, one })),
+  binderMove: (id: number, source: BinderSpot, target: { page: number; slot: number } | null, one: boolean, view: BinderView) =>
+    request<BinderData>(`/my-collection/binders/${id}/move/`, post({ source, target, one, ...view })),
   /** Junta las copias sueltas de cada carta con las que ya tienen bolsillo. */
-  binderStack: (id: number) => request<BinderData>(`/my-collection/binders/${id}/stack/`, post({})),
-  binderPage: (id: number, action: 'insert-page' | 'delete-page' | 'move-page', page: number, to?: number) =>
-    request<BinderData>(`/my-collection/binders/${id}/${action}/`, post({ page, ...(to ? { to } : {}) })),
+  binderStack: (id: number, view: BinderView) => request<BinderData>(`/my-collection/binders/${id}/stack/`, post({ ...view })),
+  binderPage: (id: number, action: 'insert-page' | 'delete-page' | 'move-page', page: number, to: number | undefined, view: BinderView) =>
+    request<BinderData>(`/my-collection/binders/${id}/${action}/`, post({ page, ...(to ? { to } : {}), ...view })),
   /** Mazos: lista actual, versiones guardadas y partidas. */
   deck: (id: number) => request<DeckDetail>(`/my-collection/decks/${id}/`),
   /** Guarda una lista: `cards` (la editada) o, sin ella, lo que hay en la caja. */
