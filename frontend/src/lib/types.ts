@@ -574,6 +574,8 @@ export interface DeckImportPreview {
   totals: { cards: number; in_deck: number; free: number; in_use: number; missing: number; leaving: number }
   /** Copias del mazo destino que no están en la lista nueva: salen a «Sin ubicar». */
   leaving: { bandai_id: number; number: string; name: string; quantity: number; fake: boolean }[]
+  /** Dónde coger las copias, por sitio y en su orden (libres primero; luego los mazos, que solo cuentan si se marcan). */
+  by_location: PickGroup[]
   /** Mazos que tienen cartas de la lista: cuáles y cuántas. */
   in_use: { deck_id: number; deck: string; copies: number; cards: { bandai_id: number; number: string; name: string; quantity: number }[] }[]
   /** Números que no están en el catálogo. */

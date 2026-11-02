@@ -3,7 +3,8 @@ import { api } from '../lib/api'
 import { formatEur } from '../lib/prices'
 import { locationPath } from '../lib/query'
 import PickList from './PickList'
-import { cardThumb, type DeckImportPreview, type DeckImportResult, type DeckImportRow } from '../lib/types'
+import { KIND_LABELS } from './OwnedPanel'
+import { cardThumb, type DeckImportPreview, type DeckImportResult, type DeckImportRow, type PickGroup } from '../lib/types'
 
 const SECTION_LABEL: Record<string, string> = { leader: 'Leader', main: 'Main', z: 'Z', side: 'Side' }
 
@@ -18,6 +19,8 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<DeckImportResult | null>(null)
+  // Comprobación: por sitio (dónde coger cada carta) o carta a carta (con sus secciones).
+  const [view, setView] = useState<'place' | 'card'>('place')
 
   useEffect(() => {
     ref.current?.showModal()
@@ -267,7 +270,26 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
               </div>
             )}
 
-            <ul className="deck-import-rows">
+            <div className="deck-import-view" role="group" aria-label="View">
+              <button type="button" className={view === 'place' ? 'on' : ''} onClick={() => setView('place')} aria-pressed={view === 'place'}>
+                By place
+              </button>
+              <button type="button" className={view === 'card' ? 'on' : ''} onClick={() => setView('card')} aria-pressed={view === 'card'}>
+                By card
+              </button>
+            </div>
+
+            {view === 'place' && (
+              <ByPlace
+                groups={preview.by_location.filter((g) => g.kind !== 'deck' || takeFrom.has(g.location_id))}
+                inDeck={preview.target ? preview.rows.filter((r) => r.in_deck > 0) : []}
+                deckName={preview.target?.name}
+                missing={preview.rows.filter((r) => missingNow(r) > 0).map((r) => ({ row: r, n: missingNow(r) }))}
+                catalog={preview.catalog}
+              />
+            )}
+
+            {view === 'card' && <ul className="deck-import-rows">
               {preview.rows.map((r) => {
                 const card = preview.catalog[r.bandai_id]
                 const missing = missingNow(r)
@@ -302,7 +324,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
                   </li>
                 )
               })}
-            </ul>
+            </ul>}
 
             {(preview.unknown.length > 0 || preview.unread.length > 0) && (
               <p className="csv-warn small">
@@ -331,5 +353,72 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
         )}
       </div>
     </dialog>
+  )
+}
+
+/** La comprobación por sitio: un bloque por Binder / caja / mazo con las cartas que hay que coger de ahí (en su
+ *  orden y con su posición) y, al final, lo que ya está en el mazo y lo que falta. */
+function ByPlace({
+  groups, inDeck, deckName, missing, catalog,
+}: {
+  groups: PickGroup[]
+  inDeck: DeckImportRow[]
+  deckName?: string
+  missing: { row: DeckImportRow; n: number }[]
+  catalog: DeckImportPreview['catalog']
+}) {
+  const block = (key: string, title: string, label: string, tone: string, items: { id: number; qty: number; name: string; sub: string; where?: string[] }[]) => (
+    <section key={key} className={`place-group ${tone}`}>
+      <h4>
+        {title} <small>{label}</small>
+        <span className="place-count">{items.reduce((n, i) => n + i.qty, 0)}</span>
+      </h4>
+      <ul>
+        {items.map((i) => (
+          <li key={`${key}-${i.id}-${i.sub}`}>
+            {catalog[i.id] ? <img src={cardThumb(catalog[i.id])} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span />}
+            <span className="pick-card">
+              <strong>
+                {i.qty}× {i.name}
+              </strong>
+              <small>{i.sub}</small>
+            </span>
+            {i.where && i.where.length > 0 && (
+              <span className="pick-where">
+                {i.where.map((w) => (
+                  <span key={w} className={w.startsWith('#') ? 'pick-pos' : 'pick-note'}>
+                    {w}
+                  </span>
+                ))}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+  return (
+    <div className="place-groups">
+      {groups.map((g) =>
+        block(
+          `g${g.location_id}`,
+          g.location,
+          g.kind === 'deck' ? 'from this deck' : (KIND_LABELS[g.kind] ?? g.kind),
+          g.kind === 'deck' ? 'use' : 'ok',
+          g.cards.map((c) => ({
+            id: c.bandai_id, qty: c.quantity, name: c.name, sub: `${c.number}${c.rarity ? ` · ${c.rarity}` : ''}`,
+            where: [...(c.position ? [`#${c.position}`] : []), ...c.notes],
+          })),
+        ),
+      )}
+      {inDeck.length > 0 &&
+        block('in', `Already in “${deckName}”`, 'stays in the deck', 'in', inDeck.map((r) => ({ id: r.bandai_id, qty: r.in_deck, name: r.name, sub: r.number })))}
+      {missing.length > 0 &&
+        block('miss', 'Missing', "you don't have them", 'miss', missing.map(({ row, n }) => ({
+          id: row.bandai_id, qty: n, name: row.name,
+          sub: `${row.number}${catalog[row.bandai_id]?.price ? ` · ≈ ${formatEur((catalog[row.bandai_id]?.price?.eur ?? 0) * n)}` : ''}`,
+        })))}
+      {groups.length === 0 && inDeck.length === 0 && missing.length === 0 && <p className="muted small">Nothing to fetch.</p>}
+    </div>
   )
 }

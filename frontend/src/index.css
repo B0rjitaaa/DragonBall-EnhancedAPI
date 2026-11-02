@@ -1931,3 +1931,23 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 /* En la columna estrecha de la ficha, cada ubicación en dos líneas: el nombre y debajo sus controles */
 .cd-owned .owned-row { flex-wrap: wrap; row-gap: 0.3rem; }
 .cd-owned .owned-name { flex: 1 1 100%; white-space: normal; overflow: visible; }
+/* Comprobación de la importación agrupada por sitio */
+.deck-import-view { display: inline-flex; justify-self: start; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--bg-3); }
+.deck-import-view button { border: 0; background: none; min-height: 1.9rem; padding: 0 0.9rem; border-radius: 999px; color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+.deck-import-view button.on { background: var(--accent); color: #1a1205; }
+.place-groups { display: grid; gap: 0.7rem; max-height: 42vh; overflow-y: auto; padding-right: 2px; }
+.place-group { border: 1px solid var(--line); border-left: 3px solid #4cc38a; border-radius: 10px; background: var(--bg-3); padding: 0.55rem 0.6rem; }
+.place-group.use { border-left-color: var(--accent); }
+.place-group.in { border-left-color: #8ab4ff; }
+.place-group.miss { border-left-color: var(--danger); }
+.place-group h4 { display: flex; align-items: baseline; gap: 0.4rem; margin: 0 0 0.45rem; font-size: 0.95rem; }
+.place-group h4 small { color: var(--muted); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.place-count { margin-left: auto; color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.place-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.place-group li { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; align-items: center; gap: 0.55rem; padding: 0.3rem 0.45rem; border-radius: 8px; background: var(--bg-2); font-size: 0.9rem; }
+.place-group img { width: 2rem; border-radius: 3px; }
+@media (max-width: 600px) {
+  .place-groups { max-height: none; }
+  .place-group li { grid-template-columns: 2rem minmax(0, 1fr); }
+  .place-group .pick-where { grid-column: 2; justify-content: flex-start; }
+}

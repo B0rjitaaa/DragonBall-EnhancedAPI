@@ -335,6 +335,10 @@ class DeckImportTests(TestCase):
         self.assertEqual((data["existing_decks"], data["target"], data["leaving"]), ([], None, []))
         self.assertIn(str(self.a.id), {str(k) for k in data["catalog"]})
         self.assertEqual(goku["from"], [{"location": "Caja 1", "quantity": 2}])
+        # Agrupado por sitio: primero la caja (libres) y luego los mazos, cada uno con sus cartas.
+        groups = [(g["location"], g["kind"], sorted((c["number"], c["quantity"]) for c in g["cards"])) for g in data["by_location"]]
+        self.assertEqual(groups, [("Caja 1", "storage", [("BT29-86", 1), ("BT29-86", 1), ("EX20-01", 1)]),
+                                  ("Mazo intocable", "deck", [("EX20-03", 1)]), ("Mazo viejo", "deck", [("BT29-86", 2)])])
 
     def test_create_takes_free_copies_and_only_accepted_decks(self):
         lines = self.preview(self.text).data["lines"]

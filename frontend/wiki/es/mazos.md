@@ -23,6 +23,8 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
    - **«✕ missing»** (faltan): copias que no tienes, con lo que costarían aproximadamente.
 
    Las cartas se comparan **por número**: vale cualquier impresión (alt art, promos…) y `BT29-086` es lo mismo que `BT29-86`. **Las copias falsas no cuentan.**
+
+   La lista sale **«By place»** (por sitio) de entrada: un bloque por cada archivador o caja con las cartas que hay que coger de ahí, en su orden y con su posición (**#N**, **«Pág. 43 · fila 2 · col 2»**…), luego un bloque por cada mazo que marques y al final **«Missing»** (las que faltan). **«By card»** (por carta) cambia a una fila por carta, con sus secciones (Leader, Main, Z, Side) y de dónde sale cada copia.
 3. Si hay cartas **en uso en otros mazos**, un aviso las enseña mazo por mazo. **Marca un mazo para coger sus copias**: pasan al mazo nuevo y ese mazo **guarda una versión nueva** con lo que le queda (con el nombre «Gave cards to “…”»), así que su lista anterior queda en su historial. Si no lo marcas, esas cartas cuentan como que faltan.
 4. Revisa el nombre (**«Deck name»**, que viene de la web de origen si lo tiene) y pulsa **«Create deck»** (crear mazo).
 

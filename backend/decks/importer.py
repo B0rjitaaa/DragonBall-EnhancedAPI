@@ -415,6 +415,11 @@ def preview(deck: ParsedDeck, target_id=None) -> dict:
         for d, n in alloc["from_decks"].items():
             in_use[d].append({"bandai_id": card.primary, "number": card.number, "name": card.name, "quantity": n})
     rows.sort(key=lambda r: (min(SECTIONS.index(s) for s in r["sections"]), number_key(r["number"])))
+    # Dónde coger cada copia, agrupado por sitio y en su orden (la misma lista que se guarda al crear el mazo;
+    # aquí con todos los mazos: la ventana enseña solo los que marques).
+    picks = [pick for plan in plans.values() for pick in plan["alloc"]["picks"]]
+    orders = {loc_id: _order_numbers(loc_id) for loc_id in {loc.pk for _c, loc, _n, _r in picks}}
+    by_location = pick_list(picks, Card.objects.in_bulk({p[0] for p in picks}), orders)
     names = Card.objects.in_bulk({r["card_id"] for r in leaving})
     grouped: dict[tuple[str, bool], dict] = {}  # una línea por número (las impresiones se juntan) y autenticidad
     for r in leaving:
@@ -444,6 +449,7 @@ def preview(deck: ParsedDeck, target_id=None) -> dict:
         "in_use": [{"deck_id": d, "deck": decks[d].name, "cards": items, "copies": sum(i["quantity"] for i in items)}
                    for d, items in in_use.items()],
         "leaving": out_rows,
+        "by_location": by_location,
         "unknown": unknown,
         "unread": deck.unread[:20],
     }

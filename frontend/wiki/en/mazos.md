@@ -23,6 +23,8 @@ In **Locations → Decks**, **⇩ Import deck** creates a deck from a list you f
    - **✕ missing**: copies you don't have, with an estimate of what they cost.
 
    Cards are compared **by number**: any printing counts (alt arts, promos…) and `BT29-086` is the same as `BT29-86`. **Fake copies don't count.**
+
+   The list comes **By place** by default: one block per binder or box with the cards to take from there, in their order and with their position (**#N**, **Pág. 43 · fila 2 · col 2**…), then a block for each deck you tick, then **Missing**. **By card** switches to one row per card, with its sections (Leader, Main, Z, Side) and where each copy comes from.
 3. If some cards are **in use in other decks**, a warning lists them deck by deck. **Tick a deck to take its copies**: they move to the new deck and that deck **saves a new version** with what it has left (named “Gave cards to “…””), so its old list stays in its history. Leave it unticked and those cards count as missing.
 4. Check the **Deck name** (it comes from the original site when there is one) and press **Create deck**.
 
