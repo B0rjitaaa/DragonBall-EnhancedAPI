@@ -2058,3 +2058,20 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
   .binder-turn { width: 1.8rem; font-size: 1.5rem; border-radius: 8px; }
   .binder-nav { flex-wrap: wrap; }
 }
+/* Bolsillo vacío: al tocarlo se elige la carta */
+.pocket:has(.pocket-empty) { cursor: pointer; }
+.pocket:has(.pocket-empty):hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.pocket:has(.pocket-empty):hover .pocket-empty::after { content: '+'; display: block; font-size: 1.4rem; color: var(--accent); }
+.loc-dialog.pick-card { width: min(760px, calc(100vw - 2rem)); }
+.pick-card-body { display: grid; gap: 0.7rem; padding: 1.1rem; }
+.pick-card-head { display: flex; justify-content: space-between; align-items: center; }
+.pick-card-grid {
+  list-style: none; margin: 0; padding: 0.2rem; display: grid; gap: 0.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); max-height: min(60vh, 560px); overflow-y: auto;
+}
+.pick-card-item { position: relative; display: grid; gap: 0.25rem; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; }
+.pick-card-item img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 6px; background: var(--bg-3); transition: transform 0.15s ease; }
+.pick-card-item:hover img, .pick-card-item:focus-visible img { transform: translateY(-3px); outline: 2px solid var(--accent); outline-offset: 2px; }
+.pick-card-name { display: flex; flex-direction: column; font-size: 0.72rem; line-height: 1.2; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pick-card-name small { color: var(--text); font-weight: 700; }
+@media (max-width: 640px) { .pick-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: 62vh; } }

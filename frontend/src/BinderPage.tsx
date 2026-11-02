@@ -3,7 +3,7 @@
 // «sin colocar» y meter, quitar o reordenar páginas. Las posiciones son las notas de las copias («P. 12 · row
 // 2 · col 3», ver backend/collection/binder.py).
 import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './lib/api'
 import { collectionUrl } from './LocationsPage'
 import type { BinderData, BinderSpot, CardSummary, Location } from './lib/types'
@@ -78,6 +78,15 @@ export default function BinderPage() {
   const canForward = spread[spread.length - 1] < pages
   const go = useCallback((delta: number) => setFirst((f) => Math.min(Math.max(1, f + delta * perView), pages)), [perView, pages])
   const [adding, setAdding] = useState(false)
+  // La casilla de página: lo que se escribe no se aplica hasta Intro o al salir (así se puede borrar y escribir).
+  const [jump, setJump] = useState<string | null>(null)
+  const shownPage = visible.includes(first) ? first : start
+  const applyJump = () => {
+    if (jump != null && jump.trim() !== '') setFirst(Math.min(Math.max(1, Math.round(Number(jump)) || 1), pages))
+    setJump(null)
+  }
+  // Bolsillo vacío tocado sin carta cogida: se elige qué carta va ahí.
+  const [filling, setFilling] = useState<{ page: number; slot: number } | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -125,6 +134,7 @@ export default function BinderPage() {
   const tapCard = (spot: BinderSpot) => setSelected((s) => (s && spotKey(s) === spotKey(spot) ? null : spot))
   const tapPocket = (page: number, slot: number) => {
     if (selected) move(selected, { page, slot })
+    else setFilling({ page, slot })
   }
 
   if (error && !data) return <main className="binder-page"><p className="error">{error}</p></main>
@@ -160,8 +170,13 @@ export default function BinderPage() {
               type="number"
               min={1}
               max={pages}
-              value={start}
-              onChange={(e) => setFirst(Math.min(Math.max(1, Number(e.target.value) || 1), pages))}
+              value={jump ?? shownPage}
+              onChange={(e) => setJump(e.target.value)}
+              onBlur={applyJump}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') applyJump()
+                if (e.key === 'Escape') setJump(null)
+              }}
             />
             of {pages}
           </label>
@@ -243,6 +258,18 @@ export default function BinderPage() {
           )}
         </Tray>
       </DndContext>
+      {filling && (
+        <PickCard
+          spot={filling}
+          unplaced={data.unplaced}
+          card={card}
+          onClose={() => setFilling(null)}
+          onPick={(u) => {
+            move({ bandai_id: u.bandai_id, fake: u.fake }, filling)
+            setFilling(null)
+          }}
+        />
+      )}
       <p className="muted small binder-help">
         Drag a card to another pocket (if it's taken, they swap) or to “Not placed”. On a phone, or to reach a far page: tap the card, change page and tap the pocket.
       </p>
@@ -427,5 +454,74 @@ function AddPage({ pages, around, onAdd, onCancel }: { pages: number; around: nu
         <button className="btn primary" disabled={!ok}>Add page</button>
       </span>
     </form>
+  )
+}
+
+/** Elegir la carta para un bolsillo vacío, entre las copias del archivador que no tienen bolsillo. */
+function PickCard({
+  spot, unplaced, card, onPick, onClose,
+}: {
+  spot: { page: number; slot: number }
+  unplaced: BinderData['unplaced']
+  card: (id: number) => CardSummary | undefined
+  onPick: (u: BinderData['unplaced'][number]) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDialogElement>(null)
+  const [query, setQuery] = useState('')
+  useEffect(() => {
+    ref.current?.showModal()
+  }, [])
+  const q = query.trim().toLowerCase()
+  const list = unplaced.filter((u) => {
+    const c = card(u.bandai_id)
+    return !q || (c && `${c.name} ${c.card_number}`.toLowerCase().includes(q))
+  })
+  return (
+    <dialog ref={ref} className="loc-dialog pick-card" onClose={onClose}>
+      <div className="pick-card-body">
+        <header className="pick-card-head">
+          <h2>
+            Page {spot.page} · pocket {spot.slot}
+          </h2>
+          <button type="button" className="icon-btn" onClick={() => ref.current?.close()} aria-label="Close">
+            ✕
+          </button>
+        </header>
+        <p className="muted small">Choose the card for this pocket, from the copies in this binder that have no pocket yet.</p>
+        <input
+          className="input"
+          type="search"
+          placeholder="Search by name or number…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+        />
+        {unplaced.length === 0 ? (
+          <p className="muted small">Every copy in this binder already has its pocket. Take one out to “Not placed” first, or drag a card here.</p>
+        ) : list.length === 0 ? (
+          <p className="muted small">No card matches “{query}”.</p>
+        ) : (
+          <ul className="pick-card-grid">
+            {list.map((u) => {
+              const c = card(u.bandai_id)
+              return (
+                <li key={`${u.bandai_id}-${u.fake}`}>
+                  <button type="button" className="pick-card-item" onClick={() => onPick(u)} title={c ? `${c.card_number} · ${c.name}${u.fake ? ' · fake' : ''}` : ''}>
+                    {c ? <img src={cardThumb(c)} alt={c.name} loading="lazy" referrerPolicy="no-referrer" /> : <span>?</span>}
+                    {u.fake && <span className="chip-fake">Fake</span>}
+                    {u.quantity > 1 && <span className="chip-count">×{u.quantity}</span>}
+                    <span className="pick-card-name">
+                      <small>{c?.card_number}</small>
+                      {c?.name}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </dialog>
   )
 }
