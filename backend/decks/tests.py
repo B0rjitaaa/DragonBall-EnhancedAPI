@@ -46,7 +46,8 @@ class DeckListsTests(TestCase):
     def test_versions_and_changes(self):
         v1 = self.client.post(f"/api/my-collection/decks/{self.deck.id}/versions/", {"name": "Pre-regional"}, format="json").data
         self.assertEqual((v1["number"], v1["name"], v1["automatic"]), (1, "Pre-regional", False))
-        CollectionEntry.objects.filter(card=self.a, fake=False).update(quantity=2)  # quito 2 Cell Jr.
+        CollectionEntry.objects.filter(card=self.a, fake=False).update(quantity=2)  # saco 2 Cell Jr. (siguen siendo mías)
+        CollectionEntry.objects.create(card=self.a, location=Location.default(), quantity=2)
         CollectionEntry.objects.create(card=self.b, location=self.deck, quantity=3)  # entran 3 Android 17
         self.assertEqual(
             sorted((c["bandai_id"], c["delta"]) for c in self.deck_data()["changes"]), [(2, -2), (3, 3)]
@@ -448,6 +449,25 @@ class DeckImportTests(TestCase):
         self.assertEqual(current_list(new), {(1, "main"): 1, (4, "main"): 3})  # la caja: nada en el side
         self.assertFalse(self.Side.objects.filter(deck=new).exists())
         self.assertEqual(version_list(principal_version(new)), {(1, "main"): 1, (4, "main"): 3, (4, "side"): 1})
+        # En el detalle del mazo, la que falta sale como «missing» (no la tienes, pero sigue en la lista).
+        CollectionEntry.objects.filter(location=self.third).delete()  # así no tengo ninguna más
+        detail = self.client.get(f"/api/my-collection/decks/{new.id}/").data
+        self.assertEqual(detail["missing"], [{"bandai_id": 4, "section": "side", "quantity": 1}])
+        self.assertEqual(detail["changes"], [])  # que falte no es un cambio de la caja
+
+    def test_cards_you_dont_have_are_missing_in_the_deck(self):
+        # Lista principal con 4 Android 17: tengo 1 en la caja y 1 en «Unsorted», así que me faltan 2.
+        CollectionEntry.objects.filter(location=self.third).delete()
+        CollectionEntry.objects.create(card=self.b, location=self.box, quantity=1)
+        lines = self.preview("1 EX20-01\n4 EX20-03").data["lines"]
+        body = {"lines": lines, "name": "Faltan", "take_from": []}
+        self.client.post("/api/my-collection/decks/import/", body, format="json")
+        new = Location.objects.get(name="Faltan")
+        CollectionEntry.objects.create(card=self.b, location=Location.default(), quantity=1)
+        detail = self.client.get(f"/api/my-collection/decks/{new.id}/").data
+        self.assertEqual(detail["missing"], [{"bandai_id": 4, "section": "main", "quantity": 2}])
+        # La de «Unsorted» sí la tengo: falta en la caja (es un cambio), no en la colección.
+        self.assertEqual([(c["bandai_id"], c["delta"]) for c in detail["changes"]], [(4, -1)])
 
     def test_side_copies_you_have_go_to_the_side_deck(self):
         from decks.services import current_list

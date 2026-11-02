@@ -27,6 +27,8 @@ type Section = 'main' | 'z'
 const sectionOf = (c: CardSummary): Section | 'leader' =>
   c.card_type === 'LEADER' ? 'leader' : c.card_type.startsWith('Z-') ? 'z' : 'main'
 const copies = (c: CardSummary) => c.quantity ?? 0
+/** Copias de esa carta que pide la lista principal y no tienes (van incluidas en `quantity`). */
+const missingOf = (c: CardSummary) => (c as CardSummary & { missing?: number }).missing ?? 0
 
 interface Filter {
   cost: number[]
@@ -150,6 +152,15 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
     }
     return b
   }, [detail])
+  // Lo que pide la lista principal y no está en la caja (no tienes esas cartas), por carta y parte.
+  const missing = useMemo(() => {
+    const m: Draft = {}
+    for (const c of detail?.missing ?? []) {
+      const k = draftKey(c.bandai_id, c.section === 'side' ? 'side' : 'deck')
+      m[k] = (m[k] ?? 0) + c.quantity
+    }
+    return m
+  }, [detail])
   const listing = useMemo(() => {
     const l: Draft = { ...base, ...draft }
     for (const k of Object.keys(l)) if (!l[k]) delete l[k]
@@ -192,13 +203,22 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
           .map((c) => ({ ...version.catalog[c.bandai_id], quantity: c.quantity }))
       return { pool: of('main'), side: of('side') }
     }
-    // En el orden de la caja («Mi orden»); lo añadido, al final.
-    const order = [...draftOrder, ...cards.map((c) => c.id), ...Object.keys(listing).map((k) => Number(k.split(':')[0]))]
+    // En el orden de la caja («Mi orden»); lo añadido y lo que no tienes, al final.
+    const order = [
+      ...draftOrder, ...cards.map((c) => c.id),
+      ...[...Object.keys(listing), ...Object.keys(missing)].map((k) => Number(k.split(':')[0])),
+    ]
     const ids = [...new Set(order)].filter((id) => known[id])
+    // Las que no tienes cuentan en el mazo (estadísticas, construcción) y la carta dice cuántas faltan.
     const of = (part: Part) =>
-      ids.filter((id) => listing[draftKey(id, part)]).map((id) => ({ ...known[id], quantity: listing[draftKey(id, part)] }))
+      ids
+        .filter((id) => listing[draftKey(id, part)] || missing[draftKey(id, part)])
+        .map((id) => {
+          const lack = missing[draftKey(id, part)] ?? 0
+          return { ...known[id], quantity: (listing[draftKey(id, part)] ?? 0) + lack, missing: lack }
+        })
     return { pool: of('deck'), side: of('side') }
-  }, [selected, version, cards, listing, known, draftOrder])
+  }, [selected, version, cards, listing, missing, known, draftOrder])
 
   const leaders = pool.filter((c) => sectionOf(c) === 'leader')
   const leader = leaders[0]
@@ -238,11 +258,15 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
     : undefined
   // También con cambios sin guardar: lo que está en la caja guarda su orden al momento y lo añadido, en el borrador.
   const canReorderNow = viewingCurrent && onReorder
-  const listCards = (): DeckListCard[] =>
-    Object.entries(listing).map(([k, n]) => {
+  // Lo que se guarda: lo de la caja (con lo editado) y lo que no tienes, que sigue en la lista.
+  const listCards = (): DeckListCard[] => {
+    const all: Draft = { ...listing }
+    for (const [k, n] of Object.entries(missing)) all[k] = (all[k] ?? 0) + n
+    return Object.entries(all).map(([k, n]) => {
       const [id, part] = k.split(':')
       return { bandai_id: Number(id), section: part === 'side' ? 'side' : 'main', quantity: n }
     })
+  }
 
   const stats = useMemo(() => {
     const total = main.reduce((n, c) => n + copies(c), 0)
@@ -773,6 +797,7 @@ function DeckCard({
   controls?: CardControls
 }) {
   const n = copies(card)
+  const lack = missingOf(card)
   const delta = controls?.deltaOf(card) ?? 0
   const stop = (e: React.PointerEvent) => e.stopPropagation()
   // Banned y Limited llevan su color (rojo / ámbar); el resto de avisos, rojo.
@@ -780,9 +805,9 @@ function DeckCard({
   return (
     <div className={`deck-card-wrap ${delta > 0 ? 'added' : delta < 0 ? 'removed' : ''}`}>
       <button
-        className={`deck-card ${flag ? 'flagged' : ''} ${kind ? `flag-${kind}` : ''}`}
+        className={`deck-card ${flag ? 'flagged' : ''} ${kind ? `flag-${kind}` : ''} ${lack ? (lack >= n ? 'not-owned' : 'part-owned') : ''}`}
         onClick={() => onOpen(card.id)}
-        title={`${card.card_number} · ${card.name}`}
+        title={`${card.card_number} · ${card.name}${lack ? ` · ${lack === n ? "you don't have it" : `you're missing ${lack} of ${n}`}` : ''}`}
       >
         <img src={cardThumb(card)} alt={card.name} loading="lazy" referrerPolicy="no-referrer" draggable={false} />
         <span className="deck-qty" aria-label={`${n} copies`}>
@@ -794,12 +819,16 @@ function DeckCard({
           </span>
         )}
         {flag && <span className={`deck-flag ${kind ?? ''}`}>{flag}</span>}
+        {lack > 0 && (
+          <span className={`deck-missing ${flag ? 'below' : ''}`}>{lack >= n ? 'Missing' : `${lack} missing`}</span>
+        )}
         <span className="deck-card-name">
           <small>{card.card_number}</small>
           {card.name}
         </span>
       </button>
-      {controls && (
+      {/* Si no tienes ninguna copia no hay nada que quitar ni pasar al side. */}
+      {controls && lack < n && (
         <div className="deck-card-controls" onPointerDown={stop}>
           <button onClick={() => controls.change(card, -1)} title="Remove a copy" aria-label={`Remove a copy of ${card.name}`}>
             −

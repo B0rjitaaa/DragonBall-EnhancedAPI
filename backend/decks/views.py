@@ -60,6 +60,11 @@ def _listing(data) -> dict[tuple[int, str], int]:
     return listing
 
 
+def _minus(listing: dict, less: dict) -> dict:
+    out = {k: n - less.get(k, 0) for k, n in listing.items()}
+    return {k: n for k, n in out.items() if n > 0}
+
+
 def _location(loc: Location) -> dict:
     return {"id": loc.id, "name": loc.name, "kind": loc.kind, "is_default": loc.is_default}
 
@@ -122,7 +127,9 @@ class DeckView(APIView):
         current = services.current_list(deck)
         versions = list(deck.deck_versions.prefetch_related("matches", "cards"))
         # La caja se compara con la lista principal (o, si aún no hay, con la última guardada).
-        latest = next((v for v in versions if v.principal), versions[0] if versions else None)
+        principal = next((v for v in versions if v.principal), None)
+        latest = principal or (versions[0] if versions else None)
+        missing = services.missing_cards(services.version_list(principal), current) if principal else {}
         all_matches = [m for v in versions for m in v.matches.all()]
         return Response(_with_catalog({
             "deck": {"id": deck.id, "name": deck.name},
@@ -130,7 +137,10 @@ class DeckView(APIView):
             "principal": next((v.id for v in versions if v.principal), None),
             # Lo que hay en la caja frente a la lista principal (o la última guardada).
             "compared_to": latest.number if latest else None,
-            "changes": _diff(services.version_list(latest), current) if latest else [],
+            # (Sin contar las que no tienes: que falten no es un cambio de la caja.)
+            "changes": _diff(_minus(services.version_list(latest), missing), current) if latest else [],
+            # Lo que pide la lista principal y no está en la caja: cartas que no tienes (siguen contando en el mazo).
+            "missing": _cards(missing),
             "versions": [
                 {**VersionSerializer(v).data, "record": services.record(v.matches.all()),
                  "copies": sum(c.quantity for c in v.cards.all())}

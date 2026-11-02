@@ -461,6 +461,8 @@ export interface DeckDetail {
   compared_to: number | null
   /** Lo que hay en la caja frente a esa lista. */
   changes: DeckChange[]
+  /** Lo que pide la lista principal y no está en la caja: cartas que no tienes (cuentan en el mazo igualmente). */
+  missing: DeckListCard[]
   versions: (DeckVersion & { record: MatchRecord; copies: number })[]
   matches: Match[]
   record: MatchRecord

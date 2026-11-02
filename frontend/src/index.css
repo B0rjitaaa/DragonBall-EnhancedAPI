@@ -2023,3 +2023,12 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 }
 .pick-option.on { border-style: solid; color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .pick-option:hover { border-color: var(--accent); }
+/* Cartas que pide la lista y no tienes: siguen contando en el mazo, con su etiqueta (violeta, como Banned/Limited) */
+.deck-missing {
+  position: absolute; top: 6px; left: 6px; z-index: 2; max-width: calc(100% - 2.6rem);
+  padding: 0.14rem 0.45rem; border-radius: 4px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em;
+  line-height: 1.25; text-transform: uppercase; color: #fff; background: #7c3aed; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.deck-missing.below { top: calc(6px + 1.35rem); }
+.deck-card.part-owned img, .deck-card.not-owned img { outline: 2px dashed #8b5cf6; outline-offset: 2px; }
+.deck-card.not-owned img { opacity: 0.55; }

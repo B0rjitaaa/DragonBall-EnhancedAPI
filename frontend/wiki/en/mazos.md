@@ -42,7 +42,9 @@ The pick list then also has a **Take out of “Deck X” → Unsorted** section 
 
 ### The deck that's created
 
-The new deck gets the copies you have (free ones first) and saves the **complete list as its main list, missing cards included**, so the deck view shows what you still need (“the box doesn't match the main list: −N”).
+The new deck gets the copies you have (free ones first) and saves the **complete list as its main list, missing cards included**, so the deck view shows what you still need: those cards appear in the deck with the purple **MISSING** label (or **N missing** when only some copies are missing) and a dashed border. They **still count** in the deck (card counts, energy curve, deck-building rules…), but they aren't in your collection. Once you get the card and put it in the box, the label goes away by itself.
+
+Only what you don't have anywhere is missing: if a copy is in another location or another deck, you have it, and the view says the box doesn't match the main list (**The box doesn't match the main list**).
 
 In the check, each free card says where it is, for example **✓ 2 free (Caja 1, Archivador ×1)**. After creating the deck you get **Where to get the cards**, a pick list to gather them physically:
 - grouped by place (Unsorted first, then binders and boxes, then other decks), in the order the cards are in each place;

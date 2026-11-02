@@ -86,6 +86,39 @@ def version_for_match(deck: Location) -> DeckVersion:
     return save_version(deck, automatic=True)
 
 
+def missing_cards(listing: dict[tuple[int, str], int], current: dict[tuple[int, str], int]) -> dict[tuple[int, str], int]:
+    """Copias que pide la lista y no tienes en ninguna parte de la colección, por carta y sección.
+
+    Cuentan por número de carta (otra impresión vale). Si la tienes en otro sitio no falta: es un cambio de la
+    caja. Las que faltan se apuntan primero en el side (igual que al importar, lo tuyo va antes al mazo).
+    """
+    numbers = dict(Card.objects.filter(id__in={k[0] for k in [*listing, *current]}).values_list("id", "card_number"))
+    owned: dict[str, int] = defaultdict(int)
+    for number, n in CollectionEntry.objects.filter(card__card_number__in=set(numbers.values())).values_list(
+        "card__card_number", "quantity"
+    ):
+        owned[number] += n
+    wanted: dict[str, int] = defaultdict(int)
+    in_box: dict[tuple[str, bool], int] = defaultdict(int)
+    for (card_id, section), n in listing.items():
+        wanted[numbers.get(card_id, "")] += n
+    for (card_id, section), n in current.items():
+        in_box[(numbers.get(card_id, ""), section == Section.SIDE)] += n
+    lacking = {number: n - owned[number] for number, n in wanted.items() if n > owned[number]}
+    out: dict[tuple[int, str], int] = {}
+    # Side primero; dentro de cada parte, lo que pide la lista y no está en la caja.
+    for (card_id, section), n in sorted(listing.items(), key=lambda kv: (kv[0][1] != Section.SIDE, kv[0][1], kv[0][0])):
+        number = numbers.get(card_id, "")
+        key = (number, section == Section.SIDE)
+        used = min(n, in_box[key])
+        in_box[key] -= used
+        lack = min(n - used, lacking.get(number, 0))
+        if lack:
+            lacking[number] -= lack
+            out[(card_id, section)] = lack
+    return out
+
+
 def diff(old: dict, new: dict) -> list[dict]:
     """Cartas añadidas (+) y quitadas (−) entre dos listas, por sección."""
     changes = []
