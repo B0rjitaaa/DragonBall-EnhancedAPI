@@ -372,7 +372,7 @@ function BinderSheet({
                   id={spotKey(spot)}
                   card={card(here.bandai_id)}
                   fake={here.fake}
-                  count={here.count}
+                  copies={here.count}
                   picked={!!selected && spotKey(selected) === spotKey(spot)}
                   onTap={() => (selected && spotKey(selected) !== spotKey(spot) ? onTapPocket(page, slot) : onTapCard(spot))}
                 />
@@ -411,12 +411,15 @@ function Tray({ children, onTap, canDropHere }: { children: React.ReactNode; sel
 }
 
 function CardChip({
-  id, card, fake, count, picked, onTap,
+  id, card, fake, count, copies, picked, onTap,
 }: {
   id: string
   card?: CardSummary
   fake: boolean
+  /** En la bandeja: copias sueltas de esa carta. */
   count?: number
+  /** En un bolsillo: copias que hay en él (se ve siempre, también si es 1). */
+  copies?: number
   picked: boolean
   onTap: () => void
 }) {
@@ -426,9 +429,9 @@ function CardChip({
     <button
       ref={setNodeRef}
       type="button"
-      className={`card-chip ${picked ? 'picked' : ''} ${isDragging ? 'dragging' : ''}`}
+      className={`card-chip ${picked ? 'picked' : ''} ${isDragging ? 'dragging' : ''} ${copies && copies > 1 ? 'stack' : ''}`}
       style={style}
-      title={card ? `${card.card_number} · ${card.name}${fake ? ' · fake' : ''}` : ''}
+      title={card ? `${card.card_number} · ${card.name}${fake ? ' · fake' : ''}${copies ? ` · ${copies} ${copies === 1 ? 'copy' : 'copies'} in this pocket` : ''}` : ''}
       onClick={(e) => {
         e.stopPropagation()
         onTap()
@@ -439,6 +442,11 @@ function CardChip({
       {card ? <img src={cardThumb(card)} alt={card.name} loading="lazy" referrerPolicy="no-referrer" draggable={false} /> : <span>?</span>}
       {fake && <span className="chip-fake">Fake</span>}
       {count != null && count > 1 && <span className="chip-count">×{count}</span>}
+      {copies != null && (
+        <span className="chip-copies" aria-label={`${copies} ${copies === 1 ? 'copy' : 'copies'}`}>
+          ×{copies}
+        </span>
+      )}
       <span className="chip-number">{card?.card_number}</span>
     </button>
   )

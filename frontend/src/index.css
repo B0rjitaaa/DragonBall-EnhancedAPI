@@ -2084,3 +2084,13 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .pick-option.stacked button:disabled { opacity: 0.35; cursor: default; }
 .binder-how-many { margin-left: 0.3rem; vertical-align: middle; }
 .tray-stack { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem; margin: 0 0 0.6rem; }
+/* Copias en un bolsillo: siempre a la vista, grande; con varias, el bolsillo se ve como un montón */
+.chip-copies {
+  position: absolute; right: 5px; bottom: 5px; z-index: 1; min-width: 1.9rem; padding: 0.1rem 0.4rem; border-radius: 999px;
+  font-size: clamp(0.72rem, 1.1vw, 0.95rem); font-weight: 800; font-variant-numeric: tabular-nums; text-align: center;
+  color: #e8eaf0; background: rgba(10, 12, 18, 0.78); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.card-chip.stack .chip-copies { color: #1a1205; background: var(--accent); border: 2px solid var(--bg); }
+.card-chip.stack { box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.35), inset -7px -7px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+.card-chip.stack img { width: calc(100% - 7px); height: calc(100% - 7px); border-radius: 7px; }
+.card-chip .chip-number { padding-right: 2.6rem; }
