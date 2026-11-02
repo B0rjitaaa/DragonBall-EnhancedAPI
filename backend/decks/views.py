@@ -337,7 +337,9 @@ class DeckImportView(APIView):
         take_from = {int(d) for d in request.data.get("take_from") or [] if str(d).isdigit()}
         try:
             deck = parsed_from_lines(request.data.get("lines"), str(request.data.get("source") or "text"))
-            result = create_deck(deck, str(request.data.get("name") or ""), take_from, request.data.get("target"))
+            raw = request.data.get("choices") or {}
+            choices = {str(k): [str(x) for x in v][:99] for k, v in raw.items() if isinstance(v, list)} if isinstance(raw, dict) else {}
+            result = create_deck(deck, str(request.data.get("name") or ""), take_from, request.data.get("target"), choices)
         except DeckImportError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_with_catalog(result), status=status.HTTP_201_CREATED)

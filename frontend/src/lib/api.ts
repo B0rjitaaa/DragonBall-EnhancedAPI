@@ -159,8 +159,10 @@ export const api = {
   previewDeckImportFor: (lines: DeckImportPreview['lines'], source: string, name: string, target: number | null) =>
     request<DeckImportPreview>('/my-collection/decks/import/preview/', post({ lines, source, name, target })),
   /** Crear el mazo importado (o añadir la lista a `target`): `lines` de la vista previa y los mazos de los que coger copias. */
-  importDeck: (lines: DeckImportPreview['lines'], name: string, source: string, takeFrom: number[], target: number | null = null) =>
-    request<DeckImportResult>('/my-collection/decks/import/', post({ lines, name, source, take_from: takeFrom, target })),
+  importDeck: (
+    lines: DeckImportPreview['lines'], name: string, source: string, takeFrom: number[], target: number | null = null,
+    choices: Record<string, string[]> = {},
+  ) => request<DeckImportResult>('/my-collection/decks/import/', post({ lines, name, source, take_from: takeFrom, target, choices })),
   /** Lista de recogida de un mazo importado: leerla, guardar lo ya sacado y quitarla. */
   pickList: (deck: number) => request<SavedPickList>(`/my-collection/decks/${deck}/pick-list/`),
   savePicked: (deck: number, done: string[]) =>

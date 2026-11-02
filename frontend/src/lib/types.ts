@@ -566,6 +566,10 @@ export interface PickGroup {
     position: number | null
     /** Líneas de su nota (p. ej. «P. 12 · row 2 · col 3»). */
     notes: string[]
+    /** Copias que pide la lista de este sitio (en la comprobación). */
+    needed?: number
+    /** Archivador: todas las posiciones de esa carta ahí; `notes` son las que se cogen (se pueden elegir). */
+    options?: string[]
   }[]
 }
 
@@ -604,6 +608,8 @@ export interface DeckImportResult {
   moved: number
   /** Copias que han salido del mazo a «Sin ubicar». */
   removed: number
+  /** Copias de más (posiciones elegidas por encima de lo que pide la lista), que también entran en el mazo. */
+  extra: number
   missing: number
   unknown: string[]
   decks_changed: { deck_id: number; deck: string; copies: number; version: number }[]

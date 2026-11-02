@@ -374,7 +374,7 @@ class DeckImportTests(TestCase):
         self.assertEqual(box, {(1, 1), (2, 1), (3, 1)})
         self.assertEqual(picks[0]["cards"][0]["notes"], ["P. 3 · row 1 · col 2"])
         self.assertEqual(picks[1]["cards"], [{"bandai_id": 2, "number": "BT29-86", "name": "Goku Black", "rarity": "",
-                                             "quantity": 2, "position": 1, "notes": []}])
+                                             "quantity": 2, "needed": 2, "position": 1, "notes": [], "options": []}])
 
     def test_pick_list_is_saved_with_the_deck(self):
         lines = self.preview(self.text).data["lines"]
@@ -458,6 +458,46 @@ class DeckImportTests(TestCase):
         data = self.client.post("/api/my-collection/decks/import/", body, format="json").data
         self.assertEqual(data["missing"], 0)
         self.assertEqual(current_list(Location.objects.get(name="Con side")), {(1, "main"): 1, (4, "main"): 1, (4, "side"): 2})
+
+    def test_choose_which_binder_positions_to_take(self):
+        from decks.services import current_list, principal_version, version_list
+
+        binder = Location.objects.create(name="Archivador", kind="binder")
+        # 2 Android 17 en el archivador (págs. 30 y 54) y 1 en una caja; la lista pide 1.
+        CollectionEntry.objects.create(card=self.b, location=binder, quantity=2,
+                                       notes="Pág. 30 · fila 2 · col 2\nPág. 54 · fila 2 · col 1")
+        lines = self.preview("1 EX20-01\n1 EX20-03").data["lines"]
+        data = self.preview("1 EX20-01\n1 EX20-03").data
+        group = next(g for g in data["by_location"] if g["location"] == "Archivador")
+        card = group["cards"][0]
+        # Por defecto, la de la página más alta; las dos se pueden elegir.
+        self.assertEqual((card["quantity"], card["notes"], card["options"]),
+                         (1, ["Pág. 54 · fila 2 · col 1"], ["Pág. 54 · fila 2 · col 1", "Pág. 30 · fila 2 · col 2"]))
+        key = f"{binder.id}-{self.b.id}"
+        # Elegir las dos: −2 en el archivador y +2 en el mazo (una de más, que entra también en su lista).
+        body = {"lines": lines, "name": "Con las dos", "take_from": [],
+                "choices": {key: ["Pág. 30 · fila 2 · col 2", "Pág. 54 · fila 2 · col 1"]}}
+        result = self.client.post("/api/my-collection/decks/import/", body, format="json").data
+        self.assertEqual((result["moved"], result["extra"], result["missing"]), (3, 1, 0))
+        deck = Location.objects.get(name="Con las dos")
+        self.assertEqual(current_list(deck), {(1, "main"): 1, (4, "main"): 2})
+        self.assertEqual(version_list(principal_version(deck)), {(1, "main"): 1, (4, "main"): 2})
+        self.assertFalse(CollectionEntry.objects.filter(location=binder).exists())
+        moved = CollectionEntry.objects.get(location=deck, card=self.b)
+        self.assertEqual(sorted(moved.notes.splitlines()), ["Pág. 30 · fila 2 · col 2", "Pág. 54 · fila 2 · col 1"])
+
+    def test_choose_the_other_binder_position(self):
+        binder = Location.objects.create(name="Archivador", kind="binder")
+        CollectionEntry.objects.create(card=self.b, location=binder, quantity=2,
+                                       notes="Pág. 30 · fila 2 · col 2\nPág. 54 · fila 2 · col 1")
+        lines = self.preview("1 EX20-01\n1 EX20-03").data["lines"]
+        body = {"lines": lines, "name": "La 30", "take_from": [], "choices": {f"{binder.id}-{self.b.id}": ["Pág. 30 · fila 2 · col 2"]}}
+        result = self.client.post("/api/my-collection/decks/import/", body, format="json").data
+        self.assertEqual((result["moved"], result["extra"]), (2, 0))
+        left = CollectionEntry.objects.get(location=binder, card=self.b)
+        self.assertEqual((left.quantity, left.notes), (1, "Pág. 54 · fila 2 · col 1"))  # la otra sigue en su sitio
+        group = next(g for g in result["pick_list"] if g["location"] == "Archivador")
+        self.assertEqual(group["cards"][0]["notes"], ["Pág. 30 · fila 2 · col 2"])
 
     def test_name_must_be_new(self):
         lines = self.preview(self.text).data["lines"]

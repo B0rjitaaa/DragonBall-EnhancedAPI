@@ -301,22 +301,54 @@ def _from_free(picks) -> list[dict]:
     return [{"location": name, "quantity": n} for name, n in out.items()]
 
 
+def position_options(notes: str) -> list[str]:
+    """Las posiciones de archivador de una nota, de la página más alta a la más baja (como se van sacando)."""
+    from collection.binder import POSITION
+
+    found = []
+    for line in (notes or "").splitlines():
+        m = POSITION.match(line)
+        if m:
+            page, row, col = (int(x) for x in m.groups())
+            found.append(((-page, row, col), line))
+    return [line for _key, line in sorted(found)]
+
+
+def _page_of(line: str) -> int:
+    from collection.binder import POSITION
+
+    m = POSITION.match(line or "")
+    return int(m.group(1)) if m else 0
+
+
+def choice_key(location_id: int, card_id: int) -> str:
+    return f"{location_id}-{card_id}"
+
+
 def pick_list(picks: list[tuple[int, Location, int, dict]], cards: dict[int, Card],
-              orders: dict[int, dict[int, int]]) -> list[dict]:
+              orders: dict[int, dict[int, int]], choices: dict[str, list[str]] | None = None) -> list[dict]:
     """Dónde coger cada copia, por ubicación (libres primero) y en el orden en que están dentro de ella.
 
-    En cada carta: su puesto en «Mi orden» de la ubicación y las líneas de su nota
-    (p. ej. «P. 12 · row 2 · col 3» del modo archivador), para encontrarla en la caja o el archivador.
+    En cada carta: su puesto en «Mi orden» de la ubicación y, si están en un archivador, sus posiciones
+    («P. 12 · row 2 · col 3»): `options` (todas las de esa fila) y `notes` (las que se cogen: por defecto las
+    de página más alta; con `choices`, las elegidas). En los archivadores, de la página más alta a la más baja.
     """
     by_loc: dict[int, dict] = {}
     for card_id, loc, n, src in picks:
         group = by_loc.setdefault(loc.pk, {"location_id": loc.pk, "location": loc.name, "kind": loc.kind,
                                            "rank": services._source_rank(loc), "cards": []})
         card = cards[card_id]
+        options = position_options(src["notes"])
+        chosen = (choices or {}).get(choice_key(loc.pk, card_id))
+        if options:
+            chosen = [line for line in chosen if line in options] if chosen is not None else options[:n]
+            notes = chosen
+        else:
+            notes = [line for line in (src["notes"] or "").splitlines() if line.strip()]
         group["cards"].append({
             "bandai_id": card_id, "number": card.card_number, "name": card.name, "rarity": card.rarity_code,
-            "quantity": n, "position": src["position"] or None,
-            "notes": [line for line in (src["notes"] or "").splitlines() if line.strip()],
+            "quantity": len(chosen) if options and chosen is not None else n, "needed": n,
+            "position": src["position"] or None, "notes": notes, "options": options,
         })
     ordered = sorted(by_loc.values(), key=lambda g: g.pop("rank"))
     for group in ordered:
@@ -324,7 +356,10 @@ def pick_list(picks: list[tuple[int, Location, int, dict]], cards: dict[int, Car
         numbered = orders.get(group["location_id"]) or {}
         for c in group["cards"]:
             c["position"] = numbered.get(c["bandai_id"])
-        group["cards"].sort(key=lambda c: (c["position"] or 0, number_key(c["number"]) or ("", 0)))
+        # Archivador: por página, de la más alta a la más baja; el resto, en su orden.
+        group["cards"].sort(key=lambda c: (-max((_page_of(x) for x in (c["notes"] or c["options"])), default=0),
+                                           c["position"] or 0, number_key(c["number"]) or ("", 0)))
+        group["cards"] = [c for c in group["cards"] if c["quantity"] > 0 or c["options"]]
     return ordered
 
 
@@ -457,7 +492,8 @@ def preview(deck: ParsedDeck, target_id=None) -> dict:
 
 # --- Crear el mazo o añadir la lista ----------------------------------------------------------------------------
 
-def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None) -> dict:
+def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None,
+                choices: dict[str, list[str]] | None = None) -> dict:
     """Crea el mazo (o, con `target_id`, guarda la lista como versión nueva de ese mazo) con las copias que tienes:
     las que ya estaban en él, las libres y las de los mazos aceptados. Lo que sobra del mazo va a «Sin ubicar»."""
     from collection.services import move_copies
@@ -487,15 +523,29 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None
         side_by_card: dict[int, int] = defaultdict(int)
         given: dict[int, dict] = {}
         all_picks: list = []
-        moved = missing = 0
+        moved = missing = extra = 0
         for key, sections in need.items():
             card, plan = cards[key], plans[key]
             # Las copias del mazo, por impresión: las que ya estaban y las que llegan. Se reparten por secciones
             # (Leader/Main/Z primero, side al final).
             pool: list[list[int]] = [[card_id, n] for card_id, _fake, n in plan["kept"]]
             all_picks.extend(plan["alloc"]["picks"])
-            for card_id, src, n, _row in plan["alloc"]["picks"]:
-                move_copies(Card.objects.get(pk=card_id), src, target, n)
+            for card_id, src, n, row in plan["alloc"]["picks"]:
+                card_obj = Card.objects.get(pk=card_id)
+                options = position_options(row["notes"])
+                if options:
+                    # Archivador: las copias que se cogen son posiciones concretas (las elegidas o, por defecto,
+                    # las de página más alta); su línea de la nota se va con cada copia.
+                    chosen = (choices or {}).get(choice_key(src.pk, card_id))
+                    lines = [x for x in chosen if x in options] if chosen is not None else options[:n]
+                    lines = lines[:row["quantity"]]
+                    for line in lines:
+                        move_copies(card_obj, src, target, 1, note_line=line)
+                    n = len(lines)
+                elif n:
+                    move_copies(card_obj, src, target, n)
+                if not n:
+                    continue
                 pool.append([card_id, n])
                 moved += n
                 if src.kind == Location.Kind.DECK:
@@ -516,6 +566,13 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None
                     # (solo en la lista: el side de la caja cuenta las copias que hay de verdad)
                     _add(listing, None, card.primary, section, want, catalog_type=card.card_type)
                     missing += want
+            # Copias de más (elegiste más posiciones de las que pide la lista): entran en el mazo y en su lista,
+            # en la primera sección de la carta.
+            first = next(s for s in SECTIONS if sections.get(s))
+            for card_id, n in pool:
+                if n:
+                    _add(listing, side_by_card, card_id, first, n, catalog_type=card.card_type)
+                    extra += n
         # Lo que no está en la lista nueva sale del mazo a «Sin ubicar» (para guardarlo luego donde toque).
         unsorted = Location.default()
         removed = 0
@@ -526,7 +583,7 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None
         for card_id, n in side_by_card.items():
             services.set_side(target, Card.objects.get(pk=card_id), n)
         bulk = Card.objects.in_bulk({p[0] for p in all_picks} | {r["card_id"] for r in leaving})
-        picked = pick_list(all_picks, bulk, orders)
+        picked = pick_list(all_picks, bulk, orders, choices)
         if leaving:
             picked.append(_out_group(target, leaving, bulk, orders.get(target.pk) or {}))
         PickList.objects.filter(deck=target).delete()
@@ -550,6 +607,7 @@ def create_deck(deck: ParsedDeck, name: str, take_from: set[int], target_id=None
         "version": version.number,
         "moved": moved,
         "missing": missing,
+        "extra": extra,
         "removed": removed,
         "unknown": unknown,
         "decks_changed": affected,

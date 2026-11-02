@@ -19,6 +19,8 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<DeckImportResult | null>(null)
+  // Posiciones del archivador que se cogen, por «<ubicación>-<carta>» (por defecto, las que propone el servidor).
+  const [choices, setChoices] = useState<Record<string, string[]>>({})
   // Comprobación: por sitio (dónde coger cada carta) o carta a carta (con sus secciones).
   const [view, setView] = useState<'place' | 'card'>('place')
 
@@ -36,6 +38,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
         data = await api.previewDeckImportFor(data.lines, data.source, data.name, data.existing_decks[0].id)
       }
       setPreview(data)
+      setChoices(defaultChoices(data))
       setName(data.name)
       setTakeFrom(new Set())
     } catch (e) {
@@ -51,7 +54,9 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     setBusy(true)
     setError(null)
     try {
-      setPreview(await api.previewDeckImportFor(preview.lines, preview.source, preview.name, target))
+      const data = await api.previewDeckImportFor(preview.lines, preview.source, preview.name, target)
+      setPreview(data)
+      setChoices(defaultChoices(data))
       setTakeFrom(new Set())
     } catch (e) {
       setError((e as Error).message)
@@ -65,7 +70,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     setBusy(true)
     setError(null)
     try {
-      setResult(await api.importDeck(preview.lines, name, preview.source, [...takeFrom], preview.target?.id ?? null))
+      setResult(await api.importDeck(preview.lines, name, preview.source, [...takeFrom], preview.target?.id ?? null, choices))
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -75,10 +80,26 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
   }
 
   // Lo que falta según los mazos elegidos (las copias de los mazos no elegidos también faltan).
-  const missingNow = (r: DeckImportRow) => r.missing + r.in_use.filter((u) => !takeFrom.has(u.deck_id)).reduce((n, u) => n + u.quantity, 0)
+  // Sitios que cuentan: los libres y los mazos marcados.
+  const groups = preview ? preview.by_location.filter((g) => g.kind !== 'deck' || takeFrom.has(g.location_id)) : []
+  // Posiciones elegidas de más (+) o de menos (−) respecto a lo que pide la lista, por número de carta.
+  const choiceDelta = new Map<string, number>()
+  for (const g of groups) {
+    for (const c of g.cards) {
+      if (!c.options?.length) continue
+      const chosen = choices[`${g.location_id}-${c.bandai_id}`]?.length ?? c.notes.length
+      choiceDelta.set(c.number, (choiceDelta.get(c.number) ?? 0) + chosen - (c.needed ?? c.quantity))
+    }
+  }
+  const missingBase = (r: DeckImportRow) => r.missing + r.in_use.filter((u) => !takeFrom.has(u.deck_id)).reduce((n, u) => n + u.quantity, 0)
+  const missingNow = (r: DeckImportRow) => Math.max(0, missingBase(r) - (choiceDelta.get(r.number) ?? 0))
+  const extraOf = (r: DeckImportRow) => Math.max(0, (choiceDelta.get(r.number) ?? 0) - missingBase(r))
+  const toggleChoice = (key: string, line: string, current: string[]) =>
+    setChoices((all) => ({ ...all, [key]: current.includes(line) ? current.filter((l) => l !== line) : [...current, line] }))
   const totals = preview && {
     taken: preview.rows.reduce((n, r) => n + r.in_use.filter((u) => takeFrom.has(u.deck_id)).reduce((m, u) => m + u.quantity, 0), 0),
     missing: preview.rows.reduce((n, r) => n + missingNow(r), 0),
+    extra: preview.rows.reduce((n, r) => n + extraOf(r), 0),
     cost: preview.rows.reduce((sum, r) => sum + missingNow(r) * (preview.catalog[r.bandai_id]?.price?.eur ?? 0), 0),
   }
 
@@ -228,6 +249,11 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
                 <strong>{totals?.missing ?? 0}</strong> missing
                 {!!totals?.cost && <small> · ≈ {formatEur(totals.cost)}</small>}
               </span>
+              {!!totals?.extra && (
+                <span className="in">
+                  <strong>+{totals.extra}</strong> extra (positions you picked)
+                </span>
+              )}
               {preview.totals.leaving > 0 && (
                 <span className="out">
                   <strong>{preview.totals.leaving}</strong> leave the deck
@@ -281,7 +307,9 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
 
             {view === 'place' && (
               <ByPlace
-                groups={preview.by_location.filter((g) => g.kind !== 'deck' || takeFrom.has(g.location_id))}
+                groups={groups}
+                choices={choices}
+                onToggle={toggleChoice}
                 inDeck={preview.target ? preview.rows.filter((r) => r.in_deck > 0) : []}
                 deckName={preview.target?.name}
                 missing={preview.rows.filter((r) => missingNow(r) > 0).map((r) => ({ row: r, n: missingNow(r) }))}
@@ -359,15 +387,22 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
 /** La comprobación por sitio: un bloque por Binder / caja / mazo con las cartas que hay que coger de ahí (en su
  *  orden y con su posición) y, al final, lo que ya está en el mazo y lo que falta. */
 function ByPlace({
-  groups, inDeck, deckName, missing, catalog,
+  groups, choices, onToggle, inDeck, deckName, missing, catalog,
 }: {
   groups: PickGroup[]
+  choices: Record<string, string[]>
+  onToggle: (key: string, line: string, current: string[]) => void
   inDeck: DeckImportRow[]
   deckName?: string
   missing: { row: DeckImportRow; n: number }[]
   catalog: DeckImportPreview['catalog']
 }) {
-  const block = (key: string, title: string, label: string, tone: string, items: { id: number; qty: number; name: string; sub: string; where?: string[] }[]) => (
+  type Item = {
+    id: number; qty: number; name: string; sub: string; where?: string[]
+    /** Archivador: posiciones que se pueden marcar (la clave de la elección y las marcadas). */
+    pick?: { key: string; options: string[]; chosen: string[] }
+  }
+  const block = (key: string, title: string, label: string, tone: string, items: Item[]) => (
     <section key={key} className={`place-group ${tone}`}>
       <h4>
         {title} <small>{label}</small>
@@ -383,7 +418,28 @@ function ByPlace({
               </strong>
               <small>{i.sub}</small>
             </span>
-            {i.where && i.where.length > 0 && (
+            {i.pick ? (
+              <span className="pick-where">
+                {i.where?.filter((w) => w.startsWith('#')).map((w) => (
+                  <span key={w} className="pick-pos">{w}</span>
+                ))}
+                {i.pick.options.map((line) => {
+                  const on = i.pick!.chosen.includes(line)
+                  return (
+                    <button
+                      key={line}
+                      type="button"
+                      className={`pick-option ${on ? 'on' : ''}`}
+                      aria-pressed={on}
+                      title={on ? 'Taking this copy (tap to leave it in the binder)' : 'Tap to take this copy too'}
+                      onClick={() => onToggle(i.pick!.key, line, i.pick!.chosen)}
+                    >
+                      {on ? '✓ ' : ''}{line}
+                    </button>
+                  )
+                })}
+              </span>
+            ) : i.where && i.where.length > 0 && (
               <span className="pick-where">
                 {i.where.map((w) => (
                   <span key={w} className={w.startsWith('#') ? 'pick-pos' : 'pick-note'}>
@@ -405,10 +461,17 @@ function ByPlace({
           g.location,
           g.kind === 'deck' ? 'from this deck' : (KIND_LABELS[g.kind] ?? g.kind),
           g.kind === 'deck' ? 'use' : 'ok',
-          g.cards.map((c) => ({
-            id: c.bandai_id, qty: c.quantity, name: c.name, sub: `${c.number}${c.rarity ? ` · ${c.rarity}` : ''}`,
-            where: [...(c.position ? [`#${c.position}`] : []), ...c.notes],
-          })),
+          g.cards.map((c) => {
+            const key = `${g.location_id}-${c.bandai_id}`
+            const chosen = choices[key] ?? c.notes
+            const multi = (c.options?.length ?? 0) > 0
+            return {
+              id: c.bandai_id, qty: multi ? chosen.length : c.quantity, name: c.name,
+              sub: `${c.number}${c.rarity ? ` · ${c.rarity}` : ''}${multi && chosen.length !== c.needed ? ` · the list needs ${c.needed}` : ''}`,
+              where: [...(c.position ? [`#${c.position}`] : []), ...(multi ? [] : c.notes)],
+              pick: multi ? { key, options: c.options!, chosen } : undefined,
+            }
+          }),
         ),
       )}
       {inDeck.length > 0 &&
@@ -421,4 +484,11 @@ function ByPlace({
       {groups.length === 0 && inDeck.length === 0 && missing.length === 0 && <p className="muted small">Nothing to fetch.</p>}
     </div>
   )
+}
+
+/** Posiciones del archivador que se cogen por defecto (las que propone el servidor). */
+function defaultChoices(data: DeckImportPreview): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const g of data.by_location) for (const c of g.cards) if (c.options?.length) out[`${g.location_id}-${c.bandai_id}`] = c.notes
+  return out
 }

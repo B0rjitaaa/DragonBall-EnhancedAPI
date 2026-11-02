@@ -2016,3 +2016,10 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
   .binder-page { padding: 0.75rem; }
   .sheet-grid { gap: 0.35rem; }
 }
+/* Posiciones del archivador que se pueden marcar al importar */
+.pick-option {
+  padding: 0.05rem 0.45rem; border-radius: 4px; border: 1px dashed var(--line); background: none; color: var(--muted);
+  font-size: 0.76rem; white-space: nowrap; cursor: pointer;
+}
+.pick-option.on { border-style: solid; color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.pick-option:hover { border-color: var(--accent); }
