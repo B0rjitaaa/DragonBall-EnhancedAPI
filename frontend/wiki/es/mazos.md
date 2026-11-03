@@ -44,6 +44,11 @@ La lista de recogida tiene entonces también el apartado **«Take out of “Mazo
 
 El mazo nuevo se queda con las copias que tienes (primero las libres) y guarda **la lista completa como lista principal, también lo que falta**, así que la vista del mazo te enseña lo que aún necesitas: esas cartas salen en el mazo con la etiqueta violeta **«MISSING»** (o **«N missing»** si te faltan solo algunas copias), con el borde discontinuo. **Siguen contando** en el mazo (cuántas cartas hay, la curva, las reglas de construcción…), pero no están en tu colección. Cuando consigas la carta y la metas en la caja, la etiqueta se va sola.
 
+**Pulsa la etiqueta** si no es correcta:
+
+- **«✓ I have it»** (la tengo): añade una copia a tu colección, dentro de este mazo (al side si va ahí). Para cuando la tienes físicamente pero no estaba apuntada.
+- **«− Remove from deck»** (quitar del mazo): saca una copia de la lista principal, por si la lista tenía una de más. Si esa lista ya tiene partidas anotadas, se guarda como versión nueva para no cambiar la lista con la que jugaste.
+
 Solo falta lo que no tienes en ninguna parte: si una copia está en otra ubicación u otro mazo, la tienes, y la vista dice que la caja no coincide con la lista principal (**«The box doesn't match the main list»**).
 
 En la comprobación, cada carta libre dice dónde está, por ejemplo **«✓ 2 free (Caja 1, Archivador ×1)»**. Al crear el mazo aparece **«Where to get the cards»** (dónde coger las cartas), una lista para ir a buscarlas físicamente:

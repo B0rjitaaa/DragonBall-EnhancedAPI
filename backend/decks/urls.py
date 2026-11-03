@@ -10,6 +10,7 @@ urlpatterns = [
     path("decks/<int:pk>/versions/", views.DeckVersionsView.as_view(), name="deck-versions"),
     path("decks/<int:pk>/matches/", views.DeckMatchesView.as_view(), name="deck-matches"),
     path("decks/<int:pk>/plan/", views.DeckPlanView.as_view(), name="deck-plan"),
+    path("decks/<int:pk>/missing/", views.DeckMissingView.as_view(), name="deck-missing"),
     path("decks/<int:pk>/side/", views.DeckSideView.as_view(), name="deck-side"),
     path("decks/<int:pk>/pick-list/", views.DeckPickListView.as_view(), name="deck-pick-list"),
     path("decks/<int:pk>/to-history/", views.DeckToHistoryView.as_view(), name="deck-to-history"),

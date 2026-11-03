@@ -190,6 +190,9 @@ export const api = {
   /** Guarda una lista: `cards` (la editada) o, sin ella, lo que hay en la caja. */
   saveDeckVersion: (deck: number, name = '', notes = '', cards?: DeckListCard[]) =>
     request<DeckVersion>(`/my-collection/decks/${deck}/versions/`, post({ name, notes, ...(cards ? { cards } : {}) })),
+  /** Copias «missing» del mazo: «have» = las tengo (entran en la colección, en el mazo); «remove» = fuera de la lista. */
+  deckMissing: (deck: number, bandai_id: number, section: 'main' | 'side', action: 'have' | 'remove') =>
+    request<{ quantity: number }>(`/my-collection/decks/${deck}/missing/`, post({ bandai_id, section, action })),
   /** Qué copias habría que mover para que la caja del mazo tenga esa lista. */
   deckPlan: (deck: number, cards: DeckListCard[]) => request<RestorePlan>(`/my-collection/decks/${deck}/plan/`, post({ cards })),
   deckVersion: (id: number) => request<DeckVersionDetail>(`/my-collection/deck-versions/${id}/`),

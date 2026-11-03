@@ -469,6 +469,41 @@ class DeckImportTests(TestCase):
         # La de «Unsorted» sí la tengo: falta en la caja (es un cambio), no en la colección.
         self.assertEqual([(c["bandai_id"], c["delta"]) for c in detail["changes"]], [(4, -1)])
 
+    def test_resolve_missing_copies(self):
+        from decks.models import Match
+        from decks.services import current_list, principal_version, version_list
+
+        CollectionEntry.objects.filter(location=self.third).delete()
+        CollectionEntry.objects.create(card=self.b, location=self.box, quantity=1)
+        lines = self.preview("1 EX20-01\n3 EX20-03\nSide Deck\n1 EX20-03").data["lines"]
+        self.client.post("/api/my-collection/decks/import/", {"lines": lines, "name": "Resolver", "take_from": []}, format="json")
+        new = Location.objects.get(name="Resolver")
+        url = f"/api/my-collection/decks/{new.id}/missing/"
+        missing = lambda: self.client.get(f"/api/my-collection/decks/{new.id}/").data["missing"]  # noqa: E731
+        self.assertEqual(missing(), [{"bandai_id": 4, "section": "main", "quantity": 2},
+                                     {"bandai_id": 4, "section": "side", "quantity": 1}])
+        # «I have it»: la copia entra en la colección, en la caja del mazo (y al side si va ahí).
+        r = self.client.post(url, {"bandai_id": 4, "section": "side", "action": "have"}, format="json")
+        self.assertEqual(r.data["quantity"], 1)
+        self.assertEqual(current_list(new)[(4, "side")], 1)
+        self.assertEqual(missing(), [{"bandai_id": 4, "section": "main", "quantity": 2}])
+        # «Remove»: la lista tenía una de más; se quita de la lista principal (sin partidas: la misma versión).
+        principal = principal_version(new)
+        self.client.post(url, {"bandai_id": 4, "section": "main", "action": "remove"}, format="json")
+        self.assertEqual(principal_version(new).pk, principal.pk)
+        self.assertEqual(version_list(principal)[(4, "main")], 2)
+        # Con partidas anotadas, versión nueva (principal) para no tocar la lista con la que se jugaron.
+        Match.objects.create(version=principal, result="win", opponent_leader_name="Goku", played_on="2026-11-01")
+        self.client.post(url, {"bandai_id": 4, "section": "main", "action": "remove"}, format="json")
+        latest = principal_version(new)
+        self.assertNotEqual(latest.pk, principal.pk)
+        self.assertEqual(version_list(principal)[(4, "main")], 2)
+        self.assertEqual(version_list(latest)[(4, "main")], 1)
+        self.assertEqual(missing(), [])
+        # Ya no falta: no se puede resolver otra vez.
+        r = self.client.post(url, {"bandai_id": 4, "section": "main", "action": "have"}, format="json")
+        self.assertEqual(r.status_code, 400)
+
     def test_side_copies_you_have_go_to_the_side_deck(self):
         from decks.services import current_list
 

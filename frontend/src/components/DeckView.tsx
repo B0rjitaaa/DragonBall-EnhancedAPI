@@ -60,6 +60,8 @@ interface CardControls {
   move: { label: string; title: string; run: (card: CardSummary) => void }
   /** Diferencia con lo que hay en la caja, para marcar lo cambiado. */
   deltaOf: (card: CardSummary) => number
+  /** Resolver una copia «missing»: la tengo (entra en la colección) o la quito de la lista. */
+  resolveMissing?: (card: CardSummary, action: 'have' | 'remove') => Promise<void>
 }
 
 /** Borrador de la lista principal: copias por carta, en el mazo (main/Z/líder, según su tipo) o en el side. */
@@ -228,6 +230,12 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
   const [showPicks, setShowPicks] = useState(false)
   const viewingCurrent = selected == null
 
+  // «I have it» añade la copia a la colección (en el mazo); «Remove» la quita de la lista principal.
+  const resolveMissing = (c: CardSummary, section: 'main' | 'side', action: 'have' | 'remove') =>
+    api.deckMissing(deck.id, c.id, section, action).then(() => {
+      reload()
+      if (action === 'have') onCollectionChanged?.()
+    })
   const deckControls: CardControls | undefined = viewingCurrent
     ? {
         change: (c, d) => setQty(c.id, 'deck', qtyOf(c.id, 'deck') + d),
@@ -240,6 +248,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
           },
         },
         deltaOf: (c) => qtyOf(c.id, 'deck') - (base[draftKey(c.id, 'deck')] ?? 0),
+        resolveMissing: (c, action) => resolveMissing(c, 'main', action),
       }
     : undefined
   const sideControls: CardControls | undefined = viewingCurrent
@@ -254,6 +263,7 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
           },
         },
         deltaOf: (c) => qtyOf(c.id, 'side') - (base[draftKey(c.id, 'side')] ?? 0),
+        resolveMissing: (c, action) => resolveMissing(c, 'side', action),
       }
     : undefined
   // También con cambios sin guardar: lo que está en la caja guarda su orden al momento y lo añadido, en el borrador.
@@ -726,6 +736,76 @@ function DeckSection({
   )
 }
 
+/** Etiqueta «missing» de una carta; pulsándola: «I have it» (entra en la colección) o «Remove from deck». */
+function MissingBadge({
+  card,
+  lack,
+  all,
+  below,
+  resolve,
+}: {
+  card: CardSummary
+  lack: number
+  all: boolean
+  below: boolean
+  resolve?: (card: CardSummary, action: 'have' | 'remove') => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [open])
+  const label = all ? 'Missing' : `${lack} missing`
+  const cls = `deck-missing ${below ? 'below' : ''}`
+  if (!resolve) return <span className={cls}>{label}</span>
+  const run = (action: 'have' | 'remove') => {
+    setBusy(true)
+    setError('')
+    resolve(card, action)
+      .then(() => setOpen(false))
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setBusy(false))
+  }
+  return (
+    <div className={`deck-missing-wrap ${below ? 'below' : ''}`} ref={ref} onPointerDown={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        className={`${cls} as-button`}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        title="You don't have this copy: tap to fix it"
+      >
+        {label} ▾
+      </button>
+      {open && (
+        <div className="deck-missing-menu" role="menu">
+          <button type="button" role="menuitem" disabled={busy} onClick={() => run('have')}>
+            ✓ I have it
+            <small>Adds 1 copy to your collection, in this deck</small>
+          </button>
+          <button type="button" role="menuitem" disabled={busy} onClick={() => run('remove')}>
+            − Remove from deck
+            <small>Takes 1 copy out of the main list</small>
+          </button>
+          {error && <p className="error small">{error}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SortableDeckCard({
   card,
   flag,
@@ -819,14 +899,12 @@ function DeckCard({
           </span>
         )}
         {flag && <span className={`deck-flag ${kind ?? ''}`}>{flag}</span>}
-        {lack > 0 && (
-          <span className={`deck-missing ${flag ? 'below' : ''}`}>{lack >= n ? 'Missing' : `${lack} missing`}</span>
-        )}
         <span className="deck-card-name">
           <small>{card.card_number}</small>
           {card.name}
         </span>
       </button>
+      {lack > 0 && <MissingBadge card={card} lack={lack} all={lack >= n} below={!!flag} resolve={controls?.resolveMissing} />}
       {/* Si no tienes ninguna copia no hay nada que quitar ni pasar al side. */}
       {controls && lack < n && (
         <div className="deck-card-controls" onPointerDown={stop}>

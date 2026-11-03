@@ -7,7 +7,7 @@ from cards.models import Card
 from collection.models import Location
 
 from . import services
-from .models import DeckVersion, Match, PickList
+from .models import DeckVersion, DeckVersionCard, Match, PickList
 from .serializers import ListCardSerializer, MatchSerializer, SideSerializer, VersionSerializer
 
 
@@ -291,6 +291,34 @@ class DeckSideView(APIView):
         card = get_object_or_404(Card, id=body.validated_data["bandai_id"])
         n = services.set_side(deck, card, body.validated_data["quantity"])
         return Response({"bandai_id": card.id, "side": n})
+
+
+class DeckMissingView(APIView):
+    """POST {bandai_id, section, action: have|remove, quantity?}: resolver copias «missing» del mazo.
+
+    have: las tengo (se añaden a la colección, en el mazo). remove: se quitan de la lista principal.
+    """
+
+    def post(self, request, pk):
+        deck = _deck(pk)
+        body = request.data if isinstance(request.data, dict) else {}
+        card = get_object_or_404(Card, id=body.get("bandai_id") if isinstance(body.get("bandai_id"), int) else -1)
+        section = body.get("section")
+        action = body.get("action")
+        quantity = body.get("quantity", 1)
+        if section not in DeckVersionCard.Section.values:
+            return Response({"section": "main, z or side"}, status=400)
+        if section != DeckVersionCard.Section.SIDE:
+            section = services.section_of(card)  # Main o Z Deck, según el tipo de la carta
+        if action not in ("have", "remove"):
+            return Response({"action": "have or remove"}, status=400)
+        if not isinstance(quantity, int) or not 1 <= quantity <= 99:
+            return Response({"quantity": "Between 1 and 99"}, status=400)
+        try:
+            n = services.resolve_missing(deck, card, section, quantity, action)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=400)
+        return Response({"bandai_id": card.id, "section": section, "action": action, "quantity": n})
 
 
 class DeckToHistoryView(APIView):

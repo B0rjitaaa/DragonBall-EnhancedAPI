@@ -119,6 +119,47 @@ def missing_cards(listing: dict[tuple[int, str], int], current: dict[tuple[int, 
     return out
 
 
+def resolve_missing(deck: Location, card: Card, section: str, quantity: int, action: str) -> int:
+    """Copias que la lista principal da por «missing», resueltas a mano. Devuelve cuántas se resolvieron.
+
+    - «have»: sí la tengo; las copias se añaden a la colección, en la caja del mazo (y al side si van ahí).
+    - «remove»: la lista tenía copias de más; se quitan de la lista principal. Si ya tiene partidas
+      anotadas, se guarda una versión nueva (principal) para no cambiar la lista con la que se jugaron.
+    """
+    from collection.services import add_copies
+
+    with transaction.atomic():
+        Location.objects.select_for_update().filter(pk=deck.pk).first()
+        principal = principal_version(deck)
+        if principal is None:
+            raise ValueError("This deck has no main list")
+        listing = version_list(principal)
+        lack = missing_cards(listing, current_list(deck)).get((card.id, section), 0)
+        n = min(quantity, lack)
+        if not n:
+            raise ValueError("That card isn't missing in this deck")
+        if action == "have":
+            add_copies(card, deck, n)
+            if section == Section.SIDE:
+                side = SideCard.objects.filter(deck=deck, card=card).values_list("quantity", flat=True).first() or 0
+                set_side(deck, card, side + n)
+        elif action == "remove":
+            listing[(card.id, section)] -= n
+            listing = {k: q for k, q in listing.items() if q > 0}
+            if principal.matches.exists():
+                version = save_version(deck, name="Without missing copies", listing=listing)
+                make_principal(version)
+            else:
+                principal.cards.filter(card=card, section=section).delete()
+                if listing.get((card.id, section)):
+                    DeckVersionCard.objects.create(
+                        version=principal, card=card, section=section, quantity=listing[(card.id, section)]
+                    )
+        else:
+            raise ValueError("Unknown action")
+    return n
+
+
 def diff(old: dict, new: dict) -> list[dict]:
     """Cartas añadidas (+) y quitadas (−) entre dos listas, por sección."""
     changes = []

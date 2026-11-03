@@ -2030,6 +2030,25 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
   line-height: 1.25; text-transform: uppercase; color: #fff; background: #7c3aed; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 .deck-missing.below { top: calc(6px + 1.35rem); }
+/* La etiqueta «missing» como botón: menú para resolverla (la tengo / quitarla de la lista) */
+.deck-missing-wrap { position: absolute; top: 6px; left: 6px; z-index: 3; max-width: calc(100% - 2.6rem); }
+.deck-missing-wrap.below { top: calc(6px + 1.35rem); }
+.deck-missing-wrap .deck-missing { position: static; max-width: 100%; }
+.deck-missing.as-button { border: 0; cursor: pointer; font-family: inherit; }
+.deck-missing.as-button:hover, .deck-missing.as-button[aria-expanded='true'] { background: #6d28d9; outline: 2px solid #c4b5fd; }
+.deck-missing-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 5; display: grid; gap: 0.2rem; width: 13rem; padding: 0.3rem;
+  border-radius: 8px; border: 1px solid #7c3aed; background: var(--bg-2); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+.deck-missing-menu button {
+  display: grid; gap: 0.1rem; text-align: left; padding: 0.4rem 0.5rem; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text); font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+}
+.deck-missing-menu button small { font-weight: 400; color: var(--muted); font-size: 0.7rem; }
+.deck-missing-menu button:hover:not(:disabled) { background: color-mix(in srgb, #7c3aed 25%, var(--bg-2)); }
+.deck-missing-menu button:disabled { opacity: 0.5; cursor: wait; }
+.deck-missing-menu .error { margin: 0.2rem 0.4rem; }
+.deck-grid > li:has(.deck-missing-menu) { position: relative; z-index: 10; }
 .deck-card.part-owned img, .deck-card.not-owned img { outline: 2px dashed #8b5cf6; outline-offset: 2px; }
 .deck-card.not-owned img { opacity: 0.55; }
 /* Archivador como un libro: flechas a los lados para pasar páginas y huecos (interior de la tapa / final) */
