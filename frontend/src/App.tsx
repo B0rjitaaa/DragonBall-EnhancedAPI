@@ -707,6 +707,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               adjusting={adjusting}
               showFakes={showFakes}
               onReorder={canReorder ? reorder : undefined}
+              wantable={!inCollection}
               emptyText={
                 inCollection && activeCount === 0
                   ? "Your collection is empty: scan cards with the scanner and they'll show up here."

@@ -8,8 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # libglib2.0-0: dependencia de runtime de opencv-python-headless (escáner).
+# fonts-dejavu-core: la letra del PDF de las wants (con €, × y acentos).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl libglib2.0-0 \
+    && apt-get install -y --no-install-recommends curl libglib2.0-0 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

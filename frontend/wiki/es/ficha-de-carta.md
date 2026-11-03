@@ -36,6 +36,8 @@ Debajo de la imagen está el panel de **tus copias** de esa carta. Dice «Not in
 
 **«Add to My collection in» [ubicación] → «Add»** suma una copia auténtica en una ubicación donde todavía no tienes esa carta. Te propone la última ubicación que usaste en este navegador, o «Unsorted» (sin ubicar).
 
+Debajo, **«♡ Add to my wants»** la añade a tus [wants](wants.md) (las cartas que quieres comprar); si ya está, puedes cambiar cuántas copias quieres o quitarla.
+
 > [!NOTE]
 > Este panel solo aparece cuando la carta está en la página de resultados que tienes abierta. Si la abres desde un enlace o desde la fila de impresiones y no está en esa página, no sale. Búscala y ábrela desde los resultados.
 

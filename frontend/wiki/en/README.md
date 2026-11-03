@@ -20,6 +20,7 @@ User guide and technical documentation. These same articles are shown on the sit
 
 ## 🗂️ Collection & decks
 - [My collection](mi-coleccion.md): copies, locations, fakes and value.
+- [Wants](wants.md): the cards you want to buy.
 - [Locations](ubicaciones.md): decks, binders and boxes.
 - [Decks](mazos.md): Leader, versions, side deck, matches, stats and archive.
 - [Import, export and collection backup](importar-exportar.md): CSV and JSON.

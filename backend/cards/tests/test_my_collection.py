@@ -141,7 +141,7 @@ class MyCollectionTests(TestCase):
             {"id": 4, "number": "BT1-001", "name": "Champa", "qty": 2, "location": "Unsorted"},
         ])
         # cabecera + una línea por ubicación y por carta + cierres
-        self.assertEqual(len(response.content.decode().splitlines()), len(doc["locations"]) + len(doc["cards"]) + 5)
+        self.assertEqual(len(response.content.decode().splitlines()), len(doc["locations"]) + len(doc["cards"]) + 6)  # + "wants": []
 
     def test_adjust(self):
         data = self.post("adjust/", {"card_id": 4, "delta": 1}).data

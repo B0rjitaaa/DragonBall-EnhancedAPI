@@ -1,5 +1,5 @@
 // Menú común a todas las páginas: arriba en el ordenador; en el móvil, barra de pestañas abajo
-// (Search, Collection, Locations, Scanner y «More» con Prices, News y Wiki).
+// (Search, Collection, Locations, Scanner y «More» con Wants, Prices, News y Wiki).
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { newsSeenAt } from '../lib/news'
@@ -8,7 +8,7 @@ import type { Page } from '../lib/routes'
 export type { Page }
 
 // Las de «More» en el móvil.
-const MORE: Page[] = ['prices', 'news', 'wiki']
+const MORE: Page[] = ['wants', 'prices', 'news', 'wiki']
 
 export default function SiteNav({ active }: { active: Page }) {
   // Novedades desde tu última visita a esa página (aviso discreto junto al enlace).
@@ -54,6 +54,7 @@ export default function SiteNav({ active }: { active: Page }) {
         {link('search', '/', 'Search', '🔎')}
         {link('collection', '/collection', 'My collection', '🗂️', '', 'Collection')}
         {link('locations', '/locations', 'Locations', '📦')}
+        {link('wants', '/wants', 'Wants', '♥', 'nav-more-item')}
         {link('prices', '/prices', 'Prices', '💶', 'nav-more-item')}
         {link('news', '/news', 'News', '🆕', 'nav-more-item')}
         {link('wiki', '/wiki', 'Wiki', '📖', 'nav-more-item')}
@@ -76,6 +77,7 @@ export default function SiteNav({ active }: { active: Page }) {
         <>
           <div className="nav-more-backdrop" onClick={() => setMoreOpen(false)} aria-hidden />
           <div className="nav-more-sheet" role="menu">
+            {link('wants', '/wants', 'Wants', '♥')}
             {link('prices', '/prices', 'Prices', '💶')}
             {link('news', '/news', 'News', '🆕')}
             {link('wiki', '/wiki', 'Wiki', '📖')}

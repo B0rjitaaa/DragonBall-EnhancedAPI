@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from collections import defaultdict
 
 from django.core.cache import cache
 from django.db.models import Count, F, Q, QuerySet, Sum
@@ -644,15 +645,21 @@ class MyCollectionBackupView(APIView):
     """Descarga la colección como JSON (botón "Descargar copia" de Mi colección)."""
 
     def get(self, request):
+        from collection.models import Want
+
         entries, locations = fetch_export(), LocationSerializer.listing()
+        wants = [{"bandai_id": card_id, "card_number": number, "name": name, "quantity": qty}
+                 for card_id, number, name, qty in Want.objects.values_list("card_id", "card__card_number", "card__name", "quantity")]
         now = timezone.localtime()
-        doc = backup_document(entries, now.isoformat(timespec="seconds"), locations)
+        doc = backup_document(entries, now.isoformat(timespec="seconds"), locations, wants)
         # Una ubicación y una carta por línea: ocupa poco y se puede leer o comparar a simple vista.
         def block(items):
             return ",\n".join(json.dumps(i, ensure_ascii=False, separators=(",", ":")) for i in items)
 
-        head = json.dumps({k: v for k, v in doc.items() if k not in ("locations", "cards")}, ensure_ascii=False)[:-1]
-        body = f'{head},\n"locations": [\n{block(doc["locations"])}\n],\n"cards": [\n{block(doc["cards"])}\n]}}\n'
+        head = json.dumps({k: v for k, v in doc.items() if k not in ("locations", "cards", "wants")}, ensure_ascii=False)[:-1]
+        wants = f'[\n{block(doc["wants"])}\n]' if doc["wants"] else "[]"
+        body = (f'{head},\n"locations": [\n{block(doc["locations"])}\n],\n"cards": [\n{block(doc["cards"])}\n],\n'
+                f'"wants": {wants}}}\n')
         response = HttpResponse(body, content_type="application/json; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="my-collection-{now:%Y-%m-%d}.json"'
         return response
@@ -719,6 +726,96 @@ def card_thumb(request, card_id: int, version: str):
     response = FileResponse(open(path, "rb"), content_type="image/webp")
     response["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
+
+
+class WantIdsView(APIView):
+    """Las cartas que quiero comprar: {id de carta: copias} (para marcarlas en el buscador y en la ficha)."""
+
+    def get(self, request):
+        from collection.models import Want
+
+        return Response({"wants": dict(Want.objects.values_list("card_id", "quantity"))})
+
+
+class WantsPdfView(APIView):
+    """Mis wants en PDF (para pasarlas por WhatsApp). ?q= filtra por nombre o número y ?sort= recent | number | price,
+    como en la página Wants."""
+
+    def get(self, request):
+        from collection import wants_pdf
+        from collection.models import Want
+        from prices.services import PRICE_RELATED, card_price
+
+        q = (request.query_params.get("q") or "").strip().lower()
+        sort = request.query_params.get("sort") or "recent"
+        rows = []
+        for w in Want.objects.select_related("card", *(f"card__{r}" for r in PRICE_RELATED)).order_by("-created_at", "card_id"):
+            card = w.card
+            if q and q not in f"{card.name} {card.card_number}".lower():
+                continue
+            price = card_price(card)
+            rows.append({"card": card, "quantity": w.quantity, "eur": price["eur"] if price else None})
+        if sort == "number":
+            rows.sort(key=lambda r: wants_pdf.natural(r["card"].card_number))
+        elif sort == "price":
+            rows.sort(key=lambda r: -(r["eur"] if r["eur"] is not None else -1))
+        now = timezone.localtime()
+        response = HttpResponse(wants_pdf.render(rows), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="my-wants-{now:%Y-%m-%d}.pdf"'
+        return response
+
+
+class WantsView(APIView):
+    """Mis wants (cartas que quiero comprar). GET: la lista, con lo que tengo de cada una y el precio aproximado.
+    POST {bandai_id, quantity}: cuántas copias quiero (0 la quita)."""
+
+    def get(self, request):
+        from collection.models import CollectionEntry, Want
+
+        from .serializers import CardListSerializer
+
+        wants = list(Want.objects.select_related("card").order_by("-created_at", "card_id"))
+        numbers = {w.card.card_number for w in wants}
+        owned, owned_number = defaultdict(int), defaultdict(int)
+        for card_id, number, qty in CollectionEntry.objects.filter(card__card_number__in=numbers, fake=False).values_list(
+            "card_id", "card__card_number", "quantity"
+        ):
+            owned[card_id] += qty
+            owned_number[number] += qty
+        catalog = {c["id"]: c for c in CardListSerializer([w.card for w in wants], many=True).data}
+        rows = []
+        for w in wants:
+            price = (catalog[w.card_id].get("price") or {}).get("eur")
+            rows.append({
+                "bandai_id": w.card_id, "quantity": w.quantity, "added_at": w.created_at,
+                # Copias auténticas que ya tengo de esta impresión y de otras impresiones de la carta.
+                "owned": owned[w.card_id], "owned_other_prints": owned_number[w.card.card_number] - owned[w.card_id],
+                "cost": round(price * w.quantity, 2) if price is not None else None,
+            })
+        return Response({
+            "wants": rows,
+            "copies": sum(r["quantity"] for r in rows),
+            "cost": round(sum(r["cost"] or 0 for r in rows), 2),
+            "without_price": sum(1 for r in rows if r["cost"] is None),
+            "catalog": catalog,
+        })
+
+    def post(self, request):
+        from collection.models import Want
+
+        try:
+            card_id, quantity = int(request.data.get("bandai_id")), int(request.data.get("quantity"))
+        except (TypeError, ValueError):
+            return Response({"detail": "Say which card and how many copies"}, status=status.HTTP_400_BAD_REQUEST)
+        if not 0 <= quantity <= 99:
+            return Response({"detail": "Between 0 and 99 copies"}, status=status.HTTP_400_BAD_REQUEST)
+        if not Card.objects.filter(id=card_id).exists():
+            return Response({"detail": "Unknown card"}, status=status.HTTP_404_NOT_FOUND)
+        if quantity == 0:
+            Want.objects.filter(card_id=card_id).delete()
+        else:
+            Want.objects.update_or_create(card_id=card_id, defaults={"quantity": quantity})
+        return Response({"bandai_id": card_id, "quantity": quantity})
 
 
 class BinderView(APIView):

@@ -63,6 +63,7 @@ Descarga `my-collection-AAAA-MM-DD.csv`, pensado para abrirlo directamente en **
 Descarga `my-collection-AAAA-MM-DD.json` con:
 - **todas tus ubicaciones**, también las vacías, con su tipo, copias, falsas y notas (y, en los archivadores, sus bolsillos por página);
 - **cada carta en cada ubicación**: id, número, nombre, cantidad, falsa y notas;
+- tus [wants](wants.md): cada carta y cuántas copias quieres;
 - los totales: cartas, copias y falsas.
 
 Está escrito con una línea por ubicación y otra por carta, así que también se lee bien con un editor de texto.

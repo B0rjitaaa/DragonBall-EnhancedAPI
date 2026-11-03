@@ -11,6 +11,7 @@ Casi todo lo que ves en la web tiene **su propia dirección**: una búsqueda, un
 | `/collection/location/<id>` | «My collection» dentro de una ubicación (caja, archivador…) |
 | `/collection/deck/<id>` | Un [mazo](mazos.md) |
 | `/locations` | [«Locations»](ubicaciones.md) |
+| `/wants` | [«Wants»](wants.md) |
 | `/prices` | [«Prices»](pagina-precios.md) |
 | `/news` | [«News»](novedades.md) |
 | `/scan` | [«Scanner»](escaner.md) |

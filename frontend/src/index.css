@@ -2099,3 +2099,45 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 @keyframes sheet-wait { from { opacity: 0.3; } to { opacity: 0.6; } }
 @media (prefers-reduced-motion: reduce) { .binder-sheet.loading .sheet-grid { animation: none; } }
 .tray-more { margin-top: 0.6rem; }
+/* Wants: el corazón de cada carta en el buscador (arriba a la derecha, fuera del botón de la carta) */
+.grid > li { position: relative; }
+.want-toggle {
+  position: absolute; top: 6px; right: 6px; z-index: 3; display: inline-flex; align-items: center; gap: 0.15rem;
+  min-width: 2rem; height: 2rem; padding: 0 0.45rem; justify-content: center; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(10, 12, 18, 0.72); color: #fff;
+  font-size: 1.05rem; line-height: 1; cursor: pointer; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.want-toggle:hover:not(:disabled) { transform: scale(1.08); background: rgba(10, 12, 18, 0.9); }
+.want-toggle.on { color: #ff5d8f; border-color: rgba(255, 93, 143, 0.6); }
+.want-toggle small { font-size: 0.72rem; font-weight: 800; color: #fff; }
+.want-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Con el corazón arriba a la derecha, la etiqueta «2 sides» baja un poco */
+.grid.with-wants .badge { top: 44px; }
+
+/* Wants: el panel de la ficha, debajo de «Add to My collection» */
+.want-panel { margin-top: 0.6rem; padding: 0.55rem 0.8rem; border-radius: var(--radius); background: var(--bg-3); border: 1px dashed var(--line); }
+.want-panel.on { border: 1px solid rgba(255, 93, 143, 0.55); }
+.want-add { width: 100%; }
+.want-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.want-row > span:first-child { flex: 1; color: #ff8fb1; font-weight: 600; }
+.want-row a { color: inherit; }
+
+/* Página Wants */
+.wants-page { max-width: 1200px; margin: 0 auto; padding: 1.2rem max(16px, env(safe-area-inset-right, 0px)) 2rem max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 1rem; }
+.wants-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 0.8rem; }
+.wants-head h1 { margin: 0 0 0.2rem; }
+.wants-head p { margin: 0; max-width: 60ch; }
+.wants-total { margin: 0; font-size: 1rem; }
+.wants-total strong { color: var(--accent); }
+.wants-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.want-card { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 0.75rem; padding: 0.6rem; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg-2); }
+.want-img { padding: 0; border: 0; background: none; cursor: pointer; }
+.want-img img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 6px; display: block; background: var(--bg-3); }
+.want-img:hover img { outline: 2px solid var(--accent); outline-offset: 2px; }
+.want-body { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.want-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.want-owned { color: var(--c-green, #4cc38a); }
+.want-controls { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: auto; }
+.wants-tools { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.wants-tools .input { flex: 1 1 18rem; min-width: 0; }

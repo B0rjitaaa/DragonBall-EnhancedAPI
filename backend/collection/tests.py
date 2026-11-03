@@ -433,3 +433,77 @@ class BinderViewTests(TestCase):
         data = self.client.get(self.url).data
         self.assertIn({"bandai_id": 2, "fake": False, "quantity": 1}, data["unplaced"])
         self.assertEqual(self.client.get("/api/my-collection/binders/999/").status_code, 404)
+
+
+class WantsTests(TestCase):
+    """Wants: cartas que quiero comprar (la impresión exacta, con cuántas copias)."""
+
+    def setUp(self):
+        from collection.models import CollectionEntry, Location
+
+        self.client = APIClient()
+        self.a = Card.objects.create(id=1, card_number="BT1-001", name="Goku")
+        self.a_alt = Card.objects.create(id=2, card_number="BT1-001", name="Goku")  # otra impresión
+        self.b = Card.objects.create(id=3, card_number="BT1-002", name="Vegeta")
+        CollectionEntry.objects.create(card=self.a_alt, location=Location.default(), quantity=2)
+
+    def set(self, card_id, quantity):
+        return self.client.post("/api/my-collection/wants/", {"bandai_id": card_id, "quantity": quantity}, format="json")
+
+    def test_add_change_and_remove(self):
+        self.assertEqual(self.set(1, 1).data, {"bandai_id": 1, "quantity": 1})
+        self.set(3, 4)
+        self.set(1, 3)
+        self.assertEqual(self.client.get("/api/my-collection/wants/ids/").data["wants"], {1: 3, 3: 4})
+        data = self.client.get("/api/my-collection/wants/").data
+        row = next(r for r in data["wants"] if r["bandai_id"] == 1)
+        self.assertEqual((row["quantity"], row["owned"], row["owned_other_prints"]), (3, 0, 2))
+        self.assertEqual((data["copies"], sorted(data["catalog"])), (7, [1, 3]))
+        self.set(1, 0)
+        self.assertEqual(self.client.get("/api/my-collection/wants/ids/").data["wants"], {3: 4})
+        self.assertEqual(self.set(999, 1).status_code, 404)
+        self.assertEqual(self.set(3, 100).status_code, 400)
+
+    def test_adding_copies_does_not_touch_the_want(self):
+        from collection.models import Location
+
+        self.set(1, 2)
+        self.client.post("/api/my-collection/adjust/", {"card_id": 1, "delta": 1, "location": Location.default().id}, format="json")
+        self.assertEqual(self.client.get("/api/my-collection/wants/ids/").data["wants"], {1: 2})
+
+    def test_pdf_follows_the_search_and_order(self):
+        from unittest import mock
+
+        self.set(1, 2)
+        self.set(3, 1)
+        with mock.patch("collection.wants_pdf.render", return_value=b"%PDF-test") as render:
+            response = self.client.get("/api/my-collection/wants/pdf/?q=vegeta&sort=number")
+        self.assertEqual((response.status_code, response["Content-Type"], response.content), (200, "application/pdf", b"%PDF-test"))
+        self.assertIn("my-wants-", response["Content-Disposition"])
+        self.assertEqual([(r["card"].id, r["quantity"]) for r in render.call_args.args[0]], [(3, 1)])
+
+    def test_pdf_pages(self):
+        from collection import wants_pdf
+
+        rows = [{"card": self.b, "quantity": 2, "eur": 1.5}] * 13  # 12 por hoja: 2 hojas (sin imagen: el hueco)
+        self.assertEqual(len(wants_pdf.draw_pages(rows)), 2)
+        self.assertTrue(wants_pdf.render(rows[:1]).startswith(b"%PDF"))
+
+    def test_wants_go_in_the_backup_and_come_back(self):
+        import json
+
+        from collection.models import Want
+
+        self.set(3, 2)
+        backup = json.loads(self.client.get("/api/my-collection/backup/").content)
+        self.assertEqual(backup["wants"], [{"id": 3, "number": "BT1-002", "name": "Vegeta", "qty": 2}])
+        self.set(3, 0)
+        self.set(1, 1)
+        preview = self.client.post("/api/my-collection/restore/", {"backup": backup}, format="json").data
+        self.assertEqual(preview["wants"], {"before": 1, "after": 1})
+        self.client.post("/api/my-collection/restore/", {"backup": backup, "apply": True}, format="json")
+        self.assertEqual(dict(Want.objects.values_list("card_id", "quantity")), {3: 2})
+        # Una copia de antes de las wants no las toca.
+        del backup["wants"]
+        self.client.post("/api/my-collection/restore/", {"backup": backup, "apply": True}, format="json")
+        self.assertEqual(dict(Want.objects.values_list("card_id", "quantity")), {3: 2})

@@ -36,6 +36,8 @@ Under the image is the panel with **your copies** of that card. It says **Not in
 
 **Add to My collection in [location] → Add** adds a genuine copy in a location where you don't have that card yet. It suggests the last location you used in this browser, or **Unsorted**.
 
+Below it, **♡ Add to my wants** adds it to your [wants](wants.md) (the cards you want to buy); if it's already there, you can change how many copies you want or remove it.
+
 > [!NOTE]
 > This panel only appears when the card is on the results page you have open. If you open it from a link or from the printings row and it isn't on that page, it doesn't show. Search for it and open it from the results.
 

@@ -21,6 +21,7 @@ Guía de uso y documentación técnica. Estos mismos artículos se ven en la web
 ## 🗂️ Colección y mazos
 - [Mi colección](mi-coleccion.md): copias, ubicaciones, falsas y valor.
 - [Ubicaciones](ubicaciones.md): mazos, archivadores y cajas.
+- [Wants](wants.md): las cartas que quieres comprar.
 - [Mazos](mazos.md): Leader, versiones, side deck, partidas, estadísticas e histórico.
 - [Importar, exportar y copia de la colección](importar-exportar.md): CSV y JSON.
 

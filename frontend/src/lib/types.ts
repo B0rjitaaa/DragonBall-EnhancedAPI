@@ -637,3 +637,22 @@ export function groupNotes(lines: string[]): string[] {
   for (const l of lines) counts.set(l, (counts.get(l) ?? 0) + 1)
   return [...counts].map(([l, n]) => (n > 1 ? `${l} ×${n}` : l))
 }
+
+/** Mis wants (cartas que quiero comprar), con lo que ya tengo de cada una y su precio aproximado. */
+export interface WantsData {
+  wants: {
+    bandai_id: number
+    quantity: number
+    added_at: string
+    /** Copias auténticas que ya tengo de esta impresión. */
+    owned: number
+    /** Y de otras impresiones de la misma carta. */
+    owned_other_prints: number
+    /** Precio aproximado × copias (null sin precio). */
+    cost: number | null
+  }[]
+  copies: number
+  cost: number
+  without_price: number
+  catalog: Record<number, CardSummary>
+}

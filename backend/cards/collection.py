@@ -201,9 +201,10 @@ def reorder_owned(location: int, card_ids: list[int]) -> None:
         services.reorder_location(_location(location), card_ids)
 
 
-def backup_document(entries: list[dict], exported_at: str, locations: list[dict] | None = None) -> dict:
-    """Copia de seguridad de la colección: sus ubicaciones (también las vacías) y
-    una fila por carta y ubicación, sin nada que sobre."""
+def backup_document(entries: list[dict], exported_at: str, locations: list[dict] | None = None,
+                    wants: list[dict] | None = None) -> dict:
+    """Copia de seguridad de la colección: sus ubicaciones (también las vacías), una fila por carta y
+    ubicación, sin nada que sobre, y las wants (cartas que quiero comprar)."""
     rows = sorted(entries, key=lambda e: (e["card_number"], e["bandai_id"], e.get("location", ""), bool(e.get("fake"))))
     cards = []
     for e in rows:
@@ -234,4 +235,6 @@ def backup_document(entries: list[dict], exported_at: str, locations: list[dict]
         "total_fakes": sum(e["quantity"] for e in rows if e.get("fake")),
         "locations": places,
         "cards": cards,
+        "wants": [{"id": w["bandai_id"], "number": w["card_number"], "name": w["name"], "qty": w["quantity"]}
+                  for w in sorted(wants or [], key=lambda w: (w["card_number"], w["bandai_id"]))],
     }

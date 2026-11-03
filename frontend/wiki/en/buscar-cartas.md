@@ -132,6 +132,7 @@ Each card in the grid shows:
   - **SC ≤4**: 4 [Super Combo] cards max.
   - **DB ≤7**: 7 [Dragon Ball] cards max.
 - **2 sides** on double-sided cards.
+- **♡** in the top right corner: adds the card to your [wants](wants.md); **♥** if it's already there (with the number of copies if you want more than one).
 - **×N** if you have genuine copies of that card.
 - **BAN** or **LIMIT 1** if it's on the ban list. Banned cards are greyed out. Hover to see since when.
 - **✎** if it has an official erratum, and **?N** if it has N official questions (Q&A).

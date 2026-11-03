@@ -11,6 +11,7 @@ Almost everything you see on the site has **its own address**: a search, a card,
 | `/collection/location/<id>` | My collection inside a location (box, binder…) |
 | `/collection/deck/<id>` | A [deck](mazos.md) |
 | `/locations` | [Locations](ubicaciones.md) |
+| `/wants` | [Wants](wants.md) |
 | `/prices` | [Prices](pagina-precios.md) |
 | `/news` | [News](novedades.md) |
 | `/scan` | [Scanner](escaner.md) |

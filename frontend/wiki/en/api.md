@@ -80,6 +80,10 @@ Everything the web app does goes through a **JSON REST API**, and you can use it
 | `POST /api/my-collection/move/` | `{card_id, source, target, quantity, source_fake?, target_fake?, note_line?}`: moves copies. |
 | `POST /api/my-collection/note/` | Changes the note of a card's copies in a location. |
 | `POST /api/my-collection/reorder/` | A location's **My order** (from 1 to 500 ids). |
+| `GET /api/my-collection/wants/` | Your [wants](wants.md): each card with its copies, what you already have of it and its approximate cost, plus the totals. |
+| `GET /api/my-collection/wants/ids/` | `{wants: {card id: copies}}` (to mark them in Search). |
+| `GET /api/my-collection/wants/pdf/?q=&sort=recent\|number\|price` | Your wants as a PDF (A4, 12 cards per sheet). |
+| `POST /api/my-collection/wants/` | `{bandai_id, quantity}`: how many copies of that card you want (0 removes it). |
 | `GET /api/my-collection/csv/` · `GET /api/my-collection/backup/` | Downloads in [CSV and JSON](importar-exportar.md). |
 | `POST /api/my-collection/import/` | `{csv, apply}`: without `apply` it returns the preview; with `apply: true` it adds the copies. |
 | `POST /api/my-collection/restore/` | `{backup, apply}`: restores the JSON backup **replacing** the collection. Without `apply`, the preview (before/after, changes per location and card, new or empty locations); with `apply: true`, it applies it all at once. |

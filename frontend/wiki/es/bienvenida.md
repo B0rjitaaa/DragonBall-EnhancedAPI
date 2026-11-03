@@ -19,6 +19,7 @@ El menú de arriba es el mismo en todas las páginas:
 | «Search» (buscador) | Todo el catálogo (más de 9.000 impresiones), con búsqueda por texto, filtros por cualquier atributo y un modo avanzado con «AND» / «OR» / «NOT». | [Buscar cartas](buscar-cartas.md) |
 | «My collection» (mi colección) | Lo mismo que «Search», pero solo con tus cartas: copias, ubicaciones, falsas y el valor de todo. | [Mi colección](mi-coleccion.md) |
 | «Locations» (ubicaciones) | Tus mazos, archivadores y cajas, con su valor, su Leader y su histórico. | [Ubicaciones](ubicaciones.md) |
+| «Wants» | Las cartas que quieres comprar, con cuántas copias y lo que costarían. | [Wants](wants.md) |
 | «Prices» (precios) | Cuánto vale tu colección, cómo evoluciona y qué cartas suben y bajan. | [La página «Prices»](pagina-precios.md) |
 | «News» (novedades) | Cartas nuevas, cambios de texto, ban list, erratas y preguntas oficiales. | [Novedades](novedades.md) |
 | «Wiki» | Esta guía. | — |

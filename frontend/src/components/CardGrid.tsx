@@ -6,6 +6,7 @@ import { colorClass } from '../lib/colors'
 import type { SkillIndex } from '../lib/skills'
 import type { CardSummary } from '../lib/types'
 import { cardThumb } from '../lib/types'
+import { WantToggle } from './Wants'
 
 // Etiqueta corta en el listado para las keyword skills que limitan la construcción del mazo
 const DECK_BADGES: Record<string, string> = { Ultimate: '1 COPY', 'Super Combo': 'SC ≤4', 'Dragon Ball': 'DB ≤7' }
@@ -26,6 +27,8 @@ interface Props {
   emptyText?: string
   /** Mi colección dentro de una ubicación, en «Mi orden»: arrastrar para reordenar (ids en el nuevo orden). */
   onReorder?: (ids: number[]) => void
+  /** Buscador: el corazón de cada carta para añadirla a mis wants. */
+  wantable?: boolean
 }
 
 /** Una tarjeta arrastrable (el arrastre empieza tras mover unos píxeles o mantener pulsado en el móvil). */
@@ -46,7 +49,7 @@ function SortableTile({ id, children }: { id: number; children: ReactNode }) {
 }
 
 export default function CardGrid({
-  cards, loading, skills, onOpen, quantities, emptyText, onAdjust, adjusting, showFakes = true, onReorder,
+  cards, loading, skills, onOpen, quantities, emptyText, onAdjust, adjusting, showFakes = true, onReorder, wantable,
 }: Props) {
   // Ratón: tras 6 px (un clic sigue abriendo la ficha). Táctil: mantener pulsado 250 ms (el desplazamiento sigue funcionando).
   const sensors = useSensors(
@@ -135,6 +138,7 @@ export default function CardGrid({
               )}
             </div>
           </button>
+          {wantable && <WantToggle id={c.id} name={c.name} />}
           {onAdjust && quantities?.[c.id] != null && (
             // Fuera del botón de la carta: pulsar − / + no abre la ficha.
             <div className="qty-controls" aria-label={`Copies of ${c.name}`}>
@@ -185,7 +189,7 @@ export default function CardGrid({
   }
 
   return (
-    <ul className={`grid ${loading ? 'loading' : ''}`}>
+    <ul className={`grid ${loading ? 'loading' : ''} ${wantable ? 'with-wants' : ''}`}>
       {cards.map((c) => (
         <li key={c.id}>{tile(c)}</li>
       ))}

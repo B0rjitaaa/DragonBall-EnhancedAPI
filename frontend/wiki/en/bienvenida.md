@@ -19,6 +19,7 @@ The top menu is the same on every page:
 | **Search** | The whole catalogue (over 9,000 printings), with text search, filters on any attribute and an advanced mode with AND / OR / NOT. | [Searching for cards](buscar-cartas.md) |
 | **My collection** | The same as Search, but only with your cards: copies, locations, fakes and what it's all worth. | [My collection](mi-coleccion.md) |
 | **Locations** | Your decks, binders and boxes, with their value, their Leader and their archive. | [Locations](ubicaciones.md) |
+| **Wants** | The cards you want to buy, with how many copies and what they'd cost. | [Wants](wants.md) |
 | **Prices** | What your collection is worth, how it changes over time and which cards are going up or down. | [The “Prices” page](pagina-precios.md) |
 | **News** | New cards, text changes, ban list, errata and official questions. | [News](novedades.md) |
 | **Wiki** | This guide. | — |

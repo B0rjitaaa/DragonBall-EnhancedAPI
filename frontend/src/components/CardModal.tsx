@@ -7,6 +7,7 @@ import PriceChart from './PriceChart'
 import type { SkillIndex } from '../lib/skills'
 import type { CardDetail, CardPrice } from '../lib/types'
 import CardText, { errataText } from './CardText'
+import { WantPanel } from './Wants'
 
 interface Props {
   id: number
@@ -161,7 +162,10 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
                   </section>
                 )}
               </div>
-              {children && <div className="cd-owned">{children}</div>}
+              <div className="cd-owned">
+                {children}
+                <WantPanel id={card.id} />
+              </div>
               {card.price && (
                 <div className="cd-price">
                   <PriceBox price={card.price} />

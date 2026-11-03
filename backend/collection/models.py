@@ -119,3 +119,20 @@ class CollectionEntry(models.Model):
             same = siblings.filter(card_id=self.card_id).values_list("position", flat=True).first()
             self.position = same or (siblings.aggregate(m=models.Max("position"))["m"] or 0) + 1
         super().save(*args, **kwargs)
+
+
+class Want(models.Model):
+    """Una carta que no tengo (o de la que quiero más copias) y quiero comprar: la impresión exacta.
+
+    No cambia sola al añadir copias a la colección: se quita a mano."""
+
+    card = models.OneToOneField(Card, on_delete=models.PROTECT, related_name="want")
+    quantity = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(99)])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["card__card_number", "card_id"]
+
+    def __str__(self):
+        return f"want {self.quantity}x {self.card}"

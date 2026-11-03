@@ -1,5 +1,5 @@
 import type {
-  BinderData, BinderSpot, BinderView, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
+  BinderData, BinderSpot, BinderView, WantsData, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
 
@@ -132,6 +132,13 @@ export const api = {
       '/my-collection/restore/', post({ backup, apply: true }),
     ),
   locations: () => request<Location[]>('/my-collection/locations/'),
+  /** Wants (cartas que quiero comprar). */
+  wantIds: () => request<{ wants: Record<number, number> }>('/my-collection/wants/ids/'),
+  wants: () => request<WantsData>('/my-collection/wants/'),
+  /** Las wants en PDF (con la búsqueda y el orden de la página). */
+  wantsPdfUrl: (q: string, sort: string) => `${BASE}/my-collection/wants/pdf/?${new URLSearchParams({ q, sort })}`,
+  setWant: (id: number, quantity: number) =>
+    request<{ bandai_id: number; quantity: number }>('/my-collection/wants/', post({ bandai_id: id, quantity })),
   createLocation: (name: string, kind: LocationKind, position = 0, extra: Partial<Pick<Location, 'binder_rows' | 'binder_cols'>> = {}) =>
     request<Location>('/my-collection/locations/', post({ name, kind, position, ...extra })),
   updateLocation: (

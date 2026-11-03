@@ -21,7 +21,7 @@ from django.db.models import Max
 from cards.models import Card
 from decks.models import SideCard
 
-from .models import BINDER_MAX_SIDE, OLD_DEFAULT_LOCATION_NAME, CollectionEntry, Location
+from .models import BINDER_MAX_SIDE, OLD_DEFAULT_LOCATION_NAME, CollectionEntry, Location, Want
 
 FORMAT = "dbs-collection"
 KINDS = {"deck": Location.Kind.DECK, "binder": Location.Kind.BINDER, "storage": Location.Kind.STORAGE,
@@ -118,6 +118,23 @@ def _current() -> dict:
     }
 
 
+def _wants(doc: dict) -> dict[int, int] | None:
+    """Las wants de la copia ({id de carta: copias}), o None si la copia no las trae (es anterior a las wants)."""
+    raw = doc.get("wants") if isinstance(doc, dict) else None
+    if not isinstance(raw, list):
+        return None
+    out: dict[int, int] = {}
+    for row in raw:
+        try:
+            card_id, qty = int(row["id"]), int(row.get("qty", 1))
+        except (TypeError, ValueError, KeyError):
+            continue
+        if 1 <= qty <= 99:
+            out[card_id] = qty
+    known = set(Card.objects.filter(id__in=out).values_list("id", flat=True))
+    return {k: v for k, v in out.items() if k in known}
+
+
 def preview(doc: dict) -> dict:
     plan = _plan(doc)
     now = _current()
@@ -151,6 +168,8 @@ def preview(doc: dict) -> dict:
         "changes": changes[:MAX_CHANGES],
         "changes_total": len(changes),
         "skipped": plan.skipped,
+        # Las wants se sustituyen por las de la copia (si la copia no las trae, se quedan las de ahora).
+        "wants": None if (wants := _wants(doc)) is None else {"before": Want.objects.count(), "after": len(wants)},
     }
 
 
@@ -189,5 +208,9 @@ def apply(doc: dict) -> dict:
             elif side.quantity > have:
                 side.quantity = have
                 side.save(update_fields=["quantity"])
+        wants = _wants(doc)
+        if wants is not None:
+            Want.objects.all().delete()
+            Want.objects.bulk_create(Want(card_id=k, quantity=v) for k, v in wants.items())
     return {"copies": sum(e.quantity for e in rows), "rows": len(rows), "created_locations": len(plan.create),
             "skipped": len(plan.skipped)}

@@ -132,6 +132,7 @@ Cada carta de la rejilla muestra:
   - **SC ≤4**: máximo 4 cartas [Super Combo].
   - **DB ≤7**: máximo 7 cartas [Dragon Ball].
 - **«2 sides»** en las cartas de doble cara.
+- **♡** arriba a la derecha: añade la carta a tus [wants](wants.md); **♥** si ya está (con el número de copias si quieres más de una).
 - **×N** si tienes copias auténticas de esa carta.
 - **BAN** o **LIMIT 1** si está en la ban list. Las Banned salen en gris. Pasa el ratón para ver desde cuándo.
 - **✎** si tiene errata oficial, y **?N** si tiene N preguntas oficiales (Q&A).

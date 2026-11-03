@@ -80,6 +80,10 @@ Todo lo que hace la web pasa por una **API REST en JSON**, y se puede usar direc
 | `POST /api/my-collection/move/` | `{card_id, source, target, quantity, source_fake?, target_fake?, note_line?}`: mueve copias. |
 | `POST /api/my-collection/note/` | Cambia la nota de las copias de una carta en una ubicación. |
 | `POST /api/my-collection/reorder/` | «My order» (mi orden) de una ubicación (de 1 a 500 ids). |
+| `GET /api/my-collection/wants/` | Las [wants](wants.md): cada carta con sus copias, lo que ya tienes de ella y su coste aproximado, y los totales. |
+| `GET /api/my-collection/wants/ids/` | `{wants: {id de carta: copias}}` (para marcarlas en el buscador). |
+| `GET /api/my-collection/wants/pdf/?q=&sort=recent\|number\|price` | Las wants en PDF (A4, 12 cartas por hoja). |
+| `POST /api/my-collection/wants/` | `{bandai_id, quantity}`: cuántas copias quieres de esa carta (0 la quita). |
 | `GET /api/my-collection/csv/` · `GET /api/my-collection/backup/` | Descargas en [CSV y JSON](importar-exportar.md). |
 | `POST /api/my-collection/import/` | `{csv, apply}`: sin `apply` devuelve la vista previa; con `apply: true` suma las copias. |
 | `POST /api/my-collection/restore/` | `{backup, apply}`: restaura la copia JSON **sustituyendo** la colección. Sin `apply`, la vista previa (antes/después, cambios por ubicación y carta, ubicaciones nuevas o vacías); con `apply: true`, lo aplica de una vez. |
