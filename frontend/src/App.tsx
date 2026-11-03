@@ -677,6 +677,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
                 reloadLocations()
               }}
               cards={data?.results ?? []}
+              panelFilter={typedQ || query ? { q: typedQ, query } : null}
               loading={loading}
               onOpen={setOpenId}
               onReorder={canReorder ? reorder : undefined}

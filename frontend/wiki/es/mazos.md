@@ -114,6 +114,8 @@ Cada carta con problemas lleva una marca con el motivo.
 
 **Pulsa cualquier barra o color para filtrar la lista**: por ejemplo, ver solo las cartas de coste 2. Cada sección dice entonces «X of Y cards». **«✕ Clear filters»** vuelve a mostrarlo todo.
 
+El **buscador y los filtros del panel de la izquierda** (Keyword Skills, color, coste, texto…) también se aplican a las cartas del mazo, incluidas las que te faltan. Las estadísticas siguen siendo las del mazo entero.
+
 ### Exportar el mazo
 
 Debajo de la comprobación de reglas hay dos botones. Usan **la lista que estás viendo**: la principal (con los cambios sin guardar) o la versión guardada que hayas elegido.

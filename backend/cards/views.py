@@ -172,6 +172,8 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet):
         ordering = (data.get("ordering") or "number").strip()
         if scope is not None:
             qs = qs.filter(id__in=scope.card_ids())
+        if data.get("ids") is not None:
+            qs = qs.filter(id__in=data["ids"])
         if scope is not None and ordering.lstrip("-") == "quantity":
             # Por copias (solo en Mi colección); desempate por número de carta.
             natural = apply_ordering(qs, "number").query.order_by

@@ -153,6 +153,8 @@ class SearchRequestSerializer(serializers.Serializer):
     include_fakes = serializers.BooleanField(required=False, allow_null=True, default=None,
                                              help_text="With scope=collection: also count fake copies "
                                                        "(by default only genuine ones)")
+    ids = serializers.ListField(child=serializers.IntegerField(), required=False, max_length=500,
+                                help_text="Only these cards (e.g. the cards of a deck, to filter them)")
 
 
 class BanListEntrySerializer(serializers.ModelSerializer):

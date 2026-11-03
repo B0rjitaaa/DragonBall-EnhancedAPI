@@ -197,6 +197,13 @@ class ApiTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["count"], 1)
 
+    def test_search_only_these_ids(self):
+        # La vista de un mazo filtra solo sus cartas (también las que faltan en la colección).
+        r = self.client.post("/api/cards/search/", {"q": "barrier", "ids": [10]}, format="json")
+        self.assertEqual([c["id"] for c in r.json()["results"]], [10])
+        r = self.client.post("/api/cards/search/", {"q": "barrier", "ids": [999]}, format="json")
+        self.assertEqual(r.json()["count"], 0)
+
     def test_free_text_ignores_brackets(self):
         # El texto real es "[Barrier][Blocker] [Activate : Main/Battle] Draw 1."
         for q in ["barrier blocker", "Activate: Main/Battle draw", "[Blocker]", "son goku", "BT1-030"]:

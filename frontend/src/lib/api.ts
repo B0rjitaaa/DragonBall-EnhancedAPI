@@ -51,6 +51,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const post = (body: unknown) => ({ method: 'POST', body: JSON.stringify(body) })
 
 export interface SearchBody {
+  /** Solo estas cartas (p. ej. las de un mazo, para filtrarlas) */
+  ids?: number[]
   q?: string
   query?: unknown
   ordering?: string

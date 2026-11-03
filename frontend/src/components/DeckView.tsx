@@ -51,6 +51,8 @@ interface Props {
   onReorder?: (ids: number[]) => void
   /** Se han movido copias desde la vista del mazo (hacer principal una versión). */
   onCollectionChanged?: () => void
+  /** Búsqueda y filtros del panel de la izquierda: se aplican a las cartas del mazo (también las que faltan). */
+  panelFilter?: { q: string; query: unknown } | null
 }
 
 /** Controles de cada carta en la lista principal (que se está editando). */
@@ -97,7 +99,7 @@ function saveDraft(deckId: number, { draft, added, order }: DraftState) {
 }
 
 /** Vista de un mazo: líder, estadísticas, comprobación de reglas, cartas por secciones, listas y partidas. */
-export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCollectionChanged }: Props) {
+export default function DeckView({ deck, cards, panelFilter, loading, onOpen, onReorder, onCollectionChanged }: Props) {
   const [detail, setDetail] = useState<DeckDetail | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [loadedVersion, setLoadedVersion] = useState<DeckVersionDetail | null>(null)
@@ -353,13 +355,31 @@ export default function DeckView({ deck, cards, loading, onOpen, onReorder, onCo
 
   // Filtros desde las estadísticas (coste, tipo, color): se aplican a cada sección por separado.
   const [filter, setFilter] = useState<Filter>(NO_FILTER)
-  const filtering = filter.cost.length + filter.type.length + filter.color.length > 0
+  // Búsqueda y filtros del panel: qué cartas del mazo (caja, las que faltan y lo añadido) los cumplen.
+  const deckIds = useMemo(() => [...new Set([...pool, ...side].map((c) => c.id))].sort((a, b) => a - b), [pool, side])
+  const panelKey = panelFilter ? JSON.stringify({ ...panelFilter, ids: deckIds }) : ''
+  const [panelMatch, setPanelMatch] = useState<{ key: string; ids: Set<number> } | null>(null)
+  useEffect(() => {
+    if (!panelKey) return
+    const body = JSON.parse(panelKey) as { q: string; query: unknown; ids: number[] }
+    if (!body.ids.length) return
+    const ctrl = new AbortController()
+    api
+      .search({ ...body, page_size: 200 }, ctrl.signal)
+      .then((r) => setPanelMatch({ key: panelKey, ids: new Set(r.results.map((c) => c.id)) }))
+      .catch(() => undefined)
+    return () => ctrl.abort()
+  }, [panelKey])
+  // Mientras llega la respuesta se mantiene la anterior (sin parpadeos al cambiar un filtro).
+  const panelIds = panelFilter ? panelMatch?.ids ?? null : null
+  const filtering = filter.cost.length + filter.type.length + filter.color.length > 0 || panelIds != null
   const toggle = <K extends keyof Filter>(key: K, value: Filter[K][number]) =>
     setFilter((f) => {
       const list = f[key] as Filter[K][number][]
       return { ...f, [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] }
     })
   const passes = (c: CardSummary) =>
+    (!panelIds || panelIds.has(c.id)) &&
     (!filter.cost.length || filter.cost.includes(Math.min(c.energy ?? 0, 10))) &&
     (!filter.type.length || filter.type.includes(c.card_type)) &&
     (!filter.color.length || c.colors.some((col) => filter.color.includes(col)))

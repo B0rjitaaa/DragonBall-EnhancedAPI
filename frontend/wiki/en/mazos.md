@@ -114,6 +114,8 @@ Each card with a problem carries a mark with the reason.
 
 **Tap any bar or colour to filter the list**: for example, to see only the cards that cost 2. Each section then says “X of Y cards”. **✕ Clear filters** shows everything again.
 
+The **search box and the filters in the left panel** (Keyword Skills, colour, cost, text…) also apply to the deck's cards, including the ones you're missing. The stats still cover the whole deck.
+
 ### Exporting the deck
 
 Under the rules check there are two buttons. They take **the list you're looking at**: the main list (with any unsaved changes) or the saved version you picked.
