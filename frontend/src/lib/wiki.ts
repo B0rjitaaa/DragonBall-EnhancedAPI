@@ -133,8 +133,8 @@ export const WIKI_ARTICLES: WikiArticle[] = [
 
   { slug: 'herramientas', category: 'admin', icon: '🧰',
     title: { en: 'Tools', es: 'Herramientas (Tools)' },
-    excerpt: { en: 'Backups and CSV, system status, Bandai syncs and recent errors, in one page.', es: 'Copias y CSV, estado del sistema, sincronizaciones con Bandai y últimos errores, en una página.' },
-    keywords: 'tools herramientas copia backup csv restaurar importar estado salud health sync sincronizacion errores errors mantenimiento maintenance' },
+    excerpt: { en: 'Backups and CSV, system status, Bandai syncs and recent errors, in one page.', es: 'Copias y CSV, estado del sistema, sincronizar con Bandai y últimos errores, en una página.' },
+    keywords: 'tools herramientas copia backup csv restaurar importar estado salud health sync now sincronizar sincronizacion errores errors mantenimiento maintenance' },
   { slug: 'admin', category: 'admin', icon: '🛠️', cover: 'admin.jpg',
     title: { en: 'The Django admin', es: 'El admin de Django' },
     excerpt: { en: 'What is in /admin/ and what each section is for.', es: 'Qué hay en /admin/ y para qué sirve cada sección.' },

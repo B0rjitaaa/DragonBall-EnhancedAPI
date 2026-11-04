@@ -108,6 +108,6 @@ Se configuran en el `.env` de la raíz (hay un `.env.example` de plantilla). **L
 ## Seguridad
 
 - **Red:** la web está pensada para la **red de casa** y no está expuesta a Internet.
-- **API:** está **abierta**, también para escribir. Solo lanzar una sincronización (`POST /api/sync/`) exige ser administrador.
+- **API:** está **abierta**, también para escribir (también lanzar una sincronización, `POST /api/sync/`). Está pensada para usarla una sola persona en casa.
 - **Admin:** exige usuario y contraseña.
 - **Pendiente:** cuentas de usuario y endurecer el servidor (puertos de Postgres y del backend publicados, acceso SSH por clave). Hay que hacerlo antes de abrir la web fuera de casa.

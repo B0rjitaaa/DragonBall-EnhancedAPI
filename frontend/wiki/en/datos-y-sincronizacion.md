@@ -37,7 +37,8 @@ Details:
   docker compose exec backend python manage.py sync_cards --full   # full
   ```
 
-- **Through the API:** `POST /api/sync/ {"full": true}`, with an administrator session.
+- **From the web app:** in [Tools](herramientas.md), **↻ Sync new cards** (new ones only) or **Full sync…** (full, with a confirmation).
+- **Through the API:** `POST /api/sync/ {"full": true}`.
 
 ### From Bandai's JSON to the search fields
 

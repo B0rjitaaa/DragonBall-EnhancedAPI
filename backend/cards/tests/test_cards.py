@@ -259,5 +259,20 @@ class ApiTests(TestCase):
         keys = {f["key"] for f in self.client.get("/api/fields/").json()}
         self.assertTrue({"keyword", "energy", "special_trait"} <= keys)
 
-    def test_sync_requires_admin(self):
-        self.assertEqual(self.client.post("/api/sync/").status_code, 403)
+    def test_sync_now(self):
+        from unittest import mock
+
+        from django.core.cache import cache
+
+        from cards.tasks import LOCK_KEY
+
+        with mock.patch("cards.views.sync_cards.delay") as delay:
+            delay.return_value.id = "t1"
+            r = self.client.post("/api/sync/", {"full": True}, format="json")
+            self.assertEqual((r.status_code, r.json()["full"]), (202, True))
+            delay.assert_called_once_with(full=True)
+            # Con una en marcha no se lanza otra.
+            cache.set(LOCK_KEY, "1", 60)
+            self.addCleanup(cache.delete, LOCK_KEY)
+            self.assertEqual(self.client.post("/api/sync/").status_code, 409)
+            self.assertEqual(delay.call_count, 1)

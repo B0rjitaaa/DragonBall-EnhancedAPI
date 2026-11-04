@@ -25,7 +25,7 @@ Todo lo que hace la web pasa por una **API REST en JSON**, y se puede usar direc
 | `GET /api/keyword-skills/` | Keyword skills oficiales, sus variantes y las reglas de construcción. |
 | `GET /api/changes/?kind=&page=` | [Novedades](novedades.md), 60 por página. |
 | `GET /api/changes/count/?since=` | Cuántas novedades hay desde una fecha. |
-| `GET /api/sync/` · `POST /api/sync/ {"full": true}` | Historial de sincronizaciones · lanzar una (solo administradores). |
+| `GET /api/sync/` · `POST /api/sync/ {"full": true}` | Historial de sincronizaciones · lanzar una (409 si ya hay una en marcha). |
 | `GET /api/health/` | [Estado del sistema](tareas-programadas.md#salud). 503 si algo crítico falla. |
 | `GET /api/thumbs/{id}/{versión}.webp` | Miniatura de una carta. |
 | `GET /api/prices/radar/?days=7\|30\|90&scope=collection\|all` | Lo de la página [Precios](pagina-precios.md): suben, bajan, las más caras y la evolución del valor. |

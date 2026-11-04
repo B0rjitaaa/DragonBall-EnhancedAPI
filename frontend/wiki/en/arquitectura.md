@@ -108,6 +108,6 @@ They're configured in the `.env` at the root (there's a `.env.example` template)
 ## Security
 
 - **Network:** the web app is meant for the **home network** and isn't exposed to the Internet.
-- **API:** it's **open**, also for writing. Only launching a sync (`POST /api/sync/`) requires being an administrator.
+- **API:** it's **open**, also for writing (launching a sync, `POST /api/sync/`, included). It's meant for one person at home.
 - **Admin:** requires a username and password.
 - **To do:** user accounts and hardening the server (published Postgres and backend ports, key-only SSH access). This has to be done before opening the web app outside your home.

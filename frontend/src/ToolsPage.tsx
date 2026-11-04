@@ -112,12 +112,45 @@ const SYNC_STATUS: Record<string, string> = { running: 'Running', success: 'OK',
 function SyncHistory() {
   const [runs, setRuns] = useState<SyncRunRow[] | null>(null)
   const [error, setError] = useState('')
-  useEffect(() => {
+  const [busy, setBusy] = useState(false)
+  const [confirmFull, setConfirmFull] = useState(false)
+  const [notice, setNotice] = useState('')
+  // Tras lanzar una, se sigue mirando un rato hasta que aparece (la tarea tarda unos segundos en arrancar).
+  const [waitUntil, setWaitUntil] = useState(0)
+  const load = () =>
     api
       .syncRuns()
-      .then((r) => setRuns(r.results.slice(0, 10)))
+      .then((r) => {
+        setRuns(r.results.slice(0, 10))
+        setError('')
+      })
       .catch((e: Error) => setError(e.message))
+  useEffect(() => {
+    void load()
   }, [])
+  const running = runs?.some((r) => r.status === 'running') ?? false
+  const watching = running || waitUntil > 0
+  useEffect(() => {
+    if (!watching) return
+    const t = window.setInterval(() => {
+      void load()
+      if (Date.now() > waitUntil) setWaitUntil(0)
+    }, 5000)
+    return () => window.clearInterval(t)
+  }, [watching, waitUntil])
+  const start = (full: boolean) => {
+    setBusy(true)
+    setConfirmFull(false)
+    setNotice('')
+    api
+      .startSync(full)
+      .then(() => {
+        setNotice(full ? 'Full sync started: it takes about an hour and a half.' : 'Sync started: it takes a few seconds.')
+        setWaitUntil(Date.now() + 60_000)
+      })
+      .catch((e: Error) => setNotice(e.message))
+      .finally(() => setBusy(false))
+  }
   return (
     <section className="tools-card">
       <div className="tools-card-head">
@@ -126,7 +159,40 @@ function SyncHistory() {
           See what changed →
         </a>
       </div>
-      <p className="muted small">Runs on its own every day. The last 10 runs:</p>
+      <p className="muted small">Runs on its own every day. You can also start one now:</p>
+      <div className="tools-sync-actions">
+        <div>
+          <button className="btn primary" disabled={busy || running} onClick={() => start(false)}>
+            ↻ Sync new cards
+          </button>
+          <p className="muted small">Only cards that aren't in the catalog yet. A few seconds.</p>
+        </div>
+        <div>
+          {confirmFull ? (
+            <div className="tools-confirm" role="alertdialog" aria-label="Confirm full sync">
+              <p>Download all {runs?.[0]?.listed ? runs[0].listed.toLocaleString('en-GB') : ''} cards again? It takes about an hour and a half.</p>
+              <div>
+                <button className="btn primary" disabled={busy} onClick={() => start(true)}>
+                  Yes, full sync
+                </button>
+                <button className="btn" onClick={() => setConfirmFull(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button className="btn" disabled={busy || running} onClick={() => setConfirmFull(true)}>
+                Full sync…
+              </button>
+              <p className="muted small">Every card again: picks up text, image and errata changes. About 1.5 h.</p>
+            </>
+          )}
+        </div>
+      </div>
+      {running && <p className="tools-running">⏳ A sync is running…</p>}
+      {notice && !running && <p className="small">{notice}</p>}
+      <p className="muted small">The last 10 runs:</p>
       {error && <p className="error">{error}</p>}
       {runs && runs.length === 0 && <p className="muted">No syncs yet.</p>}
       {runs && runs.length > 0 && (

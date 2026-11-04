@@ -25,7 +25,7 @@ Everything the web app does goes through a **JSON REST API**, and you can use it
 | `GET /api/keyword-skills/` | Official keyword skills, their variants and the deck-building rules. |
 | `GET /api/changes/?kind=&page=` | [News](novedades.md), 60 per page. |
 | `GET /api/changes/count/?since=` | How many news items there are since a date. |
-| `GET /api/sync/` · `POST /api/sync/ {"full": true}` | Sync history · launch one (administrators only). |
+| `GET /api/sync/` · `POST /api/sync/ {"full": true}` | Sync history · launch one (409 if one is already running). |
 | `GET /api/health/` | [System status](tareas-programadas.md#health). 503 if something critical fails. |
 | `GET /api/thumbs/{id}/{version}.webp` | A card's thumbnail. |
 | `GET /api/prices/radar/?days=7\|30\|90&scope=collection\|all` | What's on the [Prices](pagina-precios.md) page: rising, falling, the most valuable and the value's evolution. |

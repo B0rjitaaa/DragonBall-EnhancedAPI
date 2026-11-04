@@ -43,6 +43,7 @@ from .serializers import (
     BanListEntrySerializer, CardDetailSerializer, KeywordSkillSerializer, CardListSerializer, SearchRequestSerializer,
     CardChangeSerializer, SyncRunSerializer,
 )
+from .tasks import LOCK_KEY as SYNC_LOCK_KEY
 from .tasks import sync_cards
 
 logger = logging.getLogger(__name__)
@@ -358,17 +359,18 @@ class ChangesCountView(APIView):
 
 
 class SyncRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """Historial de sincronizaciones con Bandai. Lanzar uno nuevo requiere ser staff."""
+    """Historial de sincronizaciones con Bandai. POST {full?}: lanza una (botón «Sync now» de Tools).
+
+    Sin login, como el resto de la web (la usa una sola persona en casa). Si ya hay una en marcha, 409.
+    """
 
     queryset = SyncRun.objects.all()
     serializer_class = SyncRunSerializer
-
-    def get_permissions(self):
-        if self.action == "create":
-            return [permissions.IsAdminUser()]
-        return [permissions.AllowAny()]
+    permission_classes = [permissions.AllowAny]
 
     def create(self, request):
+        if cache.get(SYNC_LOCK_KEY):
+            return Response({"detail": "A sync is already running."}, status=status.HTTP_409_CONFLICT)
         full = str(request.data.get("full", "false")).lower() in {"1", "true", "yes"}
         result = sync_cards.delay(full=full)
         return Response({"task_id": result.id, "full": full}, status=status.HTTP_202_ACCEPTED)

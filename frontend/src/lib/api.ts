@@ -76,6 +76,8 @@ export const api = {
   health: () =>
     fetch(`${BASE}/health/`).then((r) => r.json() as Promise<{ status: string; checked_at: string; checks: HealthCheck[] }>),
   syncRuns: () => request<{ results: SyncRunRow[] }>('/sync/?page_size=10'),
+  /** Lanzar una sincronización con Bandai: solo cartas nuevas o completa (409 si ya hay una en marcha). */
+  startSync: (full: boolean) => request<{ task_id: string; full: boolean }>('/sync/', post({ full })),
   recentErrors: () => request<{ errors: ErrorEntry[]; open: number }>('/errors/'),
   fields: () => request<FieldDef[]>('/fields/'),
   facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>

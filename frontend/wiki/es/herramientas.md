@@ -30,7 +30,12 @@ Se vuelve a comprobar sola cada minuto, o con **«↻ Check again»**. Cuando al
 
 Las 10 últimas sincronizaciones del catálogo: cuándo empezaron, si fue completa (**«Full»**) o solo de cartas nuevas (**«New cards»**), el resultado, cuánto tardaron y cuántas cartas había, nuevas, actualizadas y fallidas. Si una falló, pasa el ratón por encima para ver el error. **«See what changed →»** lleva a [Novedades](novedades.md).
 
-Las sincronizaciones se lanzan solas cada día; ver [Datos y sincronización](datos-y-sincronizacion.md).
+Las sincronizaciones se lanzan solas cada día, y también puedes lanzar una ahora:
+
+- **«↻ Sync new cards»** (sincronizar cartas nuevas): solo las que aún no están en el catálogo, p. ej. el día que sale una colección. Tarda unos segundos.
+- **«Full sync…»** (completa): vuelve a descargar todas las cartas y recoge cambios de texto, imagen y errata. Tarda hora y media, así que pide confirmación (**«Yes, full sync»**).
+
+Mientras hay una en marcha los botones se desactivan y la tabla se actualiza sola. Más en [Datos y sincronización](datos-y-sincronizacion.md).
 
 ## Recent errors (últimos errores)
 

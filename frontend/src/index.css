@@ -2197,3 +2197,8 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .tools-errors dt { color: var(--muted); }
 .tools-errors dd { margin: 0; overflow-wrap: anywhere; }
 .tools-errors pre { margin: 0 0.7rem 0.7rem; padding: 0.6rem; background: var(--bg-3); border-radius: 6px; font-size: 0.75rem; overflow-x: auto; max-height: 22rem; }
+.tools-sync-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.9rem 1.2rem; }
+.tools-sync-actions > div { display: grid; gap: 0.35rem; align-content: start; justify-items: start; }
+.tools-confirm { display: grid; gap: 0.5rem; padding: 0.6rem 0.75rem; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg); }
+.tools-confirm > div { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.tools-running { color: #f5a524; font-weight: 600; }

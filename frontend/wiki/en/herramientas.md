@@ -30,7 +30,12 @@ It checks again by itself every minute, or with **↻ Check again**. When someth
 
 The last 10 catalog syncs: when they started, whether it was a full one (**Full**) or new cards only (**New cards**), the result, how long it took and how many cards were listed, new, updated and failed. If one failed, hover over it to see the error. **See what changed →** goes to [News](novedades.md).
 
-Syncs run by themselves every day; see [Data and sync](datos-y-sincronizacion.md).
+Syncs run by themselves every day, and you can also start one now:
+
+- **↻ Sync new cards**: only cards that aren't in the catalog yet, e.g. on the day a new set comes out. Takes a few seconds.
+- **Full sync…**: downloads every card again and picks up text, image and errata changes. It takes an hour and a half, so it asks you to confirm (**Yes, full sync**).
+
+While one is running the buttons are disabled and the table updates by itself. More in [Data and sync](datos-y-sincronizacion.md).
 
 ## Recent errors
 
