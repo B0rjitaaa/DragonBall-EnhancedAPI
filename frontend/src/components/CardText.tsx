@@ -15,7 +15,6 @@ const COLOR_COST = `\\(\\((?:${COLOR_WORDS})\\)\\)|\\((?:${COLOR_WORDS}|[GYR赤�
 const ANY_COST = '[①-⑳]|\\((?:[0-9０-９]{1,2}|X)\\)'
 const COST = new RegExp(`(${COLOR_COST}|${ANY_COST})`, 'g')
 const IS_COLOR_COST = new RegExp(`^(?:${COLOR_COST})$`)
-const IS_ANY_COST = new RegExp(`^(?:${ANY_COST})$`)
 
 function colorOf(token: string): string {
   const inner = token.replace(/[()]/g, '')
@@ -46,24 +45,41 @@ function kwClass(raw: string): string {
   return 'skill'
 }
 
-/** Los costes dentro del texto: los de color como un punto de su color y los genéricos como un círculo con su número. */
+/** Un símbolo de coste: los de color, una bolita de su color; los de cualquier color, un aro con su número. */
+function costIcon(token: string, key: string): ReactNode {
+  if (IS_COLOR_COST.test(token)) {
+    const color = colorOf(token)
+    const name = `${color[0].toUpperCase()}${color.slice(1)}`
+    return <i key={key} className={`cost-dot c-${color}`} title={`${name} energy`} aria-label={`${name} energy`} />
+  }
+  const n = amountOf(token)
+  return (
+    <i key={key} className="cost-any" title={`${n} energy of any color`} aria-label={`${n} energy of any color`}>
+      {n}
+    </i>
+  )
+}
+
+/** Los costes dentro del texto, como en la carta. Los que van seguidos («(White)(1)») forman un solo grupo,
+ *  con su separación y alineado con el texto. */
 function withCostDots(part: string, key: string): ReactNode {
-  return part.split(COST).map((p, i) => {
-    const k = `${key}-${i}`
-    if (IS_COLOR_COST.test(p)) {
-      const color = colorOf(p)
-      return <i key={k} className={`dot sm c-${color}`} title={`${color[0].toUpperCase()}${color.slice(1)} energy`} />
+  const pieces = part.split(COST)
+  const out: ReactNode[] = []
+  let group: ReactNode[] = []
+  const close = (i: number) => {
+    if (group.length) out.push(<span key={`${key}-g${i}`} className="cost-group">{group}</span>)
+    group = []
+  }
+  pieces.forEach((p, i) => {
+    if (i % 2 === 1) group.push(costIcon(p, `${key}-${i}`))
+    else if (p === '' || (group.length && /^\s+$/.test(p) && i + 1 < pieces.length)) return
+    else {
+      close(i)
+      out.push(<Fragment key={`${key}-${i}`}>{p}</Fragment>)
     }
-    if (IS_ANY_COST.test(p)) {
-      const n = amountOf(p)
-      return (
-        <i key={k} className="cost-any" title={`${n} energy of any color`}>
-          {n}
-        </i>
-      )
-    }
-    return <Fragment key={k}>{p}</Fragment>
   })
+  close(pieces.length)
+  return out
 }
 
 /** Texto de Bandai (con <br>) con las habilidades [Entre Corchetes] resaltadas en su color: al pulsarlas se

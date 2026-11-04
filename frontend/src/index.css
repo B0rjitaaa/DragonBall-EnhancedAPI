@@ -1831,11 +1831,23 @@ button.deck-chip:hover { border-color: var(--accent); }
 .card-detail .dots { display: inline-flex; gap: 3px; }
 .card-detail .dot { width: 14px; height: 14px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.3); }
 .card-detail .dot.sm { width: 12px; height: 12px; vertical-align: -1px; }
-/* Coste de cualquier color dentro del texto («①», «(1)»): un círculo blanco con el número, como en la carta */
+/* Costes dentro del texto de la carta: un grupo por coste («(White)(1)»), con bolitas de color y un aro con el
+   número para los de cualquier color (así no se confunde con la bolita blanca) */
+.cost-group { display: inline-flex; align-items: center; gap: 3px; margin: 0 1px 0 4px; vertical-align: -3px; }
+.cost-dot {
+  width: 15px; height: 15px; border-radius: 50%; display: inline-block; background: var(--muted);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.cost-dot.c-red { background: var(--c-red); }
+.cost-dot.c-blue { background: var(--c-blue); }
+.cost-dot.c-green { background: var(--c-green); }
+.cost-dot.c-yellow { background: var(--c-yellow); }
+.cost-dot.c-black { background: var(--c-black); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.cost-dot.c-white { background: var(--c-white); box-shadow: inset 0 0 0 1.5px #71717a; }
 .cost-any {
-  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; vertical-align: -3px;
-  margin: 0 2px; background: #f4f4f5; color: #18181b; font-style: normal; font-size: 11px; font-weight: 800; line-height: 1;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+  display: inline-grid; place-items: center; width: 15px; height: 15px; box-sizing: border-box; border-radius: 50%;
+  border: 1.5px solid currentColor; font-style: normal; font-size: 10px; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .cd-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
