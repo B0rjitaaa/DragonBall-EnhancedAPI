@@ -1,10 +1,11 @@
+import { plainCardText } from "../../lib/cardText";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../api";
 import type { Card } from "../types";
 
 // El texto de Bandai usa <br> como salto de línea.
-const stripHtml = (text: string) => text.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+const stripHtml = (text: string) => plainCardText(text);
 
 export default function CardDetail({ card, showAddButton = true }: { card: Card; showAddButton?: boolean }) {
   const queryClient = useQueryClient();

@@ -93,7 +93,7 @@ Seis baldosas: **«Type»**, **«Color»**, **«Rarity»**, **«Character»**, *
 
 ### Texto de la carta
 
-El texto vigente de la carta, en grande y con cada habilidad en su color, como en la carta impresa: **Auto** en azul, **Activate** en naranja, **Permanent** en rosa y las keyword skills ([Barrier], [Blocker]…) en rojo. Los costes de color dentro del texto salen como puntos de color.
+El texto vigente de la carta, en grande y con cada habilidad en su color, como en la carta impresa: **Auto** en azul, **Activate** en naranja, **Permanent** en rosa y las keyword skills ([Barrier], [Blocker]…) en rojo. Los costes dentro del texto salen como en la carta: los de color, como puntos de su color, y los de cualquier color, como un círculo blanco con el número (①). Da igual cómo los escriba Bandai («(Green)», «(G)», «(1)», «(１)»…).
 
 - **Pulsa una habilidad** para ver su explicación oficial en un recuadro; desde ahí, **«Filter cards with [Barrier] →»** busca las cartas con esa habilidad. <kbd>Esc</kbd> o pulsar fuera lo cierra.
 - **«⧉ Copy text»** copia el texto (con la errata aplicada).

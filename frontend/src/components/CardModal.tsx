@@ -1,3 +1,4 @@
+import { plainCardText } from '../lib/cardText'
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
 import { cardLink, showCardRef } from '../lib/cardLink'
@@ -84,9 +85,9 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
 
   const copyText = async () => {
     if (!card) return
-    const plain = (back ? card.back_text : card.errata ? errataText(card.text, card.errata.before, card.errata.after).replace(/⟦\+([^⟧]*)⟧/g, '$1') : card.text)
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
+    const plain = plainCardText(
+      back ? card.back_text : card.errata ? errataText(card.text, card.errata.before, card.errata.after).replace(/⟦\+([^⟧]*)⟧/g, '$1') : card.text,
+    )
     try {
       await navigator.clipboard.writeText(plain)
       setCopied(true)

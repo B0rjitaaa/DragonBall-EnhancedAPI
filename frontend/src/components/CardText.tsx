@@ -1,10 +1,33 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { decodeEntities, plainCardText } from '../lib/cardText'
 import type { SkillIndex } from '../lib/skills'
 
 // [Habilidades] y los trozos cambiados por una errata (⟦+nuevo⟧ / ⟦-antes⟧, ver errataText).
 const TOKEN = /(\[[^\]]+\]|⟦[+-][^⟧]*⟧)/g
-const COST = /(\((?:Red|Blue|Green|Yellow|Black|White)\))/g
-const IS_COST = /^\((?:Red|Blue|Green|Yellow|Black|White)\)$/
+
+// Costes dentro del texto. Bandai los escribe de muchas formas: «(Green)», «((Green))», «(G)», «(緑)» o «(黒)»
+// para uno de color, y «①», «(1)», «(１)» o «(X)» para uno de cualquier color.
+const COLOR_WORDS = 'Red|Blue|Green|Yellow|Black|White'
+const COLOR_CODE: Record<string, string> = {
+  G: 'green', Y: 'yellow', R: 'red', 赤: 'red', 青: 'blue', 緑: 'green', 黄: 'yellow', 黒: 'black', 白: 'white',
+}
+const COLOR_COST = `\\(\\((?:${COLOR_WORDS})\\)\\)|\\((?:${COLOR_WORDS}|[GYR赤青緑黄黒白])\\)`
+const ANY_COST = '[①-⑳]|\\((?:[0-9０-９]{1,2}|X)\\)'
+const COST = new RegExp(`(${COLOR_COST}|${ANY_COST})`, 'g')
+const IS_COLOR_COST = new RegExp(`^(?:${COLOR_COST})$`)
+const IS_ANY_COST = new RegExp(`^(?:${ANY_COST})$`)
+
+function colorOf(token: string): string {
+  const inner = token.replace(/[()]/g, '')
+  return COLOR_CODE[inner] ?? inner.toLowerCase()
+}
+
+/** Coste genérico (de cualquier color): «①», «(1)», «(１)» o «(X)» → su número. */
+function amountOf(token: string): string {
+  const c = token.codePointAt(0) ?? 0
+  if (c >= 0x2460 && c <= 0x2473) return String(c - 0x2460 + 1)
+  return token.slice(1, -1).replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0))
+}
 
 interface Props {
   text: string
@@ -23,11 +46,24 @@ function kwClass(raw: string): string {
   return 'skill'
 }
 
-/** El coste de color dentro del texto, «(Red)», como un punto de su color. */
+/** Los costes dentro del texto: los de color como un punto de su color y los genéricos como un círculo con su número. */
 function withCostDots(part: string, key: string): ReactNode {
-  return part.split(COST).map((p, i) =>
-    IS_COST.test(p) ? <i key={`${key}-${i}`} className={`dot sm c-${p.slice(1, -1).toLowerCase()}`} title={p.slice(1, -1)} /> : <Fragment key={`${key}-${i}`}>{p}</Fragment>,
-  )
+  return part.split(COST).map((p, i) => {
+    const k = `${key}-${i}`
+    if (IS_COLOR_COST.test(p)) {
+      const color = colorOf(p)
+      return <i key={k} className={`dot sm c-${color}`} title={`${color[0].toUpperCase()}${color.slice(1)} energy`} />
+    }
+    if (IS_ANY_COST.test(p)) {
+      const n = amountOf(p)
+      return (
+        <i key={k} className="cost-any" title={`${n} energy of any color`}>
+          {n}
+        </i>
+      )
+    }
+    return <Fragment key={k}>{p}</Fragment>
+  })
 }
 
 /** Texto de Bandai (con <br>) con las habilidades [Entre Corchetes] resaltadas en su color: al pulsarlas se
@@ -47,7 +83,7 @@ export default function CardText({ text, skills, onKeyword }: Props) {
     }
   }, [open])
   if (!text) return null
-  const lines = text.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').split('\n')
+  const lines = plainCardText(text).split('\n')
   return (
     <div className="card-text" ref={box}>
       {lines.map((line, i) => (
@@ -94,9 +130,10 @@ export default function CardText({ text, skills, onKeyword }: Props) {
 /** El texto vigente de una carta con errata: la frase antigua cambiada por la nueva y lo que cambió marcado
  *  (⟦+…⟧); con `printed`, el texto impreso con lo que se quitó marcado (⟦-…⟧). */
 export function errataText(text: string, before: string, after: string, printed = false): string {
-  const clean = (s: string) => s.replace(/[’‘]/g, "'")
+  // Con «<» y «>» de verdad en los tres, así la frase de la errata se encuentra aunque uno venga con «&lt;».
+  const clean = (s: string) => decodeEntities(s).replace(/[’‘]/g, "'")
   const [t, b, a] = [clean(text), clean(before), clean(after)]
-  if (!b || !t.includes(b)) return printed ? text : t.includes(a) ? t : text
+  if (!b || !t.includes(b)) return t
   const x = b.split(/(\s+)/)
   const y = a.split(/(\s+)/)
   let i = 0

@@ -93,7 +93,7 @@ Six tiles: **Type**, **Color**, **Rarity**, **Character**, **Special trait** and
 
 ### Card text
 
-The card's current text, large and with each skill in its colour, as on the printed card: **Auto** blue, **Activate** orange, **Permanent** pink, keyword skills ([Barrier], [Blocker]…) red. Colour costs inside the text show as coloured dots.
+The card's current text, large and with each skill in its colour, as on the printed card: **Auto** blue, **Activate** orange, **Permanent** pink, keyword skills ([Barrier], [Blocker]…) red. Costs inside the text show as on the card: colour costs as dots of their colour, and any-colour costs as a white circle with the number (①). It doesn't matter how Bandai writes them (“(Green)”, “(G)”, “(1)”, “(１)”…).
 
 - **Tap a skill** to see its official explanation in a small box; from there, **Filter cards with [Barrier] →** searches for cards with that skill. <kbd>Esc</kbd> or tapping elsewhere closes it.
 - **⧉ Copy text** copies the text (with the erratum applied).

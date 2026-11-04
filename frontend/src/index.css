@@ -1831,6 +1831,12 @@ button.deck-chip:hover { border-color: var(--accent); }
 .card-detail .dots { display: inline-flex; gap: 3px; }
 .card-detail .dot { width: 14px; height: 14px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.3); }
 .card-detail .dot.sm { width: 12px; height: 12px; vertical-align: -1px; }
+/* Coste de cualquier color dentro del texto («①», «(1)»): un círculo blanco con el número, como en la carta */
+.cost-any {
+  display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; vertical-align: -3px;
+  margin: 0 2px; background: #f4f4f5; color: #18181b; font-style: normal; font-size: 11px; font-weight: 800; line-height: 1;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
 
 .cd-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
 .cd-tiles > div { display: grid; gap: 0.15rem; padding: 0.5rem 0.75rem; border-radius: 10px; background: var(--bg-3); border: 1px solid var(--line); min-width: 0; }
