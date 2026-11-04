@@ -127,6 +127,7 @@ Todas cuelgan de `/api/scanner/`:
 
 | Método y ruta | Qué hace |
 |---|---|
+| `GET /api/errors/` | Los últimos 50 errores y cuántos están pendientes (página [Tools](herramientas.md)). |
 | `POST /api/errors/` | La web informa de sus errores de JavaScript (ver [Registro de errores](registro-de-errores.md)). |
 | `/media/…` | Fotos de escaneos e imágenes de impresiones propias. |
 

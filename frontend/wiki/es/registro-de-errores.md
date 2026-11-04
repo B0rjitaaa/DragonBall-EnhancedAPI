@@ -1,6 +1,6 @@
 # Registro de errores
 
-Cuando algo falla, sea en el servidor, en una tarea de fondo o en tu navegador, queda apuntado en el admin, en **Errors** (errores; `/admin/errorlog/errorgroup/`). Si el error es nuevo, además llega un aviso por Telegram.
+Cuando algo falla, sea en el servidor, en una tarea de fondo o en tu navegador, queda apuntado en el admin, en **Errors** (errores; `/admin/errorlog/errorgroup/`). Si el error es nuevo, además llega un aviso por Telegram. Los últimos también se ven en la página [Tools](herramientas.md).
 
 ![El registro de errores en el admin](../img/admin-errores.jpg)
 

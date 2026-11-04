@@ -131,6 +131,10 @@ export const WIKI_ARTICLES: WikiArticle[] = [
     excerpt: { en: 'Match cards without a product, fix suspect prices and set prices by hand.', es: 'Emparejar cartas sin producto, corregir dudosos y poner precios a mano.' },
     keywords: 'revision precios admin emparejar dudosos manual falsa impresion price review admin match suspect manual fake printing' },
 
+  { slug: 'herramientas', category: 'admin', icon: '🧰',
+    title: { en: 'Tools', es: 'Herramientas (Tools)' },
+    excerpt: { en: 'Backups and CSV, system status, Bandai syncs and recent errors, in one page.', es: 'Copias y CSV, estado del sistema, sincronizaciones con Bandai y últimos errores, en una página.' },
+    keywords: 'tools herramientas copia backup csv restaurar importar estado salud health sync sincronizacion errores errors mantenimiento maintenance' },
   { slug: 'admin', category: 'admin', icon: '🛠️', cover: 'admin.jpg',
     title: { en: 'The Django admin', es: 'El admin de Django' },
     excerpt: { en: 'What is in /admin/ and what each section is for.', es: 'Qué hay en /admin/ y para qué sirve cada sección.' },

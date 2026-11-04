@@ -31,7 +31,7 @@ Encima de las cartas:
   - **«Grid»** (cuadrícula);
   - **«List»** (lista);
   - **«Deck»** (mazo), solo cuando la ubicación elegida es un mazo.
-- **«Download backup»**, **«Download CSV»**, **«Import CSV»** y **«Restore backup»**: ver [Importar, exportar y copia](importar-exportar.md).
+- Las copias de seguridad y el CSV (**«Download backup»**, **«Download CSV»**, **«Import CSV»** y **«Restore backup»**) están en [Tools](herramientas.md).
 - **«Scan cards»**: abre el [Escáner](escaner.md).
 
 > [!TIP]

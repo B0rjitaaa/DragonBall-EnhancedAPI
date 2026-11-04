@@ -85,6 +85,7 @@ export default function HealthBanner() {
         {problems.map((p) => (
           <p key={p}>{p}</p>
         ))}
+        <a href="/tools">See the system status →</a>
       </div>
       <button type="button" onClick={dismiss} aria-label="Dismiss notice" title="Dismiss notice">
         ×

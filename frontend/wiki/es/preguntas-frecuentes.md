@@ -25,7 +25,7 @@ Las que solo tienen un anuncio de un vendedor van **aparte** («+ €X in cards 
 
 ### He hecho un lío en la colección. ¿Puedo volver atrás?
 
-Sí, si tienes una **copia JSON** de antes, la de «Download backup» (descargar copia). Usa **«Restore backup»** (restaurar copia) en «My collection»: verás qué cambia antes de aplicarlo, y antes de sustituir se descarga una copia de lo actual por si acaso. Ver [Restaurar copia](importar-exportar.md#restaurar-copia).
+Sí, si tienes una **copia JSON** de antes, la de «Download backup» (descargar copia). Usa **«Restore backup»** (restaurar copia) en [«Tools»](herramientas.md): verás qué cambia antes de aplicarlo, y antes de sustituir se descarga una copia de lo actual por si acaso. Ver [Restaurar copia](importar-exportar.md#restaurar-copia).
 
 ### He añadido una carta en la ubicación equivocada
 

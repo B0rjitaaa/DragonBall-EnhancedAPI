@@ -86,6 +86,14 @@ class ErrorLogTests(TestCase):
         self.assertEqual((group.source, group.count, group.request), ("web", 2, "/locations"))
         self.assertEqual(api.post("/api/errors/", {}, format="json").status_code, 400)
 
+    def test_recent_errors_list(self):
+        # La página Tools enseña los últimos errores, los pendientes contados aparte.
+        self.log_failure(1)
+        data = APIClient().get("/api/errors/").json()
+        self.assertEqual(data["open"], 1)
+        self.assertEqual(data["errors"][0]["kind"], "ValueError")
+        self.assertIn("valor raro", data["errors"][0]["traceback"])
+
     def test_telegram_message(self):
         self.log_failure(1)
         group = ErrorGroup.objects.get()

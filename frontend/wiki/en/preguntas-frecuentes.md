@@ -25,7 +25,7 @@ Cards that only have a single seller's listing are shown **separately** (â€œ+ â‚
 
 ### I've made a mess of my collection. Can I go back?
 
-Yes, if you have a **JSON backup** from before, the one from **Download backup**. Use **Restore backup** in **My collection**: you'll see what changes before applying it, and before replacing anything a backup of the current state is downloaded just in case. See [Restore backup](importar-exportar.md#restore-backup).
+Yes, if you have a **JSON backup** from before, the one from **Download backup**. Use **Restore backup** in [**Tools**](herramientas.md): you'll see what changes before applying it, and before replacing anything a backup of the current state is downloaded just in case. See [Restore backup](importar-exportar.md#restore-backup).
 
 ### I added a card to the wrong location
 

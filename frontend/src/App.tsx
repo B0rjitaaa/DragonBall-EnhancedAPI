@@ -7,10 +7,8 @@ import Pagination from './components/Pagination'
 import DeckView from './components/DeckView'
 import OwnedPanel, { type Spot } from './components/OwnedPanel'
 import QueryBuilder from './components/QueryBuilder'
-import CsvImport from './components/CsvImport'
-import RestoreBackup from './components/RestoreBackup'
 import { useOpenCard } from './lib/cardLink'
-import { api, ApiError, COLLECTION_BACKUP_URL, COLLECTION_CSV_URL, type Scope } from './lib/api'
+import { api, ApiError, type Scope } from './lib/api'
 import {
   buildQuery, countActive, newGroup, normalizeKeyword, readUrlState, writeUrlState,
 } from './lib/query'
@@ -399,7 +397,6 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
   const openIndex = openId == null ? -1 : results.findIndex((c) => c.id === openId)
 
   // Móvil: el menú plegable de copia y CSV de Mi colección.
-  const [actionsOpen, setActionsOpen] = useState(false)
   const activeCount = countActive(facets) + (advancedOn ? advanced.children.length : 0) + (q ? 1 : 0)
 
   if (bootError) {
@@ -631,36 +628,8 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
               </span>
             )}
             {inCollection && (
-              // En el móvil, copia y CSV van plegados en «Backup & CSV»; en el ordenador, a la vista.
-              <div className={`coll-actions ${actionsOpen ? 'open' : ''}`}>
-                <button
-                  type="button"
-                  className="btn coll-actions-toggle"
-                  onClick={() => setActionsOpen((v) => !v)}
-                  aria-expanded={actionsOpen}
-                >
-                  Backup & CSV {actionsOpen ? '▴' : '▾'}
-                </button>
-                <div className="coll-actions-extra">
-                  <a className="btn backup-link" href={COLLECTION_BACKUP_URL} download title="Downloads a JSON with your locations and all your cards, with their copies in each location">
-                    Download backup
-                  </a>
-                  <a className="btn backup-link" href={COLLECTION_CSV_URL} download title="Downloads your collection as CSV to open in Excel or another spreadsheet">
-                    Download CSV
-                  </a>
-                  <CsvImport
-                    onDone={() => {
-                      setReloadTick((t) => t + 1)
-                      reloadLocations()
-                    }}
-                  />
-                  <RestoreBackup
-                    onDone={() => {
-                      setReloadTick((t) => t + 1)
-                      reloadLocations()
-                    }}
-                  />
-                </div>
+              // Copias de seguridad y CSV están en Tools (/tools).
+              <div className="coll-actions">
                 <a className="btn primary scan-link" href="/scan">
                   Scan cards
                 </a>

@@ -36,6 +36,7 @@ User guide and technical documentation. These same articles are shown on the sit
 - [Reviewing prices in the admin](revisar-precios.md): matching, fixing and setting prices by hand.
 
 ## 🛠️ Administration
+- [Tools](herramientas.md): backups and CSV, system status, syncs and errors.
 - [The Django admin](admin.md): what's in `/admin/`.
 - [Error log](registro-de-errores.md): failures recorded and reported via Telegram.
 - [Backups](copias-de-seguridad.md): daily, on demand, retention and restore.

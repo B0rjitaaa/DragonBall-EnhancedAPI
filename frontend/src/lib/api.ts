@@ -1,4 +1,5 @@
 import type {
+  HealthCheck, SyncRunRow, ErrorEntry,
   BinderData, BinderSpot, BinderView, WantsData, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
@@ -71,6 +72,11 @@ export interface SearchBody {
 export type Scope = 'all' | 'collection'
 
 export const api = {
+  /** Estado del sistema (200 o 503, con el mismo JSON). */
+  health: () =>
+    fetch(`${BASE}/health/`).then((r) => r.json() as Promise<{ status: string; checked_at: string; checks: HealthCheck[] }>),
+  syncRuns: () => request<{ results: SyncRunRow[] }>('/sync/?page_size=10'),
+  recentErrors: () => request<{ errors: ErrorEntry[]; open: number }>('/errors/'),
   fields: () => request<FieldDef[]>('/fields/'),
   facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>
     request<FacetsResponse>(

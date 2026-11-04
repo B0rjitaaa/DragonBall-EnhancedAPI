@@ -26,7 +26,7 @@ The top menu is the same on every page:
 | **Scanner** | Recognises cards with the camera and adds them to your collection. | [Using the scanner](escaner.md) |
 
 > [!TIP]
-> **On your phone** the menu is a tab bar at the bottom, like an app: **Search**, **Collection**, **Locations**, **Scanner** and **More**, which opens **Prices**, **News** and **Wiki**. Card details open full screen, with the **✕** always at the top, and in My collection the backup and CSV buttons are folded under **Backup & CSV**.
+> **On your phone** the menu is a tab bar at the bottom, like an app: **Search**, **Collection**, **Locations**, **Scanner** and **More**, which opens **Wants**, **Prices**, **News**, **Wiki** and **Tools**. Card details open full screen, with the **✕** always at the top.
 
 And for admin tasks, the **Django admin** at `/admin/`: price review, errors and backups. See [The Django admin](admin.md).
 

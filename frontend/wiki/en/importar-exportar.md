@@ -1,6 +1,6 @@
 # Import, export and backup of the collection
 
-In the [My collection](mi-coleccion.md) bar there are four buttons to get data out and bring it in:
+On the [Tools](herramientas.md) page there are four buttons to get data out of your collection and bring it in:
 
 | Button | What it does |
 |---|---|

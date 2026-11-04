@@ -7,6 +7,7 @@ import BinderPage from './BinderPage.tsx'
 import NewsPage from './NewsPage.tsx'
 import PricesPage from './PricesPage.tsx'
 import WantsPage from './WantsPage.tsx'
+import ToolsPage from './ToolsPage.tsx'
 import NotFoundPage from './NotFoundPage.tsx'
 import HealthBanner from './components/HealthBanner.tsx'
 import SiteNav from './components/SiteNav.tsx'
@@ -38,6 +39,8 @@ createRoot(document.getElementById('root')!).render(
       <PricesPage />
     ) : page === 'wants' ? (
       <WantsPage />
+    ) : page === 'tools' ? (
+      <ToolsPage />
     ) : page === 'wiki' ? (
       <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Loading the wiki…</p>}>
         <WikiPage />

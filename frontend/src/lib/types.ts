@@ -656,3 +656,39 @@ export interface WantsData {
   without_price: number
   catalog: Record<number, CardSummary>
 }
+
+/** Página Tools: comprobaciones de /api/health/, sincronizaciones con Bandai y últimos errores. */
+export interface HealthCheck {
+  key: string
+  label: string
+  kind: 'critical' | 'warning' | 'optional'
+  ok: boolean | null
+  detail: string
+}
+export interface SyncRunRow {
+  id: number
+  started_at: string
+  finished_at: string | null
+  status: 'running' | 'success' | 'partial' | 'failed'
+  full: boolean
+  listed: number
+  fetched: number
+  created: number
+  updated: number
+  failed: number
+  error: string
+}
+export interface ErrorEntry {
+  id: number
+  source: 'server' | 'worker' | 'web'
+  source_label: string
+  kind: string
+  message: string
+  where: string
+  traceback: string
+  request: string
+  count: number
+  first_seen: string
+  last_seen: string
+  resolved_at: string | null
+}

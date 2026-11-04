@@ -36,6 +36,7 @@ Guía de uso y documentación técnica. Estos mismos artículos se ven en la web
 - [Revisar precios en el admin](revisar-precios.md): emparejar, corregir y poner precios a mano.
 
 ## 🛠️ Administración
+- [Herramientas (Tools)](herramientas.md): copias y CSV, estado del sistema, sincronizaciones y errores.
 - [El admin de Django](admin.md): qué hay en `/admin/`.
 - [Registro de errores](registro-de-errores.md): fallos guardados y avisados por Telegram.
 - [Copias de seguridad](copias-de-seguridad.md): diaria, bajo demanda, retención y restauración.

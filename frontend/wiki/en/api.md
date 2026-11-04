@@ -127,6 +127,7 @@ They all hang from `/api/scanner/`:
 
 | Method and path | What it does |
 |---|---|
+| `GET /api/errors/` | The latest 50 errors and how many are open ([Tools](herramientas.md) page). |
 | `POST /api/errors/` | The web app reports its JavaScript errors (see [Error log](registro-de-errores.md)). |
 | `/media/…` | Scan photos and own printing images. |
 

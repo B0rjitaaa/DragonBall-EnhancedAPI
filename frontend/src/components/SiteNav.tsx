@@ -1,5 +1,5 @@
 // Menú común a todas las páginas: arriba en el ordenador; en el móvil, barra de pestañas abajo
-// (Search, Collection, Locations, Scanner y «More» con Wants, Prices, News y Wiki).
+// (Search, Collection, Locations, Scanner y «More» con Wants, Prices, News, Wiki y Tools).
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { newsSeenAt } from '../lib/news'
@@ -8,7 +8,7 @@ import type { Page } from '../lib/routes'
 export type { Page }
 
 // Las de «More» en el móvil.
-const MORE: Page[] = ['wants', 'prices', 'news', 'wiki']
+const MORE: Page[] = ['wants', 'prices', 'news', 'wiki', 'tools']
 
 export default function SiteNav({ active }: { active: Page }) {
   // Novedades desde tu última visita a esa página (aviso discreto junto al enlace).
@@ -58,6 +58,7 @@ export default function SiteNav({ active }: { active: Page }) {
         {link('prices', '/prices', 'Prices', '💶', 'nav-more-item')}
         {link('news', '/news', 'News', '🆕', 'nav-more-item')}
         {link('wiki', '/wiki', 'Wiki', '📖', 'nav-more-item')}
+        {link('tools', '/tools', 'Tools', '🛠️', 'nav-more-item')}
         {link('scan', '/scan', 'Scanner', '📷')}
         <button
           type="button"
@@ -81,6 +82,7 @@ export default function SiteNav({ active }: { active: Page }) {
             {link('prices', '/prices', 'Prices', '💶')}
             {link('news', '/news', 'News', '🆕')}
             {link('wiki', '/wiki', 'Wiki', '📖')}
+            {link('tools', '/tools', 'Tools', '🛠️')}
           </div>
         </>
       )}

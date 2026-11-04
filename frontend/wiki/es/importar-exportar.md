@@ -1,6 +1,6 @@
 # Importar, exportar y copia de la colección
 
-En la barra de [Mi colección](mi-coleccion.md) hay cuatro botones para sacar y meter datos:
+En la página [Tools](herramientas.md) (herramientas) hay cuatro botones para sacar y meter datos de tu colección:
 
 | Botón | Qué hace |
 |---|---|

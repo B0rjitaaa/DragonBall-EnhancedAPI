@@ -16,10 +16,25 @@ class WebErrorSerializer(serializers.Serializer):
 
 
 class WebErrorView(APIView):
-    """POST: la web avisa de un error de JavaScript que ha pasado en el navegador."""
+    """GET: los últimos errores (página Tools). POST: la web avisa de un error de JavaScript del navegador."""
 
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "web-errors"
+
+    def get_throttles(self):
+        # Solo se limita el aviso desde el navegador; leer la lista no.
+        return super().get_throttles() if self.request.method == "POST" else []
+
+    def get(self, request):
+        groups = ErrorGroup.objects.all()[:50]
+        return Response({
+            "errors": [{
+                "id": g.id, "source": g.source, "source_label": g.get_source_display(), "kind": g.kind,
+                "message": g.message, "where": g.where, "traceback": g.traceback, "request": g.request,
+                "count": g.count, "first_seen": g.first_seen, "last_seen": g.last_seen, "resolved_at": g.resolved_at,
+            } for g in groups],
+            "open": ErrorGroup.objects.filter(resolved_at__isnull=True).count(),
+        })
 
     def post(self, request):
         body = WebErrorSerializer(data=request.data)

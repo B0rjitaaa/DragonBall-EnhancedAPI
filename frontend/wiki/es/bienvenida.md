@@ -26,7 +26,7 @@ El menú de arriba es el mismo en todas las páginas:
 | «Scanner» (escáner) | Reconoce cartas con la cámara y las añade a tu colección. | [Usar el escáner](escaner.md) |
 
 > [!TIP]
-> **En el móvil** el menú es una barra de pestañas abajo, como en una app: **«Search»**, **«Collection»**, **«Locations»**, **«Scanner»** y **«More»** (más), que abre **«Prices»**, **«News»** y **«Wiki»**. La ficha de cada carta se abre a pantalla completa, con la **✕** siempre arriba, y en «My collection» los botones de copia y CSV van plegados en **«Backup & CSV»**.
+> **En el móvil** el menú es una barra de pestañas abajo, como en una app: **«Search»**, **«Collection»**, **«Locations»**, **«Scanner»** y **«More»** (más), que abre **«Wants»**, **«Prices»**, **«News»**, **«Wiki»** y **«Tools»**. La ficha de cada carta se abre a pantalla completa, con la **✕** siempre arriba.
 
 Y para administrar, el **admin de Django** en `/admin/`: revisión de precios, errores y copias de seguridad. Ver [El admin de Django](admin.md).
 

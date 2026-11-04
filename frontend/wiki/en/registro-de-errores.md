@@ -1,6 +1,6 @@
 # Error log
 
-When something fails, whether on the server, in a background task or in your browser, it gets recorded in the admin, under **Errors** (`/admin/errorlog/errorgroup/`). If the error is new, you also get a Telegram alert.
+When something fails, whether on the server, in a background task or in your browser, it gets recorded in the admin, under **Errors** (`/admin/errorlog/errorgroup/`). If the error is new, you also get a Telegram alert. The latest ones also show on the [Tools](herramientas.md) page.
 
 ![The error log in the admin](../img/admin-errores.jpg)
 

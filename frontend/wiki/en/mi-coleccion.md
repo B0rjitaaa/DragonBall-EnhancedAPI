@@ -31,7 +31,7 @@ Above the cards:
   - **Grid**;
   - **List**;
   - **Deck**, only when the chosen location is a deck.
-- **Download backup**, **Download CSV**, **Import CSV** and **Restore backup**: see [Import, export and backup](importar-exportar.md).
+- Backups and CSV (**Download backup**, **Download CSV**, **Import CSV** and **Restore backup**) are in [Tools](herramientas.md).
 - **Scan cards**: opens the [Scanner](escaner.md).
 
 > [!TIP]
