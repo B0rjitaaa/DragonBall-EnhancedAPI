@@ -295,17 +295,45 @@ def preview_undo(activity: Activity) -> dict:
     return {"ok": not later and not rows, "conflict_rows": rows, "later": later}
 
 
+def original(activity: Activity) -> Activity:
+    """El cambio de verdad detrás de una cadena de «Undo» / «Redo» (Undo de X, Redo de X, Undo de X…)."""
+    seen = set()
+    while activity.kind in ("undo", "redo") and activity.undo_of_id and activity.pk not in seen:
+        seen.add(activity.pk)
+        activity = activity.undo_of
+    return activity
+
+
+def redo_target(activity: Activity) -> Activity | None:
+    """Para un cambio deshecho: el «Undo» (aún en pie) que hay que deshacer para rehacerlo."""
+    if activity.undone_at is None or activity.kind in ("undo", "redo"):
+        return None
+    for a in Activity.objects.filter(kind="undo", undone_at__isnull=True, created_at__gte=activity.created_at) \
+            .select_related("undo_of").order_by("-id")[:50]:
+        if original(a).pk == activity.pk:
+            return a
+    return None
+
+
 def undo(activity: Activity, source: str = Activity.Source.WEB) -> Activity | None:
-    """Deshace la acción (como una acción nueva, «Undo: …»). UndoConflict si algo se cambió después."""
+    """Deshace la acción (como una acción nueva, «Undo: …»). Deshacer un «Undo» es rehacer («Redo: …»): el cambio
+    vuelve a estar como lo dejó. UndoConflict si algo se cambió después."""
     if activity.undone_at is not None:
         raise ValueError("This change was already undone")
-    with record("undo", title=f"Undo: {activity.title}"[:300], source=source) as rec:
+    origin = original(activity)
+    redo = activity.kind == "undo"
+    kind, verb = ("redo", "Redo") if redo else ("undo", "Undo")
+    with record(kind, title=f"{verb}: {origin.title}"[:300], source=source) as rec:
         rec.undo_of = activity
         later, rows = conflicts(activity)
         if rows:
             raise UndoConflict(later, rows)
         _apply([(i.model, i.key, i.before) for i in activity.items.all()])
-        Activity.objects.filter(pk=activity.pk).update(undone_at=timezone.now())
+        now = timezone.now()
+        Activity.objects.filter(pk=activity.pk).update(undone_at=now)
+        if origin.pk != activity.pk:
+            # Rehacer deja el cambio original en pie; deshacer un «Redo» lo vuelve a dejar deshecho.
+            Activity.objects.filter(pk=origin.pk).update(undone_at=None if redo else now)
     return rec.activity
 
 
@@ -339,7 +367,7 @@ KIND_LABELS = {
     "deck_import": "Imported deck", "deck_version": "Deck list", "deck_restore": "Made a list the main one",
     "deck_side": "Side deck", "deck_archive": "Archived deck", "deck_back": "Deck back in use",
     "deck_missing": "Missing cards", "scan": "Scanner", "admin": "Admin", "price_review": "Price review",
-    "undo": "Undo", "restore_point": "Restore point",
+    "undo": "Undo", "redo": "Redo", "restore_point": "Restore point",
 }
 
 

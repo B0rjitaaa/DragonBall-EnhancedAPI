@@ -129,6 +129,7 @@ They all hang from `/api/scanner/`:
 |---|---|
 | `GET /api/history/` | Change history ([Tools](herramientas.md#history)): `?kind=&source=&card=&location=&q=&from=&to=&page=`. |
 | `GET /api/history/<id>/` · `GET`/`POST /api/history/<id>/undo/` | A change's detail · check whether it can be undone / undo it (409 if later changes touched those cards). |
+| `GET /api/history/csv/` | The history as CSV (same filters as the list). Undoing an undo (`POST /api/history/<id>/undo/` on it) is a redo. |
 | `GET /api/history/restore-points/` · `GET`/`POST /api/history/restore-points/<id>/` | Restore points · preview / go back to that point. |
 | `GET /api/errors/` | The latest 50 errors and how many are open ([Tools](herramientas.md) page). |
 | `POST /api/errors/` | The web app reports its JavaScript errors (see [Error log](registro-de-errores.md)). |

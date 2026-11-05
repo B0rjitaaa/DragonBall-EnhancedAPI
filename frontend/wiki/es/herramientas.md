@@ -24,6 +24,14 @@ En **Tools** salen los últimos cambios; **«Open the full history →»** abre 
 
 Se puede deshacer **cualquier cambio**, no solo el último, con una protección: si después tocaste esas mismas cartas, no se deshace a ciegas. Te avisa de qué cambios posteriores las modificaron para que los deshagas antes (del más reciente al más antiguo). Deshacer queda también como una línea más del histórico (**UNDO**), y el cambio deshecho sale marcado **undone**.
 
+### Rehacer
+
+Si deshiciste algo por error, **«↷ Redo…»** lo vuelve a aplicar tal como estaba. Sale en el cambio deshecho (marcado **undone**) y en su línea **UNDO**. Tiene la misma protección: si después tocaste esas cartas, te avisa antes. Rehacer queda como una línea **REDO**, que también se puede deshacer.
+
+### Exportar a CSV
+
+**«⇩ Export CSV»** descarga el histórico, con los filtros que tengas puestos, para abrirlo en Excel o Google Sheets. Trae una fila por carta y sitio que cambió: fecha, cambio, tipo, origen, si está deshecho, carta, ubicación, copias antes y después, diferencia y posición del archivador. Lo que no son copias (ubicaciones, listas, side…) va en una fila aparte, en la columna `other`.
+
 ### Puntos de restauración
 
 Justo antes de **restaurar una copia de seguridad**, **importar un CSV** o **importar un mazo**, se guarda sola una foto completa de la colección (**⟲ point** en su línea). Al final de la página, **«Restore to this point…»** enseña cuántas cartas cambiarían y, al confirmar, lo deja todo como estaba en ese momento, **también lo que hiciste después**. Es para cuando algo salió muy mal; para lo normal basta con «Undo». Volver a un punto también se puede deshacer. Se guardan **90 días** (el histórico, siempre).

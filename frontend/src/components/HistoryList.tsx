@@ -59,7 +59,7 @@ export default function HistoryList({ filter, pageSize = 30, compact, onChanged,
     <div className="hx">
       <ul className="hx-list">
         {data.results.map((a) => (
-          <HistoryRow key={`${a.id}-${a.updated_at}`} activity={a} onChanged={changed} />
+          <HistoryRow key={`${a.id}-${a.updated_at}-${a.undone_at ?? ''}`} activity={a} onChanged={changed} />
         ))}
       </ul>
       {compact ? (
@@ -106,11 +106,14 @@ function HistoryRow({ activity: a, onChanged }: { activity: HistoryActivity; onC
     setOpen(!open)
     setCheck(null)
   }
+  // Qué se deshace: el propio cambio («Undo»), o para rehacer, el «Undo» que lo deshizo («Redo»).
+  const isRedo = a.kind === 'undo' || (!!a.undone_at && a.redo_id != null)
+  const target = a.kind !== 'undo' && a.undone_at && a.redo_id != null ? a.redo_id : a.id
   const askUndo = () => {
     setBusy(true)
     setError('')
     api
-      .undoCheck(a.id)
+      .undoCheck(target)
       .then(setCheck)
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false))
@@ -119,17 +122,20 @@ function HistoryRow({ activity: a, onChanged }: { activity: HistoryActivity; onC
     setBusy(true)
     setError('')
     api
-      .undo(a.id)
-      .then(() => onChanged())
+      .undo(target)
+      .then(() => {
+        setCheck(null)
+        onChanged()
+      })
       .catch((e: Error) => {
         setError(e.message)
         if (e instanceof ApiError && e.status === 409) askUndo()
       })
       .finally(() => setBusy(false))
   }
-  const undoable = !a.undone_at && a.kind !== 'undo'
+  const undoable = a.kind === 'undo' ? !a.undone_at : !a.undone_at || a.redo_id != null
   return (
-    <li className={`hx-row ${a.undone_at ? 'undone' : ''} ${a.kind === 'undo' ? 'is-undo' : ''}`}>
+    <li className={`hx-row ${a.undone_at ? 'undone' : ''} ${a.kind === 'undo' || a.kind === 'redo' ? 'is-undo' : ''}`}>
       <button type="button" className="hx-head" onClick={toggle} aria-expanded={open}>
         <span className="hx-kind">{a.kind_label}</span>
         <span className="hx-title">
@@ -154,21 +160,28 @@ function HistoryRow({ activity: a, onChanged }: { activity: HistoryActivity; onC
           {error && <p className="error small">{error}</p>}
           {undoable && !check && (
             <button className="btn small" onClick={askUndo} disabled={busy}>
-              ↶ Undo…
+              {isRedo ? '↷ Redo…' : '↶ Undo…'}
             </button>
           )}
           {check && (
             <div className={`hx-confirm ${check.ok ? '' : 'blocked'}`}>
               {check.ok ? (
                 <>
-                  <p>
-                    Everything above goes back to how it was before
-                    {a.added || a.removed || a.moved ? ': each copy returns to where it was, binder positions included' : ''}. This
-                    is saved as a new change, too.
-                  </p>
+                  {isRedo ? (
+                    <p>
+                      The change {a.kind === 'undo' ? `“${a.undo_of?.title ?? ''}”` : 'above'} is applied again, exactly as it was
+                      before you undid it. This is saved as a new change, too.
+                    </p>
+                  ) : (
+                    <p>
+                      Everything above goes back to how it was before
+                      {a.added || a.removed || a.moved ? ': each copy returns to where it was, binder positions included' : ''}. This
+                      is saved as a new change, too.
+                    </p>
+                  )}
                   <div>
                     <button className="btn primary small" onClick={doUndo} disabled={busy}>
-                      {busy ? 'Undoing…' : 'Yes, undo it'}
+                      {busy ? (isRedo ? 'Redoing…' : 'Undoing…') : isRedo ? 'Yes, redo it' : 'Yes, undo it'}
                     </button>
                     <button className="btn small" onClick={() => setCheck(null)} disabled={busy}>
                       Cancel

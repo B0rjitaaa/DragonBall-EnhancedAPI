@@ -705,6 +705,8 @@ export interface HistoryActivity {
   undone_at: string | null
   undo_of: { id: number; title: string } | null
   restore_point: number | null
+  /** Cambio deshecho: el «Undo» que hay que deshacer para rehacerlo. */
+  redo_id: number | null
   added: number
   removed: number
   moved: number

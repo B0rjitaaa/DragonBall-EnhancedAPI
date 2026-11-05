@@ -24,6 +24,14 @@ Wants and matches aren't included yet. The history starts counting from when it 
 
 You can undo **any change**, not just the last one, with a safeguard: if you touched those same cards afterwards, it won't undo blindly. It tells you which later changes modified them so you undo those first (newest first). An undo is also a line in the history (**UNDO**), and the undone change is marked **undone**.
 
+### Redo
+
+If you undid something by mistake, **↷ Redo…** applies it again exactly as it was. It shows on the undone change (marked **undone**) and on its **UNDO** line. Same safeguard: if you touched those cards afterwards, it warns you first. A redo is a **REDO** line, and it can be undone too.
+
+### Export to CSV
+
+**⇩ Export CSV** downloads the history, with whatever filters you have on, to open in Excel or Google Sheets. One row per card and place that changed: date, change, type, source, whether it's undone, card, location, copies before and after, difference and binder position. Changes that aren't copies (locations, lists, side…) get their own row, in the `other` column.
+
 ### Restore points
 
 Right before **restoring a backup**, **importing a CSV** or **importing a deck**, a full copy of the collection is saved automatically (**⟲ point** on its line). At the bottom of the page, **Restore to this point…** shows how many cards would change and, once you confirm, puts everything back as it was at that moment, **including whatever you did afterwards**. It's for when something went very wrong; for normal use, **Undo** is enough. Going back to a point can be undone too. They're kept for **90 days** (the history, forever).

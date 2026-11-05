@@ -84,6 +84,12 @@ export const api = {
     for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '' && v !== null) params.set(k, String(v))
     return request<HistoryPage>(`/history/?${params}`, { signal })
   },
+  /** El histórico en CSV, con los mismos filtros que la lista. */
+  historyCsvUrl: (f: HistoryFilter = {}) => {
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '' && v !== null && k !== 'page') params.set(k, String(v))
+    return `${BASE}/history/csv/${params.size ? `?${params}` : ''}`
+  },
   historyDetail: (id: number) => request<HistoryDetail>(`/history/${id}/`),
   undoCheck: (id: number) => request<UndoCheck>(`/history/${id}/undo/`),
   undo: (id: number) => request<{ undone: number; activity: HistoryActivity | null }>(`/history/${id}/undo/`, { method: 'POST' }),

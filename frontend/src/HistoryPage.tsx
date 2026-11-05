@@ -104,6 +104,11 @@ export default function HistoryPage() {
             To <input className="input" type="date" value={filter.to ?? ''} onChange={(e) => set({ to: e.target.value || undefined })} />
           </label>
         </div>
+        <div className="hx-export">
+          <a className="btn small" href={api.historyCsvUrl(filter)} download title="Download the history (with the current filters) as a spreadsheet">
+            ⇩ Export CSV
+          </a>
+        </div>
         {(filter.card || active) && (
           <div className="hx-active">
             {filter.card && (

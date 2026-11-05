@@ -160,3 +160,48 @@ class HistoryTests(TestCase):
         self.api.post("/api/my-collection/import/", {"csv": "card,quantity\nEX20-03,1\n"}, format="json")  # vista previa
         self.assertEqual(self.history()["count"], 0)
         self.assertFalse(RestorePoint.objects.exists())
+
+    def test_redo_and_undo_again(self):
+        self.adjust(self.b, 2, self.box)
+        change = self.history()["results"][0]["id"]
+        self.undo(change)
+        undo_row, changed_row = self.history()["results"][:2]
+        self.assertEqual((undo_row["kind"], changed_row["redo_id"]), ("undo", undo_row["id"]))
+        # Rehacer = deshacer el «Undo»: vuelven las copias y el cambio original deja de estar deshecho.
+        self.assertEqual(self.undo(undo_row["id"]).status_code, 200)
+        self.assertEqual(qty(self.b, self.box), 5)
+        redo = self.history()["results"][0]
+        self.assertEqual((redo["kind"], redo["title"]), ("redo", "Redo: Copies: +2 EX20-03 → Caja 1"))
+        self.assertIsNone(Activity.objects.get(pk=change).undone_at)
+        self.assertIsNone(self.history(kind="adjust")["results"][0]["redo_id"])
+        # Y se puede volver a deshacer (deshaciendo el «Redo»), y a rehacer otra vez.
+        self.undo(redo["id"])
+        self.assertEqual(qty(self.b, self.box), 3)
+        self.assertIsNotNone(Activity.objects.get(pk=change).undone_at)
+        again = self.history(kind="adjust")["results"][0]["redo_id"]
+        self.assertEqual(self.undo(again).status_code, 200)
+        self.assertEqual(qty(self.b, self.box), 5)
+
+    def test_redo_is_blocked_if_the_cards_changed(self):
+        self.adjust(self.b, 2, self.box)
+        self.undo(self.history()["results"][0]["id"])
+        undo_id = self.history()["results"][0]["id"]
+        self.adjust(self.b, 1, self.box)  # las mismas copias cambian después
+        self.assertEqual(self.undo(undo_id).status_code, 409)
+        self.assertEqual(qty(self.b, self.box), 4)
+
+    def test_csv_export(self):
+        self.api.post("/api/my-collection/move/", {"card_id": 2, "source": self.binder.id, "target": self.box.id,
+                                                   "quantity": 1}, format="json")
+        r = self.api.get("/api/history/csv/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("attachment", r["Content-Disposition"])
+        lines = r.content.decode("utf-8-sig").splitlines()
+        self.assertTrue(lines[0].startswith("date;change_id;type;change"))
+        rows = [line.split(";") for line in lines[1:]]
+        by_place = {row[8]: row for row in rows}
+        self.assertEqual(by_place["Archivador"][10:13], ["2", "1", "-1"])
+        self.assertEqual(by_place["Caja 1"][10:13], ["0", "1", "1"])
+        self.assertEqual(by_place["Archivador"][6], "BT29-86")
+        # Con filtros, solo lo filtrado.
+        self.assertEqual(len(self.api.get("/api/history/csv/", {"card": 4}).content.decode("utf-8-sig").splitlines()), 1)

@@ -1,5 +1,10 @@
 """API del histórico (página Tools → History, la ficha de una carta y la vista de un mazo)."""
+import csv
+import io
 from datetime import datetime
+
+from django.http import HttpResponse
+from django.utils import timezone
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -47,6 +52,8 @@ def _summary(activity: Activity, items) -> dict:
         "undone_at": activity.undone_at,
         "undo_of": {"id": activity.undo_of_id, "title": activity.undo_of.title} if activity.undo_of_id else None,
         "restore_point": point.id if point else None,
+        # Cambio deshecho: el «Undo» que hay que deshacer para rehacerlo (botón «Redo»).
+        "redo_id": (target.id if (target := recorder.redo_target(activity)) else None) if activity.undone_at else None,
         "added": added,
         "removed": removed,
         "moved": moved,
@@ -205,8 +212,6 @@ class HistoryUndoView(APIView):
 
     def post(self, request, pk):
         activity = get_object_or_404(Activity, pk=pk)
-        if activity.kind == "undo":  # rehacer lo deshecho llegará más adelante
-            return Response({"detail": "This change can't be undone from here."}, status=status.HTTP_400_BAD_REQUEST)
         try:
             done = recorder.undo(activity)
         except ValueError as exc:
@@ -247,3 +252,43 @@ class RestorePointRestoreView(APIView):
         point = get_object_or_404(RestorePoint, pk=pk)
         done = recorder.restore_to_point(point)
         return Response({"activity": _summary(done, list(done.items.all())) if done else None})
+
+
+CSV_COLUMNS = ["date", "change_id", "type", "change", "source", "undone", "card_number", "card_name", "location", "fake",
+               "before", "after", "difference", "position_before", "position_after", "other"]
+
+
+class HistoryCsvView(APIView):
+    """GET (los mismos filtros que la lista): el histórico en CSV, una fila por carta y sitio que cambió, y una fila
+    por cada cambio que no es de copias (ubicaciones, listas, side…)."""
+
+    def get(self, request):
+        acts = list(_filtered(request).order_by("-updated_at", "-id")[:5000])
+        items: dict[int, list] = {}
+        for item in ActivityItem.objects.filter(activity__in=acts):
+            items.setdefault(item.activity_id, []).append(item)
+        all_items = [i for rows in items.values() for i in rows]
+        names = _location_names(all_items)
+        cards = _card_info({i.key[0] for i in all_items if i.model == "entry"} | {i.card_id for i in all_items if i.card_id})
+        out = io.StringIO()
+        writer = csv.writer(out, delimiter=";", lineterminator="\r\n")  # como el CSV de la colección: Excel en español
+        writer.writerow(CSV_COLUMNS)
+        for a in acts:
+            base = [timezone.localtime(a.updated_at).strftime("%Y-%m-%d %H:%M:%S"), a.id,
+                    recorder.KIND_LABELS.get(a.kind, a.kind), a.title, a.source, "yes" if a.undone_at else ""]
+            rows = items.get(a.id, [])
+            entries = sorted((i for i in rows if i.model == "entry"),
+                             key=lambda i: (cards.get(i.key[0], {}).get("card_number", ""), names.get(i.key[1], "")))
+            for i in entries:
+                card = cards.get(i.key[0], {})
+                before, after = (i.before or {}).get("quantity", 0), (i.after or {}).get("quantity", 0)
+                notes_b, notes_a = (i.before or {}).get("notes", ""), (i.after or {}).get("notes", "")
+                writer.writerow(base + [card.get("card_number", ""), card.get("name", ""), names.get(i.key[1], ""),
+                                        "yes" if i.key[2] else "", before, after, after - before,
+                                        notes_b.replace("\n", " | ") if notes_b != notes_a else "",
+                                        notes_a.replace("\n", " | ") if notes_b != notes_a else "", ""])
+            for text in _other_changes([i for i in rows if i.model != "entry"], names, cards):
+                writer.writerow(base + [""] * 9 + [text])
+        response = HttpResponse("\ufeff" + out.getvalue(), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="collection-history-{timezone.localdate():%Y-%m-%d}.csv"'
+        return response

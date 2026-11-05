@@ -2287,6 +2287,8 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .hx-pager { display: flex; align-items: center; justify-content: center; gap: 0.8rem; }
 .hx-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
 .hx-date { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+.hx-export { display: flex; justify-content: flex-end; }
+.hx-export a.btn { text-decoration: none; color: var(--text); }
 .hx-active { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .hx-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
 .hx-points li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.88rem; padding: 0.4rem 0; border-top: 1px solid var(--line); }
