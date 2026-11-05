@@ -1233,7 +1233,11 @@ button.deck-chip:hover { border-color: var(--accent); }
 .loc-bar { height: 6px; border-radius: 3px; background: var(--bg-3); overflow: hidden; }
 .loc-bar i { display: block; height: 100%; background: var(--accent); opacity: 0.75; border-radius: 3px; }
 @media (max-width: 640px) {
-  .loc-row-main { grid-template-columns: minmax(0, 1fr) auto; }
+  /* En el móvil la fila no puede pasar del ancho: las cifras se parten y «Open binder» baja bajo la fila */
+  .loc-row { flex-wrap: wrap; }
+  .loc-row-main { grid-template-columns: minmax(0, 1fr); flex-basis: calc(100% - 2.4rem); }
+  .loc-row-stats { white-space: normal; }
+  .loc-open-binder { order: 3; margin: -0.3rem 0 0.6rem 0.9rem; }
   .loc-bar { grid-column: 1 / -1; }
   .locdeck-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
 }

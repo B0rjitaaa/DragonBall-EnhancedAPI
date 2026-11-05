@@ -81,14 +81,15 @@ def snapshot() -> Snapshot:
     """Todas las filas de las tablas seguidas: {tabla: {clave: valores}}."""
     out: Snapshot = {}
     for spec in SPECS:
-        rows = spec.model.objects.values(*spec.key, *spec.fields)
-        table = {}
-        for row in rows:
-            row = _plain(row)
-            key = [row.pop(k) for k in spec.key]
-            table[_key_str(key)] = row
-        out[spec.name] = table
+        nk = len(spec.key)
+        # Una sola conversión a tipos de JSON por tabla (fila a fila era lo que más tardaba).
+        rows = _plain_rows(list(spec.model.objects.values_list(*spec.key, *spec.fields)))
+        out[spec.name] = {_key_str(r[:nk]): dict(zip(spec.fields, r[nk:])) for r in rows}
     return out
+
+
+def _plain_rows(rows: list) -> list:
+    return json.loads(json.dumps(rows, cls=DjangoJSONEncoder))
 
 
 def diff(before: Snapshot, after: Snapshot) -> list[dict]:
