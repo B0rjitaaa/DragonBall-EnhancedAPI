@@ -98,6 +98,182 @@ function saveDraft(deckId: number, { draft, added, order }: DraftState) {
   }
 }
 
+/** Estadísticas del Main Deck: copias, curva de energía, energía media, tipos y colores. */
+function deckStats(main: CardSummary[]) {
+  const total = main.reduce((n, c) => n + copies(c), 0)
+  const curve = new Map<number, number>()
+  const types = new Map<string, number>()
+  const colors = new Map<string, number>()
+  for (const c of main) {
+    const n = copies(c)
+    const cost = Math.min(c.energy ?? 0, 10)
+    curve.set(cost, (curve.get(cost) ?? 0) + n)
+    types.set(c.card_type, (types.get(c.card_type) ?? 0) + n)
+    for (const col of c.colors) colors.set(col, (colors.get(col) ?? 0) + n)
+  }
+  const maxCost = Math.max(6, ...curve.keys())
+  const bars = Array.from({ length: maxCost + 1 }, (_, cost) => ({ cost, n: curve.get(cost) ?? 0 }))
+  const avg = total ? main.reduce((s, c) => s + (c.energy ?? 0) * copies(c), 0) / total : 0
+  return { total, bars, peak: Math.max(1, ...bars.map((b) => b.n)), avg, types, colors }
+}
+
+/** Reglas de construcción: avisos y, por carta, por qué se marca (Banned, Limited, copias de más…). */
+function deckIssues(main: CardSummary[], zDeck: CardSummary[], leader: CardSummary | undefined, leaderCount: number, total: number) {
+  const issues: Issue[] = []
+  const flagged = new Map<number, string>()
+  if (!leader) issues.push({ level: 'error', text: 'The Leader card is missing' })
+  if (total < MAIN_MIN) {
+    const n = MAIN_MIN - total
+    issues.push({ level: 'error', text: `${n} ${n === 1 ? 'card' : 'cards'} short of ${MAIN_MIN}` })
+  } else if (total > MAIN_MAX) {
+    const n = total - MAIN_MAX
+    issues.push({ level: 'error', text: `${n} ${n === 1 ? 'card' : 'cards'} too many (max ${MAIN_MAX})` })
+  }
+  // Copias por número de carta (las distintas impresiones de una carta cuentan juntas).
+  const byNumber = new Map<string, { n: number; ids: number[]; name: string }>()
+  for (const c of [...main, ...zDeck]) {
+    const e = byNumber.get(c.card_number) ?? { n: 0, ids: [], name: c.name }
+    e.n += copies(c)
+    e.ids.push(c.id)
+    byNumber.set(c.card_number, e)
+  }
+  for (const [num, e] of byNumber) {
+    if (e.n > MAX_COPIES) {
+      issues.push({ level: 'error', text: `${num} ${e.name}: ${e.n} copies (max ${MAX_COPIES})` })
+      e.ids.forEach((id) => flagged.set(id, `More than ${MAX_COPIES} copies`))
+    }
+  }
+  for (const c of [...main, ...zDeck]) {
+    if (c.legality === 'banned') {
+      issues.push({ level: 'error', text: `${c.card_number} ${c.name} is Banned` })
+      flagged.set(c.id, 'Banned')
+    } else if (c.legality === 'limited' && (byNumber.get(c.card_number)?.n ?? 0) > 1) {
+      issues.push({ level: 'error', text: `${c.card_number} ${c.name} is Limited: 1 copy max` })
+      flagged.set(c.id, 'Limited')
+    }
+  }
+  for (const rule of SKILL_LIMITS) {
+    const withSkill = [...main, ...zDeck].filter((c) => c.keyword_skills.includes(rule.skill))
+    if (rule.scope === 'card') {
+      for (const c of withSkill) {
+        if (copies(c) > rule.max) {
+          issues.push({ level: 'error', text: `${c.card_number} ${c.name}: ${rule.label}` })
+          flagged.set(c.id, rule.label)
+        }
+      }
+    } else {
+      const n = withSkill.reduce((s, c) => s + copies(c), 0)
+      if (n > rule.max) {
+        issues.push({ level: 'error', text: `${rule.label} (you have ${n})` })
+        withSkill.forEach((c) => flagged.set(c.id, rule.label))
+      }
+    }
+  }
+  if (leaderCount > 1) issues.push({ level: 'warn', text: `There are ${leaderCount} Leader cards in the deck` })
+  return { issues, flagged }
+}
+
+/** La comprobación de las reglas de construcción: «✓ Meets…», un aviso o la lista de avisos. */
+function RulesCheck({ issues }: { issues: Issue[] }) {
+  return (
+    <>
+    {issues.length === 0 ? (
+      <span className="deck-check ok">✓ Meets the deck-building rules</span>
+    ) : issues.length === 1 ? (
+      <span className={`deck-check ${issues[0].level}`}>⚠ {issues[0].text}</span>
+    ) : (
+      <details className={`deck-check ${issues.some((i) => i.level === 'error') ? 'error' : 'warn'}`}>
+        <summary>⚠ {issues.length} deck-building warnings</summary>
+        <ul>
+          {issues.map((i) => (
+            <li key={i.text}>{i.text}</li>
+          ))}
+        </ul>
+      </details>
+    )}
+    </>
+  )
+}
+
+/** Curva de energía, tipos y colores del Main Deck; al pulsarlos se filtran las cartas de cada sección. */
+function StatsPanel({
+  stats,
+  filter,
+  onToggle,
+  onClear,
+  filtering,
+}: {
+  stats: ReturnType<typeof deckStats>
+  filter: Filter
+  onToggle: <K extends keyof Filter>(key: K, value: Filter[K][number]) => void
+  onClear: () => void
+  filtering: boolean
+}) {
+  const onClass = (on: boolean) => (on ? 'on' : filtering ? 'dim' : '')
+  return (
+    <div className="deck-stats">
+      <figure className="deck-curve" aria-label="Main Deck Energy curve">
+        <figcaption>Energy curve</figcaption>
+        <div className="deck-bars">
+          {stats.bars.map((b) => (
+            <button
+              key={b.cost}
+              className={`deck-bar ${onClass(filter.cost.includes(b.cost))}`}
+              title={`Energy ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cards · click to filter`}
+              aria-pressed={filter.cost.includes(b.cost)}
+              onClick={() => onToggle('cost', b.cost)}
+            >
+              <span className="deck-bar-n">{b.n || ''}</span>
+              <span className="deck-bar-fill" style={{ height: `${(b.n / stats.peak) * 100}%` }} />
+              <span className="deck-bar-x">{b.cost === 10 ? '10+' : b.cost}</span>
+            </button>
+          ))}
+        </div>
+      </figure>
+      <div className="deck-mix">
+        <p className="deck-mix-title">Types</p>
+        <div className="deck-chips">
+          {[...stats.types].map(([t, n]) => (
+            <button
+              key={t}
+              className={`deck-chip ${onClass(filter.type.includes(t))}`}
+              aria-pressed={filter.type.includes(t)}
+              onClick={() => onToggle('type', t)}
+            >
+              {TYPE_LABELS[t] ?? t} <strong>{n}</strong>
+            </button>
+          ))}
+        </div>
+        <p className="deck-mix-title">Colors</p>
+        <div className="deck-colorbar" aria-label="Split by Colors">
+          {[...stats.colors]
+            .sort((a, b) => COLOR_ORDER.indexOf(a[0]) - COLOR_ORDER.indexOf(b[0]))
+            .map(([col, n]) => (
+              <span key={col} className={`bg ${colorClass(col)}`} style={{ flexGrow: n }} title={`${col}: ${n}`} />
+            ))}
+        </div>
+        <div className="deck-chips">
+          {[...stats.colors].map(([col, n]) => (
+            <button
+              key={col}
+              className={`deck-chip ${onClass(filter.color.includes(col))}`}
+              aria-pressed={filter.color.includes(col)}
+              onClick={() => onToggle('color', col)}
+            >
+              <i className={`dot ${colorClass(col)}`} /> {col} <strong>{n}</strong>
+            </button>
+          ))}
+        </div>
+        {filtering && (
+          <button className="link small deck-filter-clear" onClick={onClear}>
+            ✕ Clear filters
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /** Vista de un mazo: líder, estadísticas, comprobación de reglas, cartas por secciones, listas y partidas. */
 export default function DeckView({ deck, cards, panelFilter, loading, onOpen, onReorder, onCollectionChanged }: Props) {
   const [detail, setDetail] = useState<DeckDetail | null>(null)
@@ -280,78 +456,12 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
     })
   }
 
-  const stats = useMemo(() => {
-    const total = main.reduce((n, c) => n + copies(c), 0)
-    const curve = new Map<number, number>()
-    const types = new Map<string, number>()
-    const colors = new Map<string, number>()
-    for (const c of main) {
-      const n = copies(c)
-      const cost = Math.min(c.energy ?? 0, 10)
-      curve.set(cost, (curve.get(cost) ?? 0) + n)
-      types.set(c.card_type, (types.get(c.card_type) ?? 0) + n)
-      for (const col of c.colors) colors.set(col, (colors.get(col) ?? 0) + n)
-    }
-    const maxCost = Math.max(6, ...curve.keys())
-    const bars = Array.from({ length: maxCost + 1 }, (_, cost) => ({ cost, n: curve.get(cost) ?? 0 }))
-    const avg = total ? main.reduce((s, c) => s + (c.energy ?? 0) * copies(c), 0) / total : 0
-    return { total, bars, peak: Math.max(1, ...bars.map((b) => b.n)), avg, types, colors }
-  }, [main])
+  const stats = useMemo(() => deckStats(main), [main])
 
-  const { issues, flagged } = useMemo(() => {
-    const issues: Issue[] = []
-    const flagged = new Map<number, string>()
-    if (!leader) issues.push({ level: 'error', text: 'The Leader card is missing' })
-    if (stats.total < MAIN_MIN) {
-      const n = MAIN_MIN - stats.total
-      issues.push({ level: 'error', text: `${n} ${n === 1 ? 'card' : 'cards'} short of ${MAIN_MIN}` })
-    } else if (stats.total > MAIN_MAX) {
-      const n = stats.total - MAIN_MAX
-      issues.push({ level: 'error', text: `${n} ${n === 1 ? 'card' : 'cards'} too many (max ${MAIN_MAX})` })
-    }
-    // Copias por número de carta (las distintas impresiones de una carta cuentan juntas).
-    const byNumber = new Map<string, { n: number; ids: number[]; name: string }>()
-    for (const c of [...main, ...zDeck]) {
-      const e = byNumber.get(c.card_number) ?? { n: 0, ids: [], name: c.name }
-      e.n += copies(c)
-      e.ids.push(c.id)
-      byNumber.set(c.card_number, e)
-    }
-    for (const [num, e] of byNumber) {
-      if (e.n > MAX_COPIES) {
-        issues.push({ level: 'error', text: `${num} ${e.name}: ${e.n} copies (max ${MAX_COPIES})` })
-        e.ids.forEach((id) => flagged.set(id, `More than ${MAX_COPIES} copies`))
-      }
-    }
-    for (const c of [...main, ...zDeck]) {
-      if (c.legality === 'banned') {
-        issues.push({ level: 'error', text: `${c.card_number} ${c.name} is Banned` })
-        flagged.set(c.id, 'Banned')
-      } else if (c.legality === 'limited' && (byNumber.get(c.card_number)?.n ?? 0) > 1) {
-        issues.push({ level: 'error', text: `${c.card_number} ${c.name} is Limited: 1 copy max` })
-        flagged.set(c.id, 'Limited')
-      }
-    }
-    for (const rule of SKILL_LIMITS) {
-      const withSkill = [...main, ...zDeck].filter((c) => c.keyword_skills.includes(rule.skill))
-      if (rule.scope === 'card') {
-        for (const c of withSkill) {
-          if (copies(c) > rule.max) {
-            issues.push({ level: 'error', text: `${c.card_number} ${c.name}: ${rule.label}` })
-            flagged.set(c.id, rule.label)
-          }
-        }
-      } else {
-        const n = withSkill.reduce((s, c) => s + copies(c), 0)
-        if (n > rule.max) {
-          issues.push({ level: 'error', text: `${rule.label} (you have ${n})` })
-          withSkill.forEach((c) => flagged.set(c.id, rule.label))
-        }
-      }
-    }
-    if (leaders.length > 1) issues.push({ level: 'warn', text: `There are ${leaders.length} Leader cards in the deck` })
-    return { issues, flagged }
-  }, [main, zDeck, leader, leaders.length, stats.total])
+  const { issues, flagged } = useMemo(
+    () => deckIssues(main, zDeck, leader, leaders.length, stats.total),
+    [main, zDeck, leader, leaders.length, stats.total],
+  )
 
   // Filtros desde las estadísticas (coste, tipo, color): se aplican a cada sección por separado.
   const [filter, setFilter] = useState<Filter>(NO_FILTER)
@@ -385,7 +495,6 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
     (!filter.color.length || c.colors.some((col) => filter.color.includes(col)))
   const shown = (list: CardSummary[]) => (filtering ? list.filter(passes) : list)
   const countOf = (list: CardSummary[]) => list.reduce((n, c) => n + copies(c), 0)
-  const onClass = (on: boolean) => (on ? 'on' : filtering ? 'dim' : '')
 
   const reorderSection = (section: Section, ids: number[]) => {
     if (!onReorder) return
@@ -463,20 +572,7 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
               </span>
             )}
           </div>
-          {issues.length === 0 ? (
-            <span className="deck-check ok">✓ Meets the deck-building rules</span>
-          ) : issues.length === 1 ? (
-            <span className={`deck-check ${issues[0].level}`}>⚠ {issues[0].text}</span>
-          ) : (
-            <details className={`deck-check ${issues.some((i) => i.level === 'error') ? 'error' : 'warn'}`}>
-              <summary>⚠ {issues.length} deck-building warnings</summary>
-              <ul>
-                {issues.map((i) => (
-                  <li key={i.text}>{i.text}</li>
-                ))}
-              </ul>
-            </details>
-          )}
+          <RulesCheck issues={issues} />
           <DeckExport deck={{ leader, main, z: zDeck, side }} />
           {detail?.pick_list && (
             <button
@@ -513,66 +609,7 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
           <div className="deck-record" />
         )}
 
-        <div className="deck-stats">
-          <figure className="deck-curve" aria-label="Main Deck Energy curve">
-            <figcaption>Energy curve</figcaption>
-            <div className="deck-bars">
-              {stats.bars.map((b) => (
-                <button
-                  key={b.cost}
-                  className={`deck-bar ${onClass(filter.cost.includes(b.cost))}`}
-                  title={`Energy ${b.cost}${b.cost === 10 ? '+' : ''}: ${b.n} cards · click to filter`}
-                  aria-pressed={filter.cost.includes(b.cost)}
-                  onClick={() => toggle('cost', b.cost)}
-                >
-                  <span className="deck-bar-n">{b.n || ''}</span>
-                  <span className="deck-bar-fill" style={{ height: `${(b.n / stats.peak) * 100}%` }} />
-                  <span className="deck-bar-x">{b.cost === 10 ? '10+' : b.cost}</span>
-                </button>
-              ))}
-            </div>
-          </figure>
-          <div className="deck-mix">
-            <p className="deck-mix-title">Types</p>
-            <div className="deck-chips">
-              {[...stats.types].map(([t, n]) => (
-                <button
-                  key={t}
-                  className={`deck-chip ${onClass(filter.type.includes(t))}`}
-                  aria-pressed={filter.type.includes(t)}
-                  onClick={() => toggle('type', t)}
-                >
-                  {TYPE_LABELS[t] ?? t} <strong>{n}</strong>
-                </button>
-              ))}
-            </div>
-            <p className="deck-mix-title">Colors</p>
-            <div className="deck-colorbar" aria-label="Split by Colors">
-              {[...stats.colors]
-                .sort((a, b) => COLOR_ORDER.indexOf(a[0]) - COLOR_ORDER.indexOf(b[0]))
-                .map(([col, n]) => (
-                  <span key={col} className={`bg ${colorClass(col)}`} style={{ flexGrow: n }} title={`${col}: ${n}`} />
-                ))}
-            </div>
-            <div className="deck-chips">
-              {[...stats.colors].map(([col, n]) => (
-                <button
-                  key={col}
-                  className={`deck-chip ${onClass(filter.color.includes(col))}`}
-                  aria-pressed={filter.color.includes(col)}
-                  onClick={() => toggle('color', col)}
-                >
-                  <i className={`dot ${colorClass(col)}`} /> {col} <strong>{n}</strong>
-                </button>
-              ))}
-            </div>
-            {filtering && (
-              <button className="link small deck-filter-clear" onClick={() => setFilter(NO_FILTER)}>
-                ✕ Clear filters
-              </button>
-            )}
-          </div>
-        </div>
+        <StatsPanel stats={stats} filter={filter} onToggle={toggle} onClear={() => setFilter(NO_FILTER)} filtering={filtering} />
       </section>
 
       {detail ? (
@@ -938,6 +975,142 @@ function DeckCard({
             +
           </button>
         </div>
+      )}
+    </div>
+  )
+}
+
+/** Cómo quedaría un mazo antes de crearlo (al importar una lista): la misma vista que el detalle de un mazo, pero solo
+ *  para mirar. No guarda nada. Las cartas que no tienes salen como «missing». */
+export function DeckPreview({
+  name,
+  pool,
+  side,
+  onOpen,
+  note,
+}: {
+  name: string
+  /** Leader, Main Deck y Z Deck (cada carta con `quantity` y, si faltan copias, `missing`). */
+  pool: CardSummary[]
+  side: CardSummary[]
+  onOpen: (id: number) => void
+  note?: string
+}) {
+  const leaders = pool.filter((c) => sectionOf(c) === 'leader')
+  const leader = leaders[0]
+  const main = pool.filter((c) => sectionOf(c) === 'main')
+  const zDeck = pool.filter((c) => sectionOf(c) === 'z')
+  const [showFront, setShowFront] = useState(false)
+  const [filter, setFilter] = useState<Filter>(NO_FILTER)
+  const stats = useMemo(() => deckStats(main), [main])
+  const { issues, flagged } = useMemo(
+    () => deckIssues(main, zDeck, leader, leaders.length, stats.total),
+    [main, zDeck, leader, leaders.length, stats.total],
+  )
+  const filtering = filter.cost.length + filter.type.length + filter.color.length > 0
+  const toggle = <K extends keyof Filter>(key: K, value: Filter[K][number]) =>
+    setFilter((f) => {
+      const list = f[key] as Filter[K][number][]
+      return { ...f, [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] }
+    })
+  const passes = (c: CardSummary) =>
+    (!filter.cost.length || filter.cost.includes(Math.min(c.energy ?? 0, 10))) &&
+    (!filter.type.length || filter.type.includes(c.card_type)) &&
+    (!filter.color.length || c.colors.some((col) => filter.color.includes(col)))
+  const shown = (list: CardSummary[]) => (filtering ? list.filter(passes) : list)
+  const countOf = (list: CardSummary[]) => list.reduce((n, c) => n + copies(c), 0)
+  const zTotal = countOf(zDeck)
+  const sideTotal = countOf(side)
+  const missingTotal = [...pool, ...side].reduce((n, c) => n + missingOf(c), 0)
+  const leaderImage = leader && (showFront || !leader.back_image_url ? leader.image_url : leader.back_image_url)
+
+  return (
+    <div className="deck-view deck-preview">
+      <section className="deck-hero">
+        <div className="deck-leader">
+          {leader ? (
+            <button
+              className="deck-leader-card"
+              onClick={() => leader.back_image_url && setShowFront(!showFront)}
+              title={leader.back_image_url ? 'Click to flip the card' : leader.name}
+            >
+              <img src={leaderImage} alt={`Leader: ${leader.name}`} referrerPolicy="no-referrer" />
+              {leader.back_image_url && <span className="deck-flip">{showFront ? 'Front' : 'Awaken'} ⟲</span>}
+            </button>
+          ) : (
+            <div className="deck-leader-card empty">No Leader</div>
+          )}
+          {leader && (
+            <span className="deck-leader-links">
+              <button className="link small" onClick={() => onOpen(leader.id)}>
+                {leader.card_number} · details
+              </button>
+            </span>
+          )}
+        </div>
+
+        <div className="deck-summary">
+          <p className="deck-eyebrow">Deck preview · not created yet</p>
+          <h2 className="deck-title">{name || 'New deck'}</h2>
+          {leader && <p className="deck-leader-name">{showFront || !leader.back_name ? leader.name : leader.back_name}</p>}
+          <div className="deck-counts">
+            <span className={`deck-count ${stats.total >= MAIN_MIN && stats.total <= MAIN_MAX ? 'ok' : 'bad'}`}>
+              <strong>{stats.total}</strong>/{MAIN_MAX} Main Deck
+            </span>
+            <span className="deck-count">
+              <strong>{zTotal}</strong> Z Deck
+            </span>
+            <span className="deck-count">
+              <strong>{stats.avg.toFixed(1)}</strong> Av. Energy
+            </span>
+            {sideTotal > 0 && (
+              <span className="deck-count">
+                <strong>{sideTotal}</strong> side
+              </span>
+            )}
+            {missingTotal > 0 && (
+              <span className="deck-count missing" title="Copies you don't have anywhere in your collection">
+                <strong>{missingTotal}</strong> missing
+              </span>
+            )}
+          </div>
+          <RulesCheck issues={issues} />
+          {note && <p className="muted small">{note}</p>}
+        </div>
+
+        <div className="deck-record" />
+
+        <StatsPanel stats={stats} filter={filter} onToggle={toggle} onClear={() => setFilter(NO_FILTER)} filtering={filtering} />
+      </section>
+
+      <DeckSection
+        title="Main Deck"
+        count={stats.total}
+        shown={filtering ? countOf(shown(main)) : undefined}
+        cards={shown(main)}
+        flagged={flagged}
+        onOpen={onOpen}
+      />
+      {zDeck.length > 0 && (
+        <DeckSection
+          title="Z Deck"
+          count={zTotal}
+          shown={filtering ? countOf(shown(zDeck)) : undefined}
+          cards={shown(zDeck)}
+          flagged={flagged}
+          onOpen={onOpen}
+        />
+      )}
+      {side.length > 0 && (
+        <DeckSection
+          title="Side deck"
+          count={sideTotal}
+          shown={filtering ? countOf(shown(side)) : undefined}
+          cards={shown(side)}
+          flagged={new Map()}
+          onOpen={onOpen}
+          empty={filtering ? 'No side cards match these filters.' : undefined}
+        />
       )}
     </div>
   )

@@ -28,7 +28,8 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
 
    En los archivadores las cartas van de la página más alta a la más baja, y si una carta está en varias posiciones salen todas como botones: las marcadas (**✓**) son las copias que se cogen. Si un bolsillo tiene varias copias, su botón lleva **− k/N +** para elegir cuántas coger de ahí. Puedes elegir otra, quitar una o marcar más de las que pide la lista: cada posición marcada es una copia menos en el archivador y, si marcas de más, esas copias también entran en el mazo (salen como **«+N extra»** arriba y se apuntan en la primera sección de la carta).
 3. Si hay cartas **en uso en otros mazos**, un aviso las enseña mazo por mazo. **Marca un mazo para coger sus copias**: pasan al mazo nuevo y ese mazo **guarda una versión nueva** con lo que le queda (con el nombre «Gave cards to “…”»), así que su lista anterior queda en su historial. Si no lo marcas, esas cartas cuentan como que faltan.
-4. Revisa el nombre (**«Deck name»**, que viene de la web de origen si lo tiene) y pulsa **«Create deck»** (crear mazo).
+4. Si quieres verlo antes, pulsa **«👁 Preview deck»** (previsualizar mazo): abre la misma vista que el detalle de un mazo, con el Leader, la curva de energía, los tipos y colores, la comprobación de las reglas de construcción y las cartas por secciones (las que te faltan, con la etiqueta violeta **«MISSING»**). Las estadísticas también filtran las cartas y puedes abrir la ficha de cada una. **No crea ni guarda nada**: **«← Back to the import»** te devuelve a la importación tal como la dejaste.
+5. Revisa el nombre (**«Deck name»**, que viene de la web de origen si lo tiene) y pulsa **«Create deck»** (crear mazo).
 
 ### Si ya tienes un mazo con ese Leader
 

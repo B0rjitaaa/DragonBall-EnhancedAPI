@@ -3,8 +3,11 @@ import { api } from '../lib/api'
 import { formatEur } from '../lib/prices'
 import { locationPath } from '../lib/query'
 import PickList from './PickList'
+import CardModal from './CardModal'
+import { DeckPreview } from './DeckView'
+import { SkillIndex } from '../lib/skills'
 import { KIND_LABELS } from './OwnedPanel'
-import { cardThumb, groupNotes, type DeckImportPreview, type DeckImportResult, type DeckImportRow, type PickGroup } from '../lib/types'
+import { cardThumb, groupNotes, type CardSummary, type DeckImportPreview, type DeckImportResult, type DeckImportRow, type PickGroup } from '../lib/types'
 
 const SECTION_LABEL: Record<string, string> = { leader: 'Leader', main: 'Main', z: 'Z', side: 'Side' }
 
@@ -23,6 +26,8 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
   const [choices, setChoices] = useState<Record<string, string[]>>({})
   // Comprobación: por sitio (dónde coger cada carta) o carta a carta (con sus secciones).
   const [view, setView] = useState<'place' | 'card'>('place')
+  // «Preview deck»: ver cómo quedaría el mazo, sin crear nada.
+  const [showDeck, setShowDeck] = useState(false)
 
   useEffect(() => {
     ref.current?.showModal()
@@ -104,6 +109,24 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     cost: preview.rows.reduce((sum, r) => sum + missingNow(r) * (preview.catalog[r.bandai_id]?.price?.eur ?? 0), 0),
   }
 
+  // Las cartas del mazo tal como quedaría: Leader, Main y Z juntos (la vista los separa por tipo) y el side aparte.
+  // Las que faltan (según lo elegido ahora) se apuntan primero en el side, igual que al crear el mazo.
+  const deckCards = () => {
+    const pool: CardSummary[] = []
+    const side: CardSummary[] = []
+    for (const r of preview?.rows ?? []) {
+      const card = preview?.catalog[r.bandai_id]
+      if (!card) continue
+      const inSide = r.sections.side ?? 0
+      const inDeck = (r.sections.leader ?? 0) + (r.sections.main ?? 0) + (r.sections.z ?? 0)
+      const lack = missingNow(r)
+      const sideLack = Math.min(lack, inSide)
+      if (inDeck) pool.push({ ...card, quantity: inDeck, missing: Math.min(lack - sideLack, inDeck) } as CardSummary)
+      if (inSide) side.push({ ...card, quantity: inSide, missing: sideLack } as CardSummary)
+    }
+    return { pool, side }
+  }
+
   const toggle = (deckId: number) =>
     setTakeFrom((s) => {
       const next = new Set(s)
@@ -113,7 +136,12 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     })
 
   return (
-    <dialog ref={ref} className="loc-dialog deck-import" onClose={onClose} onCancel={(e) => busy && e.preventDefault()}>
+    <dialog
+      ref={ref}
+      className="loc-dialog deck-import"
+      onClose={(e) => e.target === e.currentTarget && onClose()}
+      onCancel={(e) => busy && e.target === e.currentTarget && e.preventDefault()}
+    >
       <div className="deck-import-body">
         <header className="deck-import-head">
           <h2>Import a deck</h2>
@@ -369,6 +397,15 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
               <span className="spacer" />
               <button
                 type="button"
+                className="btn"
+                onClick={() => setShowDeck(true)}
+                disabled={busy}
+                title="See how the deck would look, without creating anything"
+              >
+                👁 Preview deck
+              </button>
+              <button
+                type="button"
                 className="btn primary"
                 onClick={() => void create()}
                 disabled={busy || (preview.target == null && !name.trim())}
@@ -381,6 +418,80 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
           </div>
         )}
       </div>
+      {showDeck && preview && (
+        <DeckPreviewDialog
+          name={preview.target?.name ?? (name.trim() || preview.name)}
+          {...deckCards()}
+          note={
+            preview.target
+              ? `This is the list you'd add to “${preview.target.name}”. Nothing has been saved yet.`
+              : 'Nothing has been created yet: close this to go back to the import.'
+          }
+          onClose={() => setShowDeck(false)}
+        />
+      )}
+    </dialog>
+  )
+}
+
+/** Ventana a pantalla casi completa con la vista del mazo tal como quedaría (sin crear nada). Las cartas se pueden
+ *  abrir para ver su ficha. */
+function DeckPreviewDialog({
+  name,
+  pool,
+  side,
+  note,
+  onClose,
+}: {
+  name: string
+  pool: CardSummary[]
+  side: CardSummary[]
+  note: string
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDialogElement>(null)
+  const [openId, setOpenId] = useState<number | null>(null)
+  // La ficha de la carta se cierra con su propio Escape (y React la quita al momento): este aviso evita que ese mismo
+  // Escape cierre también la vista previa.
+  const cardJustClosed = useRef(false)
+  const closeCard = () => {
+    setOpenId(null)
+    cardJustClosed.current = true
+    window.setTimeout(() => (cardJustClosed.current = false), 0)
+  }
+  const [skills, setSkills] = useState<SkillIndex>(SkillIndex.empty)
+  useEffect(() => {
+    ref.current?.showModal()
+    api.keywordSkills().then((d) => setSkills(new SkillIndex(d))).catch(() => {})
+  }, [])
+  return (
+    <dialog
+      ref={ref}
+      className="deck-preview-dialog"
+      // React pasa «close» y «cancel» a los componentes de fuera: sin esto, cerrar la vista previa cerraría la importación.
+      onClose={(e) => {
+        e.stopPropagation()
+        onClose()
+      }}
+      onCancel={(e) => {
+        e.stopPropagation()
+        // Con la ficha de una carta abierta, Escape cierra solo la ficha.
+        if (openId != null || cardJustClosed.current) {
+          e.preventDefault()
+          if (openId != null) closeCard()
+        }
+      }}
+    >
+      <header className="deck-preview-head">
+        <span>👁 Deck preview</span>
+        <button type="button" className="btn" onClick={() => ref.current?.close()}>
+          ← Back<span className="long"> to the import</span>
+        </button>
+      </header>
+      <DeckPreview name={name} pool={pool} side={side} onOpen={setOpenId} note={note} />
+      {openId != null && (
+        <CardModal key={openId} id={openId} skills={skills} onClose={closeCard} onFilter={() => {}} onOpenPrint={setOpenId} />
+      )}
     </dialog>
   )
 }

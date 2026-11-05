@@ -28,7 +28,8 @@ In **Locations → Decks**, **⇩ Import deck** creates a deck from a list you f
 
    In binders the cards go from the highest page to the lowest, and when a card is in more than one position every position shows as a button: the ticked ones (**✓**) are the copies you take. When a pocket holds several copies, its button has **− k/N +** to choose how many to take from it. You can pick another one, untick one or tick more than the list needs: each ticked position is one copy less in the binder, and if you tick extra ones those copies go into the deck too (shown as **+N extra** at the top and added to the card's first section).
 3. If some cards are **in use in other decks**, a warning lists them deck by deck. **Tick a deck to take its copies**: they move to the new deck and that deck **saves a new version** with what it has left (named “Gave cards to “…””), so its old list stays in its history. Leave it unticked and those cards count as missing.
-4. Check the **Deck name** (it comes from the original site when there is one) and press **Create deck**.
+4. To see it first, press **👁 Preview deck**: it opens the same view as a deck's details, with the Leader, the energy curve, types and colours, the deck-building rules check and the cards by section (the ones you're missing with the purple **MISSING** label). The stats also filter the cards and you can open each card's details. **It doesn't create or save anything**: **← Back to the import** takes you back to the import as you left it.
+5. Check the **Deck name** (it comes from the original site when there is one) and press **Create deck**.
 
 ### When you already have a deck with that Leader
 
