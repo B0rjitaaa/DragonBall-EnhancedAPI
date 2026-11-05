@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from history.admin_mixin import RecordedAdmin
+
 from .models import DeckVersion, Match, PickList
 
 
@@ -9,14 +11,14 @@ class MatchInline(admin.TabularInline):
 
 
 @admin.register(DeckVersion)
-class DeckVersionAdmin(admin.ModelAdmin):
+class DeckVersionAdmin(RecordedAdmin, admin.ModelAdmin):
     list_display = ["deck", "number", "name", "automatic", "created_at"]
     list_filter = ["deck"]
     inlines = [MatchInline]
 
 
 @admin.register(PickList)
-class PickListAdmin(admin.ModelAdmin):
+class PickListAdmin(RecordedAdmin, admin.ModelAdmin):
     list_display = ("deck", "created_at", "picked")
     readonly_fields = ("deck", "groups", "created_at")
 

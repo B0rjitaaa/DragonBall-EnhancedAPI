@@ -1,5 +1,5 @@
 import type {
-  HealthCheck, SyncRunRow, ErrorEntry,
+  HealthCheck, SyncRunRow, ErrorEntry, HistoryDetail, HistoryFilter, HistoryPage, UndoCheck, RestorePointRow, HistoryActivity,
   BinderData, BinderSpot, BinderView, WantsData, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
@@ -78,6 +78,19 @@ export const api = {
   syncRuns: () => request<{ results: SyncRunRow[] }>('/sync/?page_size=10'),
   /** Lanzar una sincronización con Bandai: solo cartas nuevas o completa (409 si ya hay una en marcha). */
   startSync: (full: boolean) => request<{ task_id: string; full: boolean }>('/sync/', post({ full })),
+  /** Histórico de cambios de la colección. */
+  history: (f: HistoryFilter = {}, signal?: AbortSignal) => {
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '' && v !== null) params.set(k, String(v))
+    return request<HistoryPage>(`/history/?${params}`, { signal })
+  },
+  historyDetail: (id: number) => request<HistoryDetail>(`/history/${id}/`),
+  undoCheck: (id: number) => request<UndoCheck>(`/history/${id}/undo/`),
+  undo: (id: number) => request<{ undone: number; activity: HistoryActivity | null }>(`/history/${id}/undo/`, { method: 'POST' }),
+  restorePoints: () => request<{ results: RestorePointRow[]; days: number }>('/history/restore-points/'),
+  restorePointPreview: (id: number) =>
+    request<{ id: number; reason: string; created_at: string; changes: number; cards: number; added: number; removed: number }>(`/history/restore-points/${id}/`),
+  restoreToPoint: (id: number) => request<{ activity: HistoryActivity | null }>(`/history/restore-points/${id}/`, { method: 'POST' }),
   recentErrors: () => request<{ errors: ErrorEntry[]; open: number }>('/errors/'),
   fields: () => request<FieldDef[]>('/fields/'),
   facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>

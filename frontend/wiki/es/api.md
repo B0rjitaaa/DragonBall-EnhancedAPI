@@ -127,6 +127,9 @@ Todas cuelgan de `/api/scanner/`:
 
 | Método y ruta | Qué hace |
 |---|---|
+| `GET /api/history/` | Histórico de cambios ([Tools](herramientas.md)): `?kind=&source=&card=&location=&q=&from=&to=&page=`. |
+| `GET /api/history/<id>/` · `GET`/`POST /api/history/<id>/undo/` | Detalle de un cambio · comprobar si se puede deshacer / deshacerlo (409 si cambios posteriores tocaron esas cartas). |
+| `GET /api/history/restore-points/` · `GET`/`POST /api/history/restore-points/<id>/` | Puntos de restauración · vista previa / volver a ese punto. |
 | `GET /api/errors/` | Los últimos 50 errores y cuántos están pendientes (página [Tools](herramientas.md)). |
 | `POST /api/errors/` | La web informa de sus errores de JavaScript (ver [Registro de errores](registro-de-errores.md)). |
 | `/media/…` | Fotos de escaneos e imágenes de impresiones propias. |

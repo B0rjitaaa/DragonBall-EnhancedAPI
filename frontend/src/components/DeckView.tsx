@@ -9,6 +9,7 @@ import { deckListText, isExportable, timeChamberUrl, type ExportDeck } from '../
 import { cardThumb } from '../lib/types'
 import { CardPicker, MatchesPanel, SaveListModal, VersionBar, versionLabel } from './DeckHistory'
 import { PickListDialog } from './PickList'
+import HistoryList from './HistoryList'
 
 /** Reglas de construcción de Dragon Ball Super Masters que se comprueban. */
 const MAIN_MIN = 50
@@ -406,6 +407,7 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
   const zDeck = pool.filter((c) => sectionOf(c) === 'z')
   const [showFront, setShowFront] = useState(false)
   const [showPicks, setShowPicks] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const viewingCurrent = selected == null
 
   // «I have it» añade la copia a la colección (en el mazo); «Remove» la quita de la lista principal.
@@ -688,6 +690,10 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
           }
         />
       )}
+      <details className="deck-history" onToggle={(e) => setShowHistory((e.target as HTMLDetailsElement).open)}>
+        <summary>History of this deck</summary>
+        {showHistory && <HistoryList filter={{ location: deck.id }} pageSize={10} compact onChanged={() => { reload(); onCollectionChanged?.() }} />}
+      </details>
       {canReorderNow && !filtering && <p className="reorder-hint">Drag the cards to reorder them within their section (on mobile, press and hold a card).</p>}
 
       {picking && <CardPicker onPick={addCard} quantityOf={(id) => qtyOf(id, 'deck')} onClose={() => setPicking(false)} />}

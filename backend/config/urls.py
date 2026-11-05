@@ -11,6 +11,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("cards.urls")),
     path("api/my-collection/", include("decks.urls")),
+    path("api/history/", include("history.urls")),
     path("api/scanner/", include("scanner.urls")),
     path("api/errors/", WebErrorView.as_view(), name="web-errors"),
     path("api/prices/radar/", RadarView.as_view(), name="prices-radar"),

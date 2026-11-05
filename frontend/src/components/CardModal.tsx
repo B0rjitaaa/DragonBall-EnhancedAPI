@@ -1,3 +1,4 @@
+import HistoryList from './HistoryList'
 import { plainCardText } from '../lib/cardText'
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
@@ -283,6 +284,10 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
                   <p className="muted small cd-empty">No official questions for this card yet.</p>
                 )}
               </section>
+              <details className="cd-history">
+                <summary className="cd-label">History of this card</summary>
+                <HistoryList filter={{ card: card.id }} pageSize={8} compact empty="No changes to your copies of this card yet." />
+              </details>
               {card.notes && <p className="muted small">Notes: {card.notes.split('|').pop()?.replace(/<br\s*\/?>/gi, ' · ')}</p>}
             </div>
           </div>

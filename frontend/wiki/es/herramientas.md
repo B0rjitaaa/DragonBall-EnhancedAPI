@@ -1,6 +1,37 @@
 # Herramientas (Tools)
 
-La página **«Tools»** (herramientas, `/tools`) reúne lo de mantenimiento, para que no estorbe en las páginas de uso diario. Está en el menú de arriba, junto a «Wiki»; en el móvil, dentro de **«More»** (más).
+La página **«Tools»** (herramientas, `/tools`) reúne el **histórico de cambios** y lo de mantenimiento, para que no estorbe en las páginas de uso diario. Está en el menú de arriba, junto a «Wiki»; en el móvil, dentro de **«More»** (más).
+
+## History (histórico de cambios)
+
+Todo lo que cambia en tu colección queda apuntado, una línea por acción, para verlo y **deshacerlo**:
+
+- copias que sumas o quitas a mano (**−** / **+**), que mueves o marcas como falsas, y sus notas;
+- el escáner (cada sesión de ráfaga es una línea) y lo que se cambie desde el admin;
+- ubicaciones creadas, cambiadas o borradas, el orden («My order») y el archivador (mover un bolsillo, apilar copias, páginas);
+- los mazos: importarlos, guardar o borrar listas, hacer principal una versión, el side, las cartas «missing», archivarlos o volver a usarlos;
+- importar un CSV y restaurar una copia de seguridad.
+
+Las wants y las partidas aún no entran. El histórico empieza a contar desde que se instaló: lo de antes no está.
+
+En **Tools** salen los últimos cambios; **«Open the full history →»** abre la página completa (`/tools/history`), con buscador (una carta por nombre o número), tipo de cambio, ubicación o mazo, origen (web, escáner, admin) y fechas. Cada línea dice qué pasó, cuántas copias entran (**+**), salen (**−**) o se mueven (**⇄**) y cuándo. Los clics seguidos sobre la misma carta (por ejemplo, cinco **+**) se juntan en una sola línea.
+
+**Pulsa una línea** para ver el detalle: carta a carta, cuántas copias había en cada sitio antes y después, y la posición del archivador si cambió; y lo demás (mazo creado, lista nueva, side…).
+
+### Deshacer
+
+**«↶ Undo…»** en un cambio lo deja todo como estaba: cada copia vuelve a su sitio exacto, **con su posición en el archivador**. Deshacer una importación de mazo, por ejemplo, devuelve las cartas a los archivadores y cajas de los que salieron, borra el mazo creado, su lista y su lista de recogida, y quita las versiones que guardaron los mazos que cedieron cartas.
+
+Se puede deshacer **cualquier cambio**, no solo el último, con una protección: si después tocaste esas mismas cartas, no se deshace a ciegas. Te avisa de qué cambios posteriores las modificaron para que los deshagas antes (del más reciente al más antiguo). Deshacer queda también como una línea más del histórico (**UNDO**), y el cambio deshecho sale marcado **undone**.
+
+### Puntos de restauración
+
+Justo antes de **restaurar una copia de seguridad**, **importar un CSV** o **importar un mazo**, se guarda sola una foto completa de la colección (**⟲ point** en su línea). Al final de la página, **«Restore to this point…»** enseña cuántas cartas cambiarían y, al confirmar, lo deja todo como estaba en ese momento, **también lo que hiciste después**. Es para cuando algo salió muy mal; para lo normal basta con «Undo». Volver a un punto también se puede deshacer. Se guardan **90 días** (el histórico, siempre).
+
+### En la ficha de una carta y en un mazo
+
+- La ficha de cada carta tiene **«History of this card»** (plegado): los cambios de sus copias, de cualquier impresión.
+- La vista de un mazo tiene **«History of this deck»** al final: lo que entró y salió de su caja, sus listas y su side.
 
 ## Collection data (datos de la colección)
 

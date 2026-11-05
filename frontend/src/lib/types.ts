@@ -692,3 +692,66 @@ export interface ErrorEntry {
   last_seen: string
   resolved_at: string | null
 }
+
+/** Histórico de cambios (Tools → History): una acción y lo que cambió. */
+export interface HistoryActivity {
+  id: number
+  kind: string
+  kind_label: string
+  title: string
+  source: 'web' | 'scanner' | 'admin'
+  created_at: string
+  updated_at: string
+  undone_at: string | null
+  undo_of: { id: number; title: string } | null
+  restore_point: number | null
+  added: number
+  removed: number
+  moved: number
+  cards: number
+  locations: string[]
+}
+export interface HistoryCopyChange {
+  location_id: number
+  location: string
+  fake: boolean
+  before: number
+  after: number
+  notes_before: string
+  notes_after: string
+}
+export interface HistoryDetail extends HistoryActivity {
+  copies: { card: { id: number; card_number: string; name: string; image_url?: string; thumb_url?: string }; changes: HistoryCopyChange[] }[]
+  other: string[]
+}
+export interface HistoryPage {
+  count: number
+  page: number
+  pages: number
+  results: HistoryActivity[]
+  kinds: Record<string, string>
+}
+export interface HistoryFilter {
+  kind?: string
+  source?: string
+  card?: number
+  location?: number
+  q?: string
+  from?: string
+  to?: string
+  page?: number
+  page_size?: number
+}
+export interface UndoCheck {
+  ok: boolean
+  undone: boolean
+  conflict_rows: number
+  later: { id: number; title: string; updated_at: string }[]
+  detail: HistoryDetail
+}
+export interface RestorePointRow {
+  id: number
+  created_at: string
+  reason: string
+  activity: number | null
+}

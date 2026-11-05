@@ -43,6 +43,8 @@ from .serializers import (
     BanListEntrySerializer, CardDetailSerializer, KeywordSkillSerializer, CardListSerializer, SearchRequestSerializer,
     CardChangeSerializer, SyncRunSerializer,
 )
+from history.recorder import describe, recorded
+
 from .tasks import LOCK_KEY as SYNC_LOCK_KEY
 from .tasks import sync_cards
 
@@ -451,6 +453,7 @@ class MyCollectionAdjustView(APIView):
     ubicación con copias); si están repartidas, 409 con el reparto para elegir.
     """
 
+    @recorded("adjust", group_key=lambda r, *a: f"adjust:{r.data.get('card_id')}:{r.data.get('location')}:{r.data.get('fake')}")
     def post(self, request):
         card_id, delta = _int(request.data.get("card_id"), "card_id"), _int(request.data.get("delta"), "delta")
         location = _int(request.data.get("location"), "location", required=False)
@@ -470,6 +473,7 @@ class MyCollectionMoveView(APIView):
     Con source == target y target_fake distinto de source_fake, marca copias como falsas o auténticas.
     """
 
+    @recorded("move")
     def post(self, request):
         card_id = _int(request.data.get("card_id"), "card_id")
         source, target = _int(request.data.get("source"), "source"), _int(request.data.get("target"), "target")
@@ -489,6 +493,7 @@ class MyCollectionMoveView(APIView):
 class MyCollectionNoteView(APIView):
     """Nota de las copias de una carta en una ubicación: POST {card_id, location, notes, fake?}."""
 
+    @recorded("note", group_key=lambda r, *a: f"note:{r.data.get('card_id')}:{r.data.get('location')}")
     def post(self, request):
         card_id, location = _int(request.data.get("card_id"), "card_id"), _int(request.data.get("location"), "location")
         notes = str(request.data.get("notes") or "")[:500]
@@ -503,6 +508,7 @@ class MyCollectionNoteView(APIView):
 class MyCollectionReorderView(APIView):
     """«Mi orden»: POST {location, card_ids: [en el orden deseado]} (arrastrar cartas en una ubicación)."""
 
+    @recorded("reorder", group_key=lambda r, *a: f"reorder:{r.data.get('location')}")
     def post(self, request):
         location = _int(request.data.get("location"), "location")
         ids = request.data.get("card_ids")
@@ -615,6 +621,7 @@ class LocationsView(APIView):
             for loc in locations
         ])
 
+    @recorded("location")
     def post(self, request):
         body = LocationSerializer(data={k: request.data[k] for k in LOCATION_FIELDS if k in request.data})
         body.is_valid(raise_exception=True)
@@ -624,6 +631,7 @@ class LocationsView(APIView):
 class LocationDetailView(APIView):
     """PATCH renombra o cambia el tipo; DELETE la borra (sus copias vuelven a "Sin ubicar")."""
 
+    @recorded("location")
     def patch(self, request, pk: int):
         location = Location.objects.filter(pk=pk).first()
         if location is None:
@@ -634,6 +642,7 @@ class LocationDetailView(APIView):
         body.save()
         return Response(next(loc for loc in LocationSerializer.listing() if loc["id"] == pk))
 
+    @recorded("location_delete")
     def delete(self, request, pk: int):
         location = Location.objects.filter(pk=pk).first()
         if location is None:
@@ -685,6 +694,7 @@ class MyCollectionImportView(APIView):
     Sin `apply` devuelve la vista previa; con `apply` suma las filas reconocidas.
     Nunca borra copias."""
 
+    @recorded("csv_import", restore_point=True)
     def post(self, request):
         text = request.data.get("csv")
         if not isinstance(text, str) or not text.strip():
@@ -702,6 +712,7 @@ class MyCollectionRestoreView(APIView):
     Body: {backup: el JSON de la copia, apply: bool}. Sin `apply` devuelve la vista previa (qué se quita, qué
     se añade, qué ubicaciones se crean o se vacían); con `apply` lo aplica todo de una vez."""
 
+    @recorded("restore", restore_point=True)
     def post(self, request):
         from collection import restore
 
@@ -840,10 +851,17 @@ class BinderActionView(APIView):
     """Mover copias (`move`) o una página (`move_page`), meter (`insert_page`) o quitar (`delete_page`) una, o juntar
     las copias sueltas con su carta (`stack`)."""
 
+    @recorded("binder")
     def post(self, request, pk, action):
         from collection import binder
 
         body = request.data
+        name = Location.objects.filter(pk=pk).values_list("name", flat=True).first() or "?"
+        describe({"move": f"Binder “{name}”: moved {'1 copy' if body.get('one') else 'a pocket'}",
+                  "stack": f"Binder “{name}”: stacked loose copies",
+                  "insert-page": f"Binder “{name}”: added page {body.get('page')}",
+                  "delete-page": f"Binder “{name}”: deleted page {body.get('page')}",
+                  "move-page": f"Binder “{name}”: moved page {body.get('page')} → {body.get('to')}"}.get(action, f"Binder “{name}”"))
         try:
             if action == "move":
                 payload = binder.move(pk, body.get("source") or {}, body.get("target"), bool(body.get("one")))

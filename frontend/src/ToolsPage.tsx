@@ -2,6 +2,7 @@
 // Copias de seguridad y CSV de la colección, estado del sistema, sincronizaciones con Bandai y últimos errores.
 import { useEffect, useState } from 'react'
 import CsvImport from './components/CsvImport'
+import HistoryList from './components/HistoryList'
 import RestoreBackup from './components/RestoreBackup'
 import { api, COLLECTION_BACKUP_URL, COLLECTION_CSV_URL } from './lib/api'
 import type { ErrorEntry, HealthCheck, SyncRunRow } from './lib/types'
@@ -29,6 +30,17 @@ export default function ToolsPage() {
         <h1>Tools</h1>
         <p className="muted">Backups, imports and how the system is doing.</p>
       </header>
+
+      <section className="tools-card">
+        <div className="tools-card-head">
+          <h2>History</h2>
+          <a className="link small" href="/tools/history">
+            Open the full history →
+          </a>
+        </div>
+        <p className="muted small">The latest changes to your collection. Open one to see what moved where, and undo it.</p>
+        <HistoryList filter={{}} pageSize={6} compact empty="No changes yet: they show up here from now on." />
+      </section>
 
       <section className="tools-card">
         <h2>Collection data</h2>

@@ -6,6 +6,8 @@ from rest_framework.views import APIView
 from cards.models import Card
 from collection.models import Location
 
+from history.recorder import describe, recorded
+
 from . import services
 from .models import DeckVersion, DeckVersionCard, Match, PickList
 from .serializers import ListCardSerializer, MatchSerializer, SideSerializer, VersionSerializer
@@ -114,6 +116,7 @@ class DeckPickListView(APIView):
         picks.save(update_fields=["done"])
         return Response(self._data(picks))
 
+    @recorded("pick_list")
     def delete(self, request, pk):
         self._get(pk).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -166,6 +169,7 @@ class DeckVersionsView(APIView):
     Si coincide con lo que hay en la caja, pasa a ser la principal.
     """
 
+    @recorded("deck_version")
     def post(self, request, pk):
         deck = _deck(pk)
         body = VersionSerializer(data=request.data)
@@ -205,6 +209,7 @@ class VersionDetailView(APIView):
             "by_leader": services.by_leader(matches),
         }))
 
+    @recorded("deck_version")
     def patch(self, request, pk):
         version = get_object_or_404(DeckVersion, pk=pk)
         body = VersionSerializer(version, data=request.data, partial=True)
@@ -212,6 +217,7 @@ class VersionDetailView(APIView):
         body.save()
         return Response(body.data)
 
+    @recorded("deck_version")
     def delete(self, request, pk):
         version = get_object_or_404(DeckVersion, pk=pk)
         if version.matches.exists():
@@ -231,6 +237,7 @@ class VersionRestoreView(APIView):
         version = get_object_or_404(DeckVersion, pk=pk)
         return Response(_with_catalog({"version": version.number, **_plan(version.deck, services.version_list(version))}))
 
+    @recorded("deck_restore")
     def post(self, request, pk):
         version = get_object_or_404(DeckVersion, pk=pk)
         body = request.data if isinstance(request.data, dict) else {}
@@ -284,6 +291,7 @@ class MatchDetailView(APIView):
 class DeckSideView(APIView):
     """POST {bandai_id, quantity}: cuántas copias de esa carta del mazo van al side deck."""
 
+    @recorded("deck_side", group_key=lambda r, pk, *a: f"side:{pk}:{r.data.get('bandai_id')}")
     def post(self, request, pk):
         deck = _deck(pk)
         body = SideSerializer(data=request.data)
@@ -299,6 +307,7 @@ class DeckMissingView(APIView):
     have: las tengo (se añaden a la colección, en el mazo). remove: se quitan de la lista principal.
     """
 
+    @recorded("deck_missing")
     def post(self, request, pk):
         deck = _deck(pk)
         body = request.data if isinstance(request.data, dict) else {}
@@ -328,22 +337,27 @@ class DeckToHistoryView(APIView):
         deck = _deck(pk)
         return Response({"deck": deck.name, "cards": services.history_preview(deck)})
 
+    @recorded("deck_archive")
     def post(self, request, pk):
         deck = _deck(pk)
         if deck.status == Location.Status.PARKED:
             return Response({"detail": "The deck is already archived"}, status=status.HTTP_400_BAD_REQUEST)
         moved = services.move_to_history(deck)
+        describe(f"Archived deck “{deck.name}”")
         return Response({"deck": deck.name, "target": Location.default().name, "cards": moved})
 
 
 class DeckBackInUseView(APIView):
     """POST: un mazo del histórico vuelve a usarse (y se trae una copia de su líder)."""
 
+    @recorded("deck_back")
     def post(self, request, pk):
         deck = _deck(pk)
         if deck.status != Location.Status.PARKED:
             return Response({"detail": "The deck is already in use"}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"deck": deck.name, "leader": services.back_in_use(deck)})
+        leader = services.back_in_use(deck)
+        describe(f"Deck “{deck.name}” back in use")
+        return Response({"deck": deck.name, "leader": leader})
 
 
 class DeckImportPreviewView(APIView):
@@ -369,6 +383,7 @@ class DeckImportView(APIView):
     """Crea el mazo importado (o, con `target`, guarda la lista como versión nueva de ese mazo): `lines` (de la
     vista previa), `name` y `take_from` (mazos de los que coger copias)."""
 
+    @recorded("deck_import", restore_point=True)
     def post(self, request):
         from .importer import DeckImportError, create_deck, parsed_from_lines
 
@@ -378,6 +393,8 @@ class DeckImportView(APIView):
             raw = request.data.get("choices") or {}
             choices = {str(k): [str(x) for x in v][:99] for k, v in raw.items() if isinstance(v, list)} if isinstance(raw, dict) else {}
             result = create_deck(deck, str(request.data.get("name") or ""), take_from, request.data.get("target"), choices)
+            describe(f"Imported deck “{result['deck']['name']}”" if result.get("created")
+                     else f"Added a new list to “{result['deck']['name']}” (v{result.get('version')})")
         except DeckImportError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_with_catalog(result), status=status.HTTP_201_CREATED)

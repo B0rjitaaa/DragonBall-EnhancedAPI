@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "errorlog",
     "backups",
     "prices",
+    "history",
 ]
 
 MIDDLEWARE = [
@@ -162,6 +163,10 @@ CELERY_BEAT_SCHEDULE = {
     "sync-rulings-weekly": {
         "task": "cards.tasks.sync_rulings",
         "schedule": crontab(hour=3, minute=55, day_of_week="mon"),
+    },
+    "purge-restore-points-daily": {
+        "task": "history.tasks.purge_restore_points",
+        "schedule": crontab(hour=4, minute=30),
     },
     "sync-all-cards-weekly": {
         "task": "cards.tasks.sync_cards",

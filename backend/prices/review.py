@@ -111,8 +111,11 @@ def change_print(card: Card, target: Card) -> int:
     from collection.services import _take, add_copies
     from scanner.models import Scan
 
+    from history.recorder import record
+
     moved = 0
-    with transaction.atomic():
+    with record("price_review", title=f"Price review: copies of {card.card_number} moved to another printing",
+                source="admin"), transaction.atomic():
         for entry in CollectionEntry.objects.select_for_update().filter(card=card).select_related("location"):
             new = add_copies(target, entry.location, entry.quantity, entry.notes, fake=entry.fake)
             Scan.objects.filter(collection_entry=entry).update(collection_entry=new, matched_card=target)
@@ -191,8 +194,11 @@ def mark_fake(card: Card) -> int:
     from collection.models import CollectionEntry
     from collection.services import move_copies
 
+    from history.recorder import record
+
     moved = 0
-    with transaction.atomic():
+    with record("price_review", title=f"Price review: copies of {card.card_number} marked as fake", source="admin"), \
+            transaction.atomic():
         for entry in CollectionEntry.objects.filter(card=card, fake=False).select_related("location"):
             move_copies(card, entry.location, entry.location, entry.quantity, source_fake=False, target_fake=True)
             moved += entry.quantity

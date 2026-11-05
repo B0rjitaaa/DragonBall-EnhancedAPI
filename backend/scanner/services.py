@@ -94,12 +94,28 @@ def learn_from_scan(scan, card) -> CardFingerprint:
     return fingerprint
 
 
+def _scan_recorded(fn):
+    """Lo que el escáner suma o quita de la colección queda en el histórico (una acción por sesión de ráfaga)."""
+    from functools import wraps
+
+    from history.recorder import record
+
+    @wraps(fn)
+    def wrapper(scan, *args, **kwargs):
+        key = f"scan:{scan.session_id}" if scan.session_id else f"scan-one:{scan.pk}"
+        with record("scan", source="scanner", group_key=key):
+            return fn(scan, *args, **kwargs)
+
+    return wrapper
+
+
 def _collection_location(scan) -> Location:
     if scan.session_id and scan.session.location_id:
         return scan.session.location
     return Location.default()
 
 
+@_scan_recorded
 def add_scan_to_collection(scan) -> None:
     """Suma las copias del escaneo (scan.copies) a la colección (idempotente)."""
     if scan.added_to_collection or not scan.matched_card_id:
@@ -123,6 +139,7 @@ def add_scan_to_collection(scan) -> None:
         scan.save(update_fields=["added_to_collection", "collection_entry"])
 
 
+@_scan_recorded
 def remove_scan_from_collection(scan) -> None:
     """Deshace add_scan_to_collection: resta sus copias (y borra la entrada si queda a 0)."""
     if not scan.added_to_collection:
@@ -145,6 +162,7 @@ def remove_scan_from_collection(scan) -> None:
         scan.save(update_fields=["added_to_collection", "collection_entry"])
 
 
+@_scan_recorded
 def set_scan_copies(scan, copies: int) -> None:
     """Cambia cuántas copias suma un escaneo ya añadido (ajusta la colección por la diferencia)."""
     if not scan.added_to_collection:
