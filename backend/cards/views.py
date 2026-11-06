@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from django.core.cache import cache
 from django.db.models import Count, F, Q, QuerySet, Sum
+from django.shortcuts import get_object_or_404
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -899,3 +900,79 @@ def _binder_catalog(payload: dict, pages=None, tray: bool = True) -> dict:
     ids = {s["bandai_id"] for s in payload["slots"]} | ({u["bandai_id"] for u in payload["unplaced"]} if tray else set())
     cards = Card.objects.filter(id__in=ids).values("id", "card_number", "name", "image_url")
     return {**payload, "catalog": {c["id"]: {**c, "thumb_url": thumb_url(c["id"], c["image_url"])} for c in cards}}
+
+
+class PrintingReviewView(APIView):
+    """Tools → Printings review: versiones que tiene DeckPlanet y quizá nosotros no, por carta.
+
+    GET ?series=&kind=&mark=pending|missing|have|ignore&q=&page=: las cartas (con sus versiones de allí y las
+    nuestras) y el recuento de marcas."""
+
+    PAGE = 40
+
+    def get(self, request):
+        from collections import Counter
+
+        from .models import ExternalPrinting
+        from .thumbs import thumb_url
+
+        p = request.query_params
+        qs = ExternalPrinting.objects.all()
+        totals = Counter(qs.values_list("mark", flat=True))
+        if p.get("series"):
+            qs = qs.filter(card_number__startswith=p["series"])
+        if p.get("kind"):
+            qs = qs.filter(kind=p["kind"])
+        if p.get("q"):
+            q = p["q"].strip()
+            qs = qs.filter(Q(card_number__icontains=q) | Q(name__icontains=q) | Q(code__icontains=q))
+        if p.get("mark"):
+            mark = "" if p["mark"] == "pending" else p["mark"]
+            numbers = qs.filter(mark=mark).values_list("card_number", flat=True)
+            qs = qs.filter(card_number__in=numbers)
+        order = list(dict.fromkeys(qs.order_by("position").values_list("card_number", flat=True)))
+        try:
+            page = max(1, int(p.get("page", 1)))
+        except ValueError:
+            page = 1
+        numbers = order[(page - 1) * self.PAGE: page * self.PAGE]
+        versions = ExternalPrinting.objects.filter(card_number__in=numbers).order_by("position")
+        ours = Card.objects.filter(card_number__in=numbers).values("id", "card_number", "name", "rarity", "card_set", "image_url")
+        ours_by: dict[str, list] = {}
+        for c in ours:
+            ours_by.setdefault(c["card_number"], []).append({**c, "thumb_url": thumb_url(c["id"], c["image_url"])})
+        groups: dict[str, dict] = {}
+        for v in versions:
+            g = groups.setdefault(v.card_number, {"number": v.card_number, "name": v.name, "series": v.series, "kind": v.kind,
+                                                  "their_versions": v.their_versions, "our_versions": v.our_versions,
+                                                  "theirs": [], "ours": ours_by.get(v.card_number, [])})
+            g["theirs"].append({"id": v.id, "code": v.code.split("#")[0], "image_url": v.image_url, "mark": v.mark, "note": v.note})
+        all_numbers = ExternalPrinting.objects.values("card_number").distinct().count()
+        return Response({
+            "results": [groups[n] for n in numbers if n in groups],
+            "count": len(order), "page": page, "pages": max(1, -(-len(order) // self.PAGE)),
+            "totals": {"cards": all_numbers, "versions": sum(totals.values()), "pending": totals.get("", 0),
+                       "missing": totals.get("missing", 0), "have": totals.get("have", 0), "ignore": totals.get("ignore", 0)},
+            "series": sorted({n.split("-")[0].rstrip("0123456789") for n in
+                              ExternalPrinting.objects.values_list("card_number", flat=True).distinct()}),
+        })
+
+
+class PrintingReviewMarkView(APIView):
+    """POST {mark: ""|missing|have|ignore, note?}: marcar una versión de DeckPlanet."""
+
+    def post(self, request, pk):
+        from django.utils import timezone
+
+        from .models import ExternalPrinting
+
+        item = get_object_or_404(ExternalPrinting, pk=pk)
+        mark = request.data.get("mark", "")
+        if mark not in ExternalPrinting.Mark.values:
+            return Response({"mark": "pending, missing, have or ignore"}, status=status.HTTP_400_BAD_REQUEST)
+        item.mark = mark
+        if "note" in request.data:
+            item.note = str(request.data.get("note") or "")[:300]
+        item.marked_at = timezone.now() if mark else None
+        item.save(update_fields=["mark", "note", "marked_at"])
+        return Response({"id": item.id, "mark": item.mark, "note": item.note})

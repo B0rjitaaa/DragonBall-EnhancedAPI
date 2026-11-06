@@ -43,6 +43,18 @@ export default function ToolsPage() {
       </section>
 
       <section className="tools-card">
+        <div className="tools-card-head">
+          <h2>Printings review</h2>
+          <a className="link small" href="/tools/printings">
+            Open the review →
+          </a>
+        </div>
+        <p className="muted small">
+          Versions DeckPlanet has and our catalog may not (alternate promo arts, BT32 previews…). Mark which ones we lack.
+        </p>
+      </section>
+
+      <section className="tools-card">
         <h2>Collection data</h2>
         <div className="tools-actions">
           <div>

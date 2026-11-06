@@ -9,6 +9,7 @@ import PricesPage from './PricesPage.tsx'
 import WantsPage from './WantsPage.tsx'
 import ToolsPage from './ToolsPage.tsx'
 import HistoryPage from './HistoryPage.tsx'
+import PrintingReviewPage from './PrintingReviewPage.tsx'
 import NotFoundPage from './NotFoundPage.tsx'
 import HealthBanner from './components/HealthBanner.tsx'
 import SiteNav from './components/SiteNav.tsx'
@@ -28,7 +29,7 @@ const page = currentPage()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <SiteNav active={page === 'binder' ? 'locations' : page === 'history' ? 'tools' : page} />
+    <SiteNav active={page === 'binder' ? 'locations' : page === 'history' || page === 'printings' ? 'tools' : page} />
     <HealthBanner />
     {page === 'locations' ? (
       <LocationsPage />
@@ -44,6 +45,8 @@ createRoot(document.getElementById('root')!).render(
       <ToolsPage />
     ) : page === 'history' ? (
       <HistoryPage />
+    ) : page === 'printings' ? (
+      <PrintingReviewPage />
     ) : page === 'wiki' ? (
       <Suspense fallback={<p className="muted" style={{ padding: '1rem' }}>Loading the wiki…</p>}>
         <WikiPage />

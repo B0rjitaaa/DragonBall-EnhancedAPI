@@ -1,5 +1,5 @@
 import type {
-  HealthCheck, SyncRunRow, ErrorEntry, HistoryDetail, HistoryFilter, HistoryPage, UndoCheck, RestorePointRow, HistoryActivity,
+  HealthCheck, SyncRunRow, ErrorEntry, PrintingReviewPage, ReviewMark, HistoryDetail, HistoryFilter, HistoryPage, UndoCheck, RestorePointRow, HistoryActivity,
   BinderData, BinderSpot, BinderView, WantsData, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
@@ -97,6 +97,12 @@ export const api = {
   restorePointPreview: (id: number) =>
     request<{ id: number; reason: string; created_at: string; changes: number; cards: number; added: number; removed: number }>(`/history/restore-points/${id}/`),
   restoreToPoint: (id: number) => request<{ activity: HistoryActivity | null }>(`/history/restore-points/${id}/`, { method: 'POST' }),
+  printingReview: (f: { series?: string; kind?: string; mark?: string; q?: string; page?: number }, signal?: AbortSignal) => {
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '') params.set(k, String(v))
+    return request<PrintingReviewPage>(`/printing-review/?${params}`, { signal })
+  },
+  markPrinting: (id: number, mark: ReviewMark) => request<{ id: number; mark: ReviewMark }>(`/printing-review/${id}/`, post({ mark })),
   recentErrors: () => request<{ errors: ErrorEntry[]; open: number }>('/errors/'),
   fields: () => request<FieldDef[]>('/fields/'),
   facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>

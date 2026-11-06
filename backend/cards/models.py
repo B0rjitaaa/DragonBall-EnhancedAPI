@@ -261,3 +261,37 @@ class KeywordSkill(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ExternalPrinting(models.Model):
+    """Una versión de una carta que tiene otra web (DeckPlanet) y quizá nosotros no: para revisarla a mano en
+    Tools → Printings review y decidir si nos falta. No es parte del catálogo."""
+
+    class Mark(models.TextChoices):
+        PENDING = "", "Pending"
+        MISSING = "missing", "We don't have it"
+        HAVE = "have", "We have it"
+        IGNORE = "ignore", "Ignore"
+
+    source = models.CharField(max_length=20, default="deckplanet")
+    # Su código en esa web (p. ej. «P-219_PR10») y la carta a la que pertenece (nuestro número si la tenemos).
+    code = models.CharField(max_length=40)
+    card_number = models.CharField(max_length=32, db_index=True)
+    name = models.CharField(max_length=200)
+    series = models.CharField(max_length=80, blank=True)
+    image_url = models.URLField(max_length=300, blank=True)
+    # «absent»: la carta no está en el catálogo; «fewer»: la tenemos con menos versiones que esa web.
+    kind = models.CharField(max_length=10)
+    their_versions = models.PositiveSmallIntegerField(default=1)
+    our_versions = models.PositiveSmallIntegerField(default=0)
+    position = models.PositiveIntegerField(default=0)
+    mark = models.CharField(max_length=10, choices=Mark.choices, blank=True, default="")
+    note = models.CharField(max_length=300, blank=True)
+    marked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["position", "code"]
+        constraints = [models.UniqueConstraint(fields=["source", "code"], name="unique_external_printing")]
+
+    def __str__(self):
+        return f"{self.source} {self.code}"

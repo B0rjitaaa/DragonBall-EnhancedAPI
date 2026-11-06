@@ -757,3 +757,24 @@ export interface RestorePointRow {
   reason: string
   activity: number | null
 }
+
+/** Tools → Printings review: versiones de DeckPlanet que quizá no tenemos. */
+export type ReviewMark = '' | 'missing' | 'have' | 'ignore'
+export interface PrintingReviewGroup {
+  number: string
+  name: string
+  series: string
+  kind: 'absent' | 'fewer'
+  their_versions: number
+  our_versions: number
+  theirs: { id: number; code: string; image_url: string; mark: ReviewMark; note: string }[]
+  ours: { id: number; card_number: string; name: string; rarity: string; card_set: string; image_url: string; thumb_url: string }[]
+}
+export interface PrintingReviewPage {
+  results: PrintingReviewGroup[]
+  count: number
+  page: number
+  pages: number
+  totals: { cards: number; versions: number; pending: number; missing: number; have: number; ignore: number }
+  series: string[]
+}
