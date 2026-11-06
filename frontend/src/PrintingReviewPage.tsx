@@ -21,6 +21,11 @@ export default function PrintingReviewPage() {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [zoom, setZoom] = useState<string | null>(null)
+  // Revisando: las versiones que ya venían marcadas se pliegan (las que marcas ahora siguen a la vista).
+  const [markedAtLoad, setMarkedAtLoad] = useState<Set<number>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [broken, setBroken] = useState<Set<number>>(new Set())
+  const reviewing = mark === 'pending' || mark === 'check' || mark === 'event'
 
   useEffect(() => {
     const t = window.setTimeout(() => setQ(typed.trim()), 300)
@@ -38,6 +43,8 @@ export default function PrintingReviewPage() {
       .printingReview({ series, kind, mark, q, page }, ctrl.signal)
       .then((d) => {
         setData(d)
+        setMarkedAtLoad(new Set(d.results.flatMap((g) => g.theirs.filter((v) => v.mark).map((v) => v.id))))
+        setExpanded(new Set())
         setError('')
       })
       .catch((e: Error) => e.name !== 'AbortError' && setError(e.message))
@@ -79,6 +86,9 @@ export default function PrintingReviewPage() {
     api.markPrinting(id, next).catch((e: Error) => setError(e.message))
   }
   const markRest = (g: PrintingReviewGroup, next: ReviewMark) => g.theirs.filter((v) => !v.mark).forEach((v) => setOne(g.number, v.id, next))
+
+  const hides = (g: PrintingReviewGroup, id: number) => reviewing && markedAtLoad.has(id) && !expanded.has(g.number)
+  const hiddenOf = (g: PrintingReviewGroup) => g.theirs.filter((v) => markedAtLoad.has(v.id)).length
 
   const t = data?.totals
   const done = t ? t.versions - t.pending : 0
@@ -146,6 +156,21 @@ export default function PrintingReviewPage() {
             <article key={g.number} className="review-card">
               <header>
                 <b>{g.number}</b> {g.name}
+                {reviewing && hiddenOf(g) > 0 && (
+                  <button
+                    className="link small"
+                    onClick={() =>
+                      setExpanded((s) => {
+                        const next = new Set(s)
+                        if (next.has(g.number)) next.delete(g.number)
+                        else next.add(g.number)
+                        return next
+                      })
+                    }
+                  >
+                    {expanded.has(g.number) ? 'Hide the ones already marked' : `Show ${hiddenOf(g)} already marked`}
+                  </button>
+                )}
                 <span className="hx-tag">{g.kind === 'absent' ? 'not in our catalog' : `DeckPlanet ${g.their_versions} · ours ${g.our_versions}`}</span>
                 {g.theirs.some((v) => !v.mark) && (
                   <span className="review-rest">
@@ -163,10 +188,14 @@ export default function PrintingReviewPage() {
                 <div>
                   <h4>DeckPlanet</h4>
                   <div className="review-imgs">
-                    {g.theirs.map((v) => (
+                    {g.theirs.filter((v) => !hides(g, v.id)).map((v) => (
                       <figure key={v.id} className={`review-version ${v.mark || 'pending'}`}>
                         <button type="button" className="review-img" onClick={() => setZoom(v.image_url)} title="See it big">
-                          <img src={v.image_url} alt={v.code} loading="lazy" />
+                          {broken.has(v.id) ? (
+                            <span className="review-noimg">DeckPlanet has no picture</span>
+                          ) : (
+                            <img src={v.image_url} alt={v.code} loading="lazy" onError={() => setBroken((s) => new Set(s).add(v.id))} />
+                          )}
                         </button>
                         <figcaption>
                           {v.code}
