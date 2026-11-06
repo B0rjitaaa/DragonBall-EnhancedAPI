@@ -926,7 +926,11 @@ class PrintingReviewView(APIView):
         if p.get("q"):
             q = p["q"].strip()
             qs = qs.filter(Q(card_number__icontains=q) | Q(name__icontains=q) | Q(code__icontains=q))
-        if p.get("mark"):
+        if p.get("mark") in ("check", "event"):
+            note = "Check:" if p["mark"] == "check" else "Release Event"
+            numbers = qs.filter(mark="", note__startswith=note).values_list("card_number", flat=True)
+            qs = qs.filter(card_number__in=numbers)
+        elif p.get("mark"):
             mark = "" if p["mark"] == "pending" else p["mark"]
             numbers = qs.filter(mark=mark).values_list("card_number", flat=True)
             qs = qs.filter(card_number__in=numbers)

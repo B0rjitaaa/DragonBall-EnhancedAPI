@@ -117,6 +117,8 @@ export default function PrintingReviewPage() {
           <input className="input" type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search a number or name…" />
           <select className="input" value={mark} onChange={(e) => setMark(e.target.value)} aria-label="Show">
             <option value="pending">With versions to review</option>
+            <option value="check">To check: maybe Pre-Release</option>
+            <option value="event">With a Release Event stamp</option>
             <option value="missing">With a version we lack</option>
             <option value="have">With a version we have</option>
             <option value="ignore">With an ignored version</option>
@@ -166,7 +168,10 @@ export default function PrintingReviewPage() {
                         <button type="button" className="review-img" onClick={() => setZoom(v.image_url)} title="See it big">
                           <img src={v.image_url} alt={v.code} loading="lazy" />
                         </button>
-                        <figcaption>{v.code}</figcaption>
+                        <figcaption>
+                          {v.code}
+                          {v.note && <small className={v.note.startsWith('Added') ? 'rv-have' : 'rv-note'}>{v.note}</small>}
+                        </figcaption>
                         <div className="review-marks">
                           {MARKS.map((m) => (
                             <button

@@ -2317,6 +2317,7 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .review-bar .ignore { background: var(--muted); }
 .rv-missing { color: #f87171; }
 .rv-have { color: #4cc38a; }
+.rv-note { color: #fbbf24; }
 .review-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
 .review-list { display: grid; gap: 0.6rem; }
 .review-card { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 0.6rem 0.8rem; min-width: 0; }
