@@ -109,3 +109,25 @@ class PickList(models.Model):
     @property
     def total(self) -> int:
         return sum(len(g.get("cards", [])) for g in self.groups)
+
+
+class PlannedDeck(models.Model):
+    """Un mazo que quiero montar para jugarlo más adelante (Locations → Future decks): solo la lista.
+
+    No es una ubicación ni tiene copias: sirve para ver qué cartas tengo y cuáles me faltan. Al montarlo pasa por la
+    importación de mazos (con todas sus comprobaciones) y deja de estar aquí."""
+
+    name = models.CharField(max_length=120)
+    # De dónde salió (deckplanet, topdeckdiffusion, timechamber, text) y la lista: [[número, sección, copias]].
+    source = models.CharField(max_length=20, default="text")
+    lines = models.JSONField(default=list)
+    notes = models.TextField(blank=True)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "-created_at"]
+
+    def __str__(self):
+        return self.name

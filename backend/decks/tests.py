@@ -606,3 +606,47 @@ class DeckImportTests(TestCase):
             with mock.patch("decks.importer._fetch", return_value=page):
                 data = self.preview(url).data
             self.assertEqual((data["name"], data["totals"]["cards"], data["has_leader"]), (name, 6, True), url)
+
+
+class PlannedDeckTests(TestCase):
+    """Locations → Future decks: mazos que quiero montar (solo la lista) y qué cartas tengo de ellos."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.leader = Card.objects.create(id=1, card_number="EX20-01", name="Cell", card_type="LEADER")
+        self.a = Card.objects.create(id=2, card_number="BT29-86", name="Goku Black", card_type="BATTLE")
+        self.b = Card.objects.create(id=4, card_number="EX20-03", name="Android 17", card_type="BATTLE")
+        box = Location.objects.create(name="Caja 1", kind="storage")
+        deck = Location.objects.create(name="Mazo viejo", kind="deck")
+        CollectionEntry.objects.create(card=self.leader, location=box, quantity=1)
+        CollectionEntry.objects.create(card=self.a, location=box, quantity=1)
+        CollectionEntry.objects.create(card=self.a, location=deck, quantity=2)
+        CollectionEntry.objects.create(card=self.a, location=box, quantity=3, fake=True)  # las falsas no cuentan
+        self.url = "/api/my-collection/planned-decks/"
+
+    def test_create_list_detail_edit_delete(self):
+        r = self.client.post(self.url, {"source": "Cell [EX20-01]\n4 Goku Black [BT29-086]\n2 EX20-03"}, format="json")
+        self.assertEqual(r.status_code, 201)
+        d = r.json()
+        self.assertEqual(d["name"], "Cell")  # sin nombre: el del Leader
+        self.assertEqual((d["cards"], d["free"], d["in_decks"], d["missing"], d["main"]), (7, 2, 2, 3, 6))
+        self.assertEqual(d["leader_bandai_id"], 1)
+        self.assertIn("1", d["catalog"])
+        listing = self.client.get(self.url).json()["results"]
+        self.assertEqual([p["name"] for p in listing], ["Cell"])
+        # El detalle es la misma comprobación que al importar (como mazo nuevo): nada se mueve.
+        detail = self.client.get(f"{self.url}{d['id']}/").json()
+        rows = {r["number"]: r for r in detail["rows"]}
+        self.assertEqual((rows["BT29-86"]["free"], rows["BT29-86"]["missing"]), (1, 1))
+        self.assertIsNone(detail["target"])
+        self.assertEqual(CollectionEntry.objects.filter(location__name="Mazo viejo").get().quantity, 2)
+        r = self.client.patch(f"{self.url}{d['id']}/", {"name": "Cell control", "source": "1 EX20-01\n4 EX20-03"}, format="json")
+        self.assertEqual((r.json()["name"], r.json()["missing"]), ("Cell control", 4))
+        self.assertEqual(self.client.delete(f"{self.url}{d['id']}/").status_code, 204)
+        self.assertEqual(self.client.get(self.url).json()["results"], [])
+
+    def test_save_from_an_import_preview(self):
+        lines = self.client.post("/api/my-collection/decks/import/preview/", {"source": "1 EX20-01\n4 BT29-086"}, format="json").json()["lines"]
+        r = self.client.post(self.url, {"lines": lines, "source": "text", "name": "Para el torneo"}, format="json")
+        self.assertEqual((r.status_code, r.json()["name"], r.json()["cards"]), (201, "Para el torneo", 5))
+        self.assertEqual(self.client.post(self.url, {"source": "nada aquí"}, format="json").status_code, 400)

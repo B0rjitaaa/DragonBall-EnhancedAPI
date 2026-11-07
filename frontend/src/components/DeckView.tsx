@@ -994,8 +994,10 @@ export function DeckPreview({
   side,
   onOpen,
   note,
+  eyebrow = 'Deck preview · not created yet',
 }: {
   name: string
+  eyebrow?: string
   /** Leader, Main Deck y Z Deck (cada carta con `quantity` y, si faltan copias, `missing`). */
   pool: CardSummary[]
   side: CardSummary[]
@@ -1056,7 +1058,7 @@ export function DeckPreview({
         </div>
 
         <div className="deck-summary">
-          <p className="deck-eyebrow">Deck preview · not created yet</p>
+          <p className="deck-eyebrow">{eyebrow}</p>
           <h2 className="deck-title">{name || 'New deck'}</h2>
           {leader && <p className="deck-leader-name">{showFront || !leader.back_name ? leader.name : leader.back_name}</p>}
           <div className="deck-counts">

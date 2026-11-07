@@ -31,6 +31,15 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
 4. Si quieres verlo antes, pulsa **«👁 Preview deck»** (previsualizar mazo): abre la misma vista que el detalle de un mazo, con el Leader, la curva de energía, los tipos y colores, la comprobación de las reglas de construcción y las cartas por secciones (las que te faltan, con la etiqueta violeta **«MISSING»**). Las estadísticas también filtran las cartas y puedes abrir la ficha de cada una. **No crea ni guarda nada**: **«← Back to the import»** te devuelve a la importación tal como la dejaste.
 5. Revisa el nombre (**«Deck name»**, que viene de la web de origen si lo tiene) y pulsa **«Create deck»** (crear mazo).
 
+### Mazos futuros (Future decks)
+
+En **«Locations» → «Decks»**, debajo de los mazos en uso, **«Future decks»** (mazos futuros) guarda los mazos que quieres **montar más adelante para jugarlos**. Es solo la lista: **no es un mazo físico ni mueve ninguna copia**.
+
+- **Añadir uno:** **«+ Future deck»** y pega el enlace (DeckPlanet, Top Deck Diffusion, Time Chamber) o la lista en texto, como al importar. También puedes guardar como mazo futuro cualquier lista que estés importando, con **«☆ Save as future deck»** en la comprobación.
+- **En la lista** ves cada mazo con su Leader y cuántas copias tienes de las que pide: libres (verde), en otros mazos (ámbar) y las que faltan (violeta), con lo que costarían aproximadamente.
+- **Al abrirlo** sale la vista de un mazo (curva, tipos, colores, reglas de construcción y cartas por secciones) con las que te faltan marcadas **«MISSING»**. Puedes cambiarle el nombre, cambiar la lista o borrarlo.
+- **«🔨 Build this deck»** (montar el mazo) abre la importación ya con su lista, con todas las comprobaciones de siempre (de dónde sale cada copia, qué mazos ceden cartas, qué falta…). Al crearlo, el mazo pasa a tus mazos y **deja de estar en «Future decks»**.
+
 ### Si ya tienes un mazo con ese Leader
 
 Si el Leader de la lista (cualquier impresión) es el de uno de tus mazos en uso, la comprobación ofrece **«Add it as a new list of “Mazo X”»** (añadirla como lista nueva de ese mazo; sale marcado, y si hay varios mazos con ese Leader eliges uno) o **«Create a new deck»** (crear un mazo nuevo). Al añadirla al mazo:

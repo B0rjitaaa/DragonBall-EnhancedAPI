@@ -1,5 +1,5 @@
 import type {
-  HealthCheck, SyncRunRow, ErrorEntry, PrintingReviewPage, ReviewMark, HistoryDetail, HistoryFilter, HistoryPage, UndoCheck, RestorePointRow, HistoryActivity,
+  HealthCheck, SyncRunRow, ErrorEntry, PlannedDeck, PlannedDeckDetail, CardSummary, PrintingReviewPage, ReviewMark, HistoryDetail, HistoryFilter, HistoryPage, UndoCheck, RestorePointRow, HistoryActivity,
   BinderData, BinderSpot, BinderView, WantsData, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
@@ -103,6 +103,14 @@ export const api = {
     return request<PrintingReviewPage>(`/printing-review/?${params}`, { signal })
   },
   markPrinting: (id: number, mark: ReviewMark) => request<{ id: number; mark: ReviewMark }>(`/printing-review/${id}/`, post({ mark })),
+  /** Locations → Future decks. */
+  plannedDecks: () => request<{ results: PlannedDeck[]; catalog: Record<number, CardSummary> }>('/my-collection/planned-decks/'),
+  createPlannedDeck: (body: { source?: string; lines?: DeckImportPreview['lines']; name?: string }) =>
+    request<PlannedDeck>('/my-collection/planned-decks/', post(body)),
+  plannedDeck: (id: number) => request<PlannedDeckDetail>(`/my-collection/planned-decks/${id}/`),
+  updatePlannedDeck: (id: number, body: { name?: string; notes?: string; source?: string }) =>
+    request<PlannedDeck>(`/my-collection/planned-decks/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deletePlannedDeck: (id: number) => request<void>(`/my-collection/planned-decks/${id}/`, { method: 'DELETE' }),
   recentErrors: () => request<{ errors: ErrorEntry[]; open: number }>('/errors/'),
   fields: () => request<FieldDef[]>('/fields/'),
   facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>

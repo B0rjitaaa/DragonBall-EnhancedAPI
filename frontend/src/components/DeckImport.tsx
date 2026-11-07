@@ -3,17 +3,25 @@ import { api } from '../lib/api'
 import { formatEur } from '../lib/prices'
 import { locationPath } from '../lib/query'
 import PickList from './PickList'
-import CardModal from './CardModal'
-import { DeckPreview } from './DeckView'
-import { SkillIndex } from '../lib/skills'
+import DeckPreviewDialog from './DeckPreviewDialog'
+import { previewDeckCards } from '../lib/deckPreview'
 import { KIND_LABELS } from './OwnedPanel'
-import { cardThumb, groupNotes, type CardSummary, type DeckImportPreview, type DeckImportResult, type DeckImportRow, type PickGroup } from '../lib/types'
+import { cardThumb, groupNotes, type DeckImportPreview, type DeckImportResult, type DeckImportRow, type PickGroup } from '../lib/types'
 
 const SECTION_LABEL: Record<string, string> = { leader: 'Leader', main: 'Main', z: 'Z', side: 'Side' }
 
 /** Importar un mazo: pegar el enlace (DeckPlanet, Top Deck Diffusion, Time Chamber) o la lista en texto → ver qué
  * tienes libre, qué está en otros mazos (y elegir de cuáles coger) y qué falta → crear el mazo. */
-export default function DeckImport({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+export default function DeckImport({
+  onClose,
+  onDone,
+  planned,
+}: {
+  onClose: () => void
+  onDone: () => void
+  /** Montar un mazo futuro: se salta el paso de pegar la lista y, al crear el mazo, deja de ser futuro. */
+  planned?: { id: number; name: string; source: string; lines: DeckImportPreview['lines'] }
+}) {
   const ref = useRef<HTMLDialogElement>(null)
   const [source, setSource] = useState('')
   const [preview, setPreview] = useState<DeckImportPreview | null>(null)
@@ -29,22 +37,27 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
   // «Preview deck»: ver cómo quedaría el mazo, sin crear nada.
   const [showDeck, setShowDeck] = useState(false)
 
+  const [savedFuture, setSavedFuture] = useState(false)
+
   useEffect(() => {
     ref.current?.showModal()
+    // Montar un mazo futuro: directamente a la comprobación, con su lista.
+    if (planned) void check(planned)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const check = async () => {
+  const check = async (from?: typeof planned) => {
     setBusy(true)
     setError(null)
     try {
-      let data = await api.previewDeckImport(source)
+      let data = from ? await api.previewDeckImportFor(from.lines, from.source, from.name, null) : await api.previewDeckImport(source)
       // Ese Leader ya está en un mazo tuyo: por defecto, la lista se añade a ese mazo.
       if (data.existing_decks.length) {
         data = await api.previewDeckImportFor(data.lines, data.source, data.name, data.existing_decks[0].id)
       }
       setPreview(data)
       setChoices(defaultChoices(data))
-      setName(data.name)
+      setName(from?.name || data.name)
       setTakeFrom(new Set())
     } catch (e) {
       setError((e as Error).message)
@@ -76,6 +89,8 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     setError(null)
     try {
       setResult(await api.importDeck(preview.lines, name, preview.source, [...takeFrom], preview.target?.id ?? null, choices))
+      // Ya montado: deja de ser un mazo futuro.
+      if (planned) await api.deletePlannedDeck(planned.id).catch(() => {})
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -111,21 +126,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
 
   // Las cartas del mazo tal como quedaría: Leader, Main y Z juntos (la vista los separa por tipo) y el side aparte.
   // Las que faltan (según lo elegido ahora) se apuntan primero en el side, igual que al crear el mazo.
-  const deckCards = () => {
-    const pool: CardSummary[] = []
-    const side: CardSummary[] = []
-    for (const r of preview?.rows ?? []) {
-      const card = preview?.catalog[r.bandai_id]
-      if (!card) continue
-      const inSide = r.sections.side ?? 0
-      const inDeck = (r.sections.leader ?? 0) + (r.sections.main ?? 0) + (r.sections.z ?? 0)
-      const lack = missingNow(r)
-      const sideLack = Math.min(lack, inSide)
-      if (inDeck) pool.push({ ...card, quantity: inDeck, missing: Math.min(lack - sideLack, inDeck) } as CardSummary)
-      if (inSide) side.push({ ...card, quantity: inSide, missing: sideLack } as CardSummary)
-    }
-    return { pool, side }
-  }
+  const deckCards = () => previewDeckCards(preview, missingNow)
 
   const toggle = (deckId: number) =>
     setTakeFrom((s) => {
@@ -144,7 +145,7 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
     >
       <div className="deck-import-body">
         <header className="deck-import-head">
-          <h2>Import a deck</h2>
+          <h2>{planned ? `Build “${planned.name}”` : 'Import a deck'}</h2>
           <button type="button" className="icon-btn" onClick={() => ref.current?.close()} disabled={busy} aria-label="Close">
             ✕
           </button>
@@ -391,10 +392,31 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
             )}
             {error && <p className="error">{error}</p>}
             <div className="loc-dialog-actions">
-              <button type="button" className="btn ghost" onClick={() => setPreview(null)} disabled={busy}>
-                ← Back
+              <button type="button" className="btn ghost" onClick={() => (planned ? ref.current?.close() : setPreview(null))} disabled={busy}>
+                {planned ? 'Cancel' : '← Back'}
               </button>
               <span className="spacer" />
+              {!planned && (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy || savedFuture}
+                  title="Keep this list in Locations → Future decks, to build it later"
+                  onClick={() => {
+                    setBusy(true)
+                    api
+                      .createPlannedDeck({ lines: preview.lines, source: preview.source, name: name.trim() || preview.name })
+                      .then(() => {
+                        setSavedFuture(true)
+                        onDone()
+                      })
+                      .catch((e: Error) => setError(e.message))
+                      .finally(() => setBusy(false))
+                  }}
+                >
+                  {savedFuture ? '✓ Saved in Future decks' : '☆ Save as future deck'}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn"
@@ -429,68 +451,6 @@ export default function DeckImport({ onClose, onDone }: { onClose: () => void; o
           }
           onClose={() => setShowDeck(false)}
         />
-      )}
-    </dialog>
-  )
-}
-
-/** Ventana a pantalla casi completa con la vista del mazo tal como quedaría (sin crear nada). Las cartas se pueden
- *  abrir para ver su ficha. */
-function DeckPreviewDialog({
-  name,
-  pool,
-  side,
-  note,
-  onClose,
-}: {
-  name: string
-  pool: CardSummary[]
-  side: CardSummary[]
-  note: string
-  onClose: () => void
-}) {
-  const ref = useRef<HTMLDialogElement>(null)
-  const [openId, setOpenId] = useState<number | null>(null)
-  // La ficha de la carta se cierra con su propio Escape (y React la quita al momento): este aviso evita que ese mismo
-  // Escape cierre también la vista previa.
-  const cardJustClosed = useRef(false)
-  const closeCard = () => {
-    setOpenId(null)
-    cardJustClosed.current = true
-    window.setTimeout(() => (cardJustClosed.current = false), 0)
-  }
-  const [skills, setSkills] = useState<SkillIndex>(SkillIndex.empty)
-  useEffect(() => {
-    ref.current?.showModal()
-    api.keywordSkills().then((d) => setSkills(new SkillIndex(d))).catch(() => {})
-  }, [])
-  return (
-    <dialog
-      ref={ref}
-      className="deck-preview-dialog"
-      // React pasa «close» y «cancel» a los componentes de fuera: sin esto, cerrar la vista previa cerraría la importación.
-      onClose={(e) => {
-        e.stopPropagation()
-        onClose()
-      }}
-      onCancel={(e) => {
-        e.stopPropagation()
-        // Con la ficha de una carta abierta, Escape cierra solo la ficha.
-        if (openId != null || cardJustClosed.current) {
-          e.preventDefault()
-          if (openId != null) closeCard()
-        }
-      }}
-    >
-      <header className="deck-preview-head">
-        <span>👁 Deck preview</span>
-        <button type="button" className="btn" onClick={() => ref.current?.close()}>
-          ← Back<span className="long"> to the import</span>
-        </button>
-      </header>
-      <DeckPreview name={name} pool={pool} side={side} onOpen={setOpenId} note={note} />
-      {openId != null && (
-        <CardModal key={openId} id={openId} skills={skills} onClose={closeCard} onFilter={() => {}} onOpenPrint={setOpenId} />
       )}
     </dialog>
   )

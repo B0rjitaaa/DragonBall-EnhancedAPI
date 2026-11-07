@@ -6,6 +6,8 @@ from . import views
 urlpatterns = [
     path("decks/import/preview/", views.DeckImportPreviewView.as_view(), name="deck-import-preview"),
     path("decks/import/", views.DeckImportView.as_view(), name="deck-import"),
+    path("planned-decks/", views.PlannedDecksView.as_view(), name="planned-decks"),
+    path("planned-decks/<int:pk>/", views.PlannedDeckView.as_view(), name="planned-deck"),
     path("decks/<int:pk>/", views.DeckView.as_view(), name="deck"),
     path("decks/<int:pk>/versions/", views.DeckVersionsView.as_view(), name="deck-versions"),
     path("decks/<int:pk>/matches/", views.DeckMatchesView.as_view(), name="deck-matches"),

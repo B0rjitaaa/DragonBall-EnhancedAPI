@@ -778,3 +778,27 @@ export interface PrintingReviewPage {
   totals: { cards: number; versions: number; pending: number; missing: number; have: number; ignore: number }
   series: string[]
 }
+
+/** Locations → Future decks: un mazo que quiero montar (solo la lista) y cuántas cartas tengo. */
+export interface PlannedDeck {
+  id: number
+  name: string
+  source: string
+  source_label: string
+  notes: string
+  created_at: string
+  updated_at: string
+  leader_bandai_id: number | null
+  cards: number
+  main: number
+  z: number
+  side: number
+  /** Copias libres (Unsorted, archivadores, cajas). */
+  free: number
+  /** Copias que tienes, pero en otros mazos. */
+  in_decks: number
+  missing: number
+  cost: number
+  unknown: string[]
+}
+export type PlannedDeckDetail = DeckImportPreview & { planned: PlannedDeck }

@@ -9,7 +9,7 @@ from collection.models import Location
 from history.recorder import describe, recorded
 
 from . import services
-from .models import DeckVersion, DeckVersionCard, Match, PickList
+from .models import DeckVersion, DeckVersionCard, Match, PickList, PlannedDeck
 from .serializers import ListCardSerializer, MatchSerializer, SideSerializer, VersionSerializer
 
 
@@ -398,3 +398,90 @@ class DeckImportView(APIView):
         except DeckImportError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_with_catalog(result), status=status.HTTP_201_CREATED)
+
+
+def _planned_summary(planned: PlannedDeck) -> dict:
+    from .importer import SOURCE_LABELS, DeckImportError, ownership, parsed_from_lines
+
+    try:
+        own = ownership(parsed_from_lines(planned.lines, planned.source, planned.name))
+    except DeckImportError:
+        own = {"cards": 0, "free": 0, "in_decks": 0, "missing": 0, "main": 0, "z": 0, "side": 0, "cost": 0, "leader_id": None, "unknown": []}
+    leader = own.pop("leader_id")
+    return {"id": planned.id, "name": planned.name, "source": planned.source,
+            "source_label": SOURCE_LABELS.get(planned.source, "a text list"), "notes": planned.notes,
+            "created_at": planned.created_at, "updated_at": planned.updated_at,
+            "leader_bandai_id": leader, **own}
+
+
+def _parse_planned(body) -> "object":
+    """La lista de un mazo futuro: `lines` (de una vista previa de importación) o `source` (enlace o texto)."""
+    from .importer import parse_source, parsed_from_lines
+
+    if body.get("lines"):
+        return parsed_from_lines(body["lines"], str(body.get("source") or "text"), str(body.get("name") or ""))
+    return parse_source(str(body.get("source") or ""))
+
+
+class PlannedDecksView(APIView):
+    """Locations → Future decks. GET: los mazos que quiero montar, con cuántas cartas tengo y cuántas faltan.
+    POST {source} (enlace o lista en texto) o {lines, source, name} (desde la importación): guarda uno."""
+
+    def get(self, request):
+        return Response(_with_catalog({"results": [_planned_summary(p) for p in PlannedDeck.objects.all()]}))
+
+    def post(self, request):
+        from .importer import DeckImportError
+
+        body = request.data if isinstance(request.data, dict) else {}
+        try:
+            deck = _parse_planned(body)
+        except DeckImportError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        name = str(body.get("name") or deck.name or "").strip()[:120]
+        if not name:
+            from .importer import _requirements
+
+            need, catalog, _ = _requirements(deck)
+            leader = next((catalog[k] for k, s in need.items() if s.get("leader")), None)
+            name = leader.name if leader else "Future deck"
+        planned = PlannedDeck.objects.create(name=name, source=deck.source, lines=[list(x) for x in deck.lines],
+                                             notes=str(body.get("notes") or "")[:2000])
+        return Response(_with_catalog(_planned_summary(planned)), status=status.HTTP_201_CREATED)
+
+
+class PlannedDeckView(APIView):
+    """Un mazo futuro. GET: su lista con lo que tienes (la misma comprobación que al importar, como mazo nuevo).
+    PATCH {name?, notes?, source?}: cambiarlo (con `source`, otra lista). DELETE: quitarlo."""
+
+    def get(self, request, pk):
+        from .importer import DeckImportError, parsed_from_lines, preview
+
+        planned = get_object_or_404(PlannedDeck, pk=pk)
+        try:
+            data = preview(parsed_from_lines(planned.lines, planned.source, planned.name))
+        except DeckImportError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_with_catalog({**data, "planned": _planned_summary(planned)}))
+
+    def patch(self, request, pk):
+        from .importer import DeckImportError
+
+        planned = get_object_or_404(PlannedDeck, pk=pk)
+        body = request.data if isinstance(request.data, dict) else {}
+        if "name" in body and str(body["name"]).strip():
+            planned.name = str(body["name"]).strip()[:120]
+        if "notes" in body:
+            planned.notes = str(body["notes"] or "")[:2000]
+        if body.get("source") or body.get("lines"):
+            try:
+                deck = _parse_planned(body)
+            except DeckImportError as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            planned.source, planned.lines = deck.source, [list(x) for x in deck.lines]
+        planned.save()
+        return Response(_with_catalog(_planned_summary(planned)))
+
+    def delete(self, request, pk):
+        get_object_or_404(PlannedDeck, pk=pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

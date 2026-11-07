@@ -14,6 +14,7 @@ import type { HistoryCard, Location, LocationKind } from './lib/types'
 import { DEFAULT_BINDER, binderLabel, type BinderSize } from './lib/binder'
 import BinderSizePicker from './components/BinderSizePicker'
 import DeckImport from './components/DeckImport'
+import FutureDecks from './components/FutureDecks'
 
 const KINDS = Object.entries(KIND_LABELS) as [LocationKind, string][]
 const SECTIONS: { kind: LocationKind; title: string; add: string; placeholder: string }[] = [
@@ -361,6 +362,8 @@ function DeckSection({
       ) : (
         <p className="empty small">You have no decks in use.</p>
       )}
+
+      <FutureDecks onBuilt={() => void run(async () => {})} />
 
       {parked.length > 0 && (
         <details className="locdeck-parked">

@@ -661,3 +661,33 @@ def parsed_from_lines(lines, source: str = "text", name: str = "") -> ParsedDeck
     if not deck.lines:
         raise DeckImportError("The deck list is empty")
     return deck
+
+
+def ownership(deck: ParsedDeck) -> dict:
+    """Para un mazo futuro: cuántas copias de la lista tienes libres, cuántas están en otros mazos y cuántas te faltan
+    (por número: vale cualquier impresión; las falsas no cuentan), lo que costarían las que faltan y su Leader."""
+    need, catalog, unknown = _requirements(deck)
+    cards = {key: catalog[key] for key in need}
+    available = _available(cards)
+    prices = dict(Card.objects.filter(id__in=[c.primary for c in cards.values()], price__isnull=False)
+                  .values_list("id", "price__eur"))
+    totals = {"cards": 0, "free": 0, "in_decks": 0, "missing": 0, "main": 0, "z": 0, "side": 0}
+    cost, leader = 0.0, None
+    for key, sections in need.items():
+        n = sum(sections.values())
+        rows = available.get(key, [])
+        free_n = sum(r["quantity"] for r in rows if r["location"].kind != Location.Kind.DECK)
+        deck_n = sum(r["quantity"] for r in rows if r["location"].kind == Location.Kind.DECK)
+        free = min(n, free_n)
+        in_decks = min(n - free, deck_n)
+        missing = n - free - in_decks
+        totals["cards"] += n
+        totals["free"] += free
+        totals["in_decks"] += in_decks
+        totals["missing"] += missing
+        for section in ("main", "z", "side"):
+            totals[section] += sections.get(section, 0)
+        cost += missing * float(prices.get(cards[key].primary) or 0)
+        if sections.get("leader") and leader is None:
+            leader = cards[key].primary
+    return {**totals, "cost": round(cost, 2), "leader_id": leader, "unknown": unknown}
