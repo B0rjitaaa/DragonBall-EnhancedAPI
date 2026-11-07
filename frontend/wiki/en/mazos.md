@@ -33,11 +33,11 @@ In **Locations → Decks**, **⇩ Import deck** creates a deck from a list you f
 
 ### Future decks
 
-In **Locations → Decks**, under the decks in use, **Future decks** keeps the decks you want to **build later to play them**. It's just the list: **it isn't a physical deck and no copies move**.
+In **Locations → Decks**, under the decks in use, the **Future decks** drop-down (closed by default, like **Archive**) keeps the decks you want to **build later to play them**. It's just the list: **it isn't a physical deck and no copies move**.
 
 - **Add one:** **+ Future deck** and paste the link (DeckPlanet, Top Deck Diffusion, Time Chamber) or the text list, as when importing. You can also keep any list you're importing as a future deck with **☆ Save as future deck** in the check.
 - **The list** shows each deck with its Leader and how many of its copies you have: free (green), in other decks (amber) and missing (purple), with an estimate of what they'd cost.
-- **Opening one** shows the deck view (curve, types, colours, deck-building rules and cards by section) with the ones you're missing marked **MISSING**. You can rename it, change its list or delete it.
+- **Opening one** shows the deck view (curve, types, colours, deck-building rules and cards by section) with the ones you're missing marked **MISSING**. **You can edit the list right there**: **−** / **+** on each card to change copies, **→ Side** / **↩ Deck** to move them to the side or back, **Add card** to add cards with the search, and **Remove** under the Leader to take it out. Each change is saved right away and what you have is recalculated. You can also rename it, replace the whole list or delete it.
 - **🔨 Build this deck** opens the import with its list and all the usual checks (where each copy comes from, which decks give cards, what's missing…). Once created, the deck joins your decks and **leaves Future decks**.
 
 ### When you already have a deck with that Leader

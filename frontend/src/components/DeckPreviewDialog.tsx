@@ -19,6 +19,9 @@ export default function DeckPreviewDialog({
   back = <>← Back<span className="long"> to the import</span></>,
   actions,
   eyebrow,
+  editor,
+  overlay,
+  keepOpenOnEscape,
 }: {
   name: string
   pool: CardSummary[]
@@ -30,6 +33,11 @@ export default function DeckPreviewDialog({
   /** Botones o datos extra en la cabecera (p. ej. «Build this deck» en un mazo futuro). */
   actions?: ReactNode
   eyebrow?: string
+  editor?: Parameters<typeof DeckPreview>[0]['editor']
+  /** Algo encima de la vista (p. ej. el buscador de cartas para añadir una), dentro de esta ventana. */
+  overlay?: ReactNode
+  /** Escape lo usa otra ventana encima (p. ej. el buscador de cartas): que no cierre también esta. */
+  keepOpenOnEscape?: () => boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const [openId, setOpenId] = useState<number | null>(null)
@@ -58,7 +66,7 @@ export default function DeckPreviewDialog({
       onCancel={(e) => {
         e.stopPropagation()
         // Con la ficha de una carta abierta, Escape cierra solo la ficha.
-        if (openId != null || cardJustClosed.current) {
+        if (openId != null || cardJustClosed.current || keepOpenOnEscape?.()) {
           e.preventDefault()
           if (openId != null) closeCard()
         }
@@ -73,7 +81,8 @@ export default function DeckPreviewDialog({
           </button>
         </span>
       </header>
-      <DeckPreview name={name} pool={pool} side={side} onOpen={setOpenId} note={note} eyebrow={eyebrow} />
+      <DeckPreview name={name} pool={pool} side={side} onOpen={setOpenId} note={note} eyebrow={eyebrow} editor={editor} />
+      {overlay}
       {openId != null && (
         <CardModal key={openId} id={openId} skills={skills} onClose={closeCard} onFilter={() => {}} onOpenPrint={setOpenId} />
       )}

@@ -530,7 +530,9 @@ export function CardPicker({
   onPick,
   quantityOf,
   onClose,
+  hint = 'Click a card to add a copy (you can click several times). It goes into the draft: nothing moves until you save the list and make it main.',
 }: {
+  hint?: string
   onPick: (card: CardSummary) => void
   /** Copias que ya hay de esa carta en la lista. */
   quantityOf: (id: number) => number
@@ -572,10 +574,7 @@ export function CardPicker({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Card name, number (BT1-030) or text…"
         />
-        <p className="muted small">
-          Click a card to add a copy (you can click several times). It goes into the draft: nothing moves until you
-          save the list and make it main.
-        </p>
+        <p className="muted small">{hint}</p>
         {q.trim().length >= 2 && !loading && results.length === 0 && <p className="muted">No cards match.</p>}
         <ul className="card-picker-grid">
           {results.map((c) => {

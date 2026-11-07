@@ -65,10 +65,12 @@ interface CardControls {
   deltaOf: (card: CardSummary) => number
   /** Resolver una copia «missing»: la tengo (entra en la colección) o la quito de la lista. */
   resolveMissing?: (card: CardSummary, action: 'have' | 'remove') => Promise<void>
+  /** También en las cartas que no tienes (una lista sin copias, como un mazo futuro). */
+  always?: boolean
 }
 
 /** Borrador de la lista principal: copias por carta, en el mazo (main/Z/líder, según su tipo) o en el side. */
-type Part = 'deck' | 'side'
+export type Part = 'deck' | 'side'
 type Draft = Record<string, number>
 const draftKey = (id: number, part: Part) => `${id}:${part}`
 const storageKey = (deckId: number) => `deck-draft:${deckId}`
@@ -969,7 +971,7 @@ function DeckCard({
       </button>
       {lack > 0 && <MissingBadge card={card} lack={lack} all={lack >= n} below={!!flag} resolve={controls?.resolveMissing} />}
       {/* Si no tienes ninguna copia no hay nada que quitar ni pasar al side. */}
-      {controls && lack < n && (
+      {controls && (controls.always || lack < n) && (
         <div className="deck-card-controls" onPointerDown={stop}>
           <button onClick={() => controls.change(card, -1)} title="Remove a copy" aria-label={`Remove a copy of ${card.name}`}>
             −
@@ -995,9 +997,15 @@ export function DeckPreview({
   onOpen,
   note,
   eyebrow = 'Deck preview · not created yet',
+  editor,
 }: {
   name: string
   eyebrow?: string
+  /** Editar la lista (un mazo futuro): copias −/+, pasar al side, añadir cartas y quitar el Leader. */
+  editor?: {
+    change: (card: CardSummary, part: Part, delta: number) => void
+    add: () => void
+  }
   /** Leader, Main Deck y Z Deck (cada carta con `quantity` y, si faltan copias, `missing`). */
   pool: CardSummary[]
   side: CardSummary[]
@@ -1031,6 +1039,20 @@ export function DeckPreview({
   const sideTotal = countOf(side)
   const missingTotal = [...pool, ...side].reduce((n, c) => n + missingOf(c), 0)
   const leaderImage = leader && (showFront || !leader.back_image_url ? leader.image_url : leader.back_image_url)
+  const controlsFor = (part: Part): CardControls | undefined =>
+    editor && {
+      always: true,
+      change: (c, d) => editor.change(c, part, d),
+      move: {
+        label: part === 'deck' ? '→ Side' : '↩ Deck',
+        title: part === 'deck' ? 'Move a copy to the side deck' : 'Return a copy to the deck',
+        run: (c) => {
+          editor.change(c, part, -1)
+          editor.change(c, part === 'deck' ? 'side' : 'deck', 1)
+        },
+      },
+      deltaOf: () => 0,
+    }
 
   return (
     <div className="deck-view deck-preview">
@@ -1053,6 +1075,11 @@ export function DeckPreview({
               <button className="link small" onClick={() => onOpen(leader.id)}>
                 {leader.card_number} · details
               </button>
+              {editor && (
+                <button className="link small danger" onClick={() => editor.change(leader, 'deck', -copies(leader))} title="Remove the Leader from the list (add another with “Add card”)">
+                  Remove
+                </button>
+              )}
             </span>
           )}
         </div>
@@ -1098,6 +1125,8 @@ export function DeckPreview({
         cards={shown(main)}
         flagged={flagged}
         onOpen={onOpen}
+        controls={controlsFor('deck')}
+        onAdd={editor && !filtering ? editor.add : undefined}
       />
       {zDeck.length > 0 && (
         <DeckSection
@@ -1107,9 +1136,10 @@ export function DeckPreview({
           cards={shown(zDeck)}
           flagged={flagged}
           onOpen={onOpen}
+          controls={controlsFor('deck')}
         />
       )}
-      {side.length > 0 && (
+      {(side.length > 0 || editor) && (
         <DeckSection
           title="Side deck"
           count={sideTotal}
@@ -1117,7 +1147,8 @@ export function DeckPreview({
           cards={shown(side)}
           flagged={new Map()}
           onOpen={onOpen}
-          empty={filtering ? 'No side cards match these filters.' : undefined}
+          controls={controlsFor('side')}
+          empty={filtering ? 'No side cards match these filters.' : editor ? 'No cards in the side. Use “→ Side” on a deck card.' : undefined}
         />
       )}
     </div>

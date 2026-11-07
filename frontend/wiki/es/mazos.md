@@ -33,11 +33,11 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
 
 ### Mazos futuros (Future decks)
 
-En **«Locations» → «Decks»**, debajo de los mazos en uso, **«Future decks»** (mazos futuros) guarda los mazos que quieres **montar más adelante para jugarlos**. Es solo la lista: **no es un mazo físico ni mueve ninguna copia**.
+En **«Locations» → «Decks»**, debajo de los mazos en uso, el desplegable **«Future decks»** (mazos futuros; cerrado de entrada, como «Archive») guarda los mazos que quieres **montar más adelante para jugarlos**. Es solo la lista: **no es un mazo físico ni mueve ninguna copia**.
 
 - **Añadir uno:** **«+ Future deck»** y pega el enlace (DeckPlanet, Top Deck Diffusion, Time Chamber) o la lista en texto, como al importar. También puedes guardar como mazo futuro cualquier lista que estés importando, con **«☆ Save as future deck»** en la comprobación.
 - **En la lista** ves cada mazo con su Leader y cuántas copias tienes de las que pide: libres (verde), en otros mazos (ámbar) y las que faltan (violeta), con lo que costarían aproximadamente.
-- **Al abrirlo** sale la vista de un mazo (curva, tipos, colores, reglas de construcción y cartas por secciones) con las que te faltan marcadas **«MISSING»**. Puedes cambiarle el nombre, cambiar la lista o borrarlo.
+- **Al abrirlo** sale la vista de un mazo (curva, tipos, colores, reglas de construcción y cartas por secciones) con las que te faltan marcadas **«MISSING»**. **Puedes editar la lista ahí mismo**: **−** / **+** en cada carta para cambiar las copias, **«→ Side»** / **«↩ Deck»** para pasarlas al side o devolverlas, **«Add card»** para añadir cartas con el buscador y **«Remove»** bajo el Leader para quitarlo. Cada cambio se guarda al momento y se recalcula lo que tienes. También puedes cambiarle el nombre, cambiar la lista entera o borrarlo.
 - **«🔨 Build this deck»** (montar el mazo) abre la importación ya con su lista, con todas las comprobaciones de siempre (de dónde sale cada copia, qué mazos ceden cartas, qué falta…). Al crearlo, el mazo pasa a tus mazos y **deja de estar en «Future decks»**.
 
 ### Si ya tienes un mazo con ese Leader
