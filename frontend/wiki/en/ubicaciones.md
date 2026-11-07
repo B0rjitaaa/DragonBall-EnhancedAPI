@@ -39,6 +39,8 @@ At the top are **Decks**, **Binders**, **Storage** and **Other**, each with its 
 
 **How the Leader is chosen:** it's the LEADER card in the box. If there are several, the genuine one you have the most copies of. If the box is empty, the Leader from its latest saved list is used.
 
+**“Future decks N”** (collapsible): decks you want to build later. Just their list, no copies: you see which cards you have and which you're missing, you can edit it and build the deck whenever you like. See [Future decks](mazos.md).
+
 **“Archive N”** (collapsible): decks you no longer play, “decks you no longer use; their latest list is saved”. Each one shows:
 - how many copies are left in the box, or how many cards its latest list had;
 - since when it has been archived, and “N times” if it has been archived more than once;

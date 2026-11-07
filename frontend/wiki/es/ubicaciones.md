@@ -39,6 +39,8 @@ Arriba están **«Decks»**, **«Binders»**, **«Storage»** y **«Other»**, c
 
 **Cómo se elige el Leader:** es la carta LEADER que hay en la caja. Si hay varias, la auténtica de la que tienes más copias. Si la caja está vacía, se usa el Leader de su última lista guardada.
 
+**«Future decks N»** (mazos futuros, desplegable): los mazos que quieres montar más adelante. Es solo su lista, sin copias: ves cuáles tienes y cuáles te faltan, puedes editarla y montar el mazo cuando quieras. Ver [Mazos futuros](mazos.md).
+
 **«Archive N»** (histórico, desplegable): los mazos que ya no juegas, «decks you no longer use; their latest list is saved». Cada uno muestra:
 - cuántas copias quedan en la caja, o cuántas cartas tenía su última lista;
 - desde cuándo está en el histórico, y «N times» si ya ha pasado varias veces;
