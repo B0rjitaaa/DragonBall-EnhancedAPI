@@ -445,8 +445,8 @@ def deck_stats(days: int | None = None, archived: bool = False) -> dict:
         o["win_rate"] = _rate(o["wins"], o["played"])
     toughest = sorted((o for o in opp_list if o["played"] >= 2), key=lambda o: (o["win_rate"], -o["played"]))[:5]
 
-    # Mejor mazo: el de mayor porcentaje con al menos 3 partidas (si no, el que más ha ganado).
-    ranked = [d for d in decks if d["played"] >= 3] or decks
+    # Mejor mazo: el de mayor porcentaje con partidas suficientes (5; si ninguno, 3; si no, cualquiera).
+    ranked = [d for d in decks if d["played"] >= LOW_SAMPLE] or [d for d in decks if d["played"] >= 3] or decks
     best = max(ranked, key=lambda d: (d["win_rate"] or 0, d["played"]), default=None)
 
     # Por semana (lunes a domingo).
