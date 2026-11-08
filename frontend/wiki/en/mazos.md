@@ -38,7 +38,7 @@ In **Locations → Decks**, next to the title, the **In use | Stats** tabs. **St
 - **At the top:** matches played, win rate (with wins-losses-draws), your current streak (**W3** = three wins in a row, **L2** = two losses), how you do **going first or second**, your best deck (the highest win rate with at least 5 matches) and the opponent that gives you the most trouble.
 - **By deck:** one row per deck with its Leader, matches, W-L-D, a bar with its win rate, the last 5 matches (● won, ○ lost; oldest to newest), first/second and when you last played. Click a column title to sort; the name takes you to the deck.
 - **Matchups:** your decks against the rival Leaders you've met most, with the win rate in colour (green when you win, red when you lose) and how many matches; below, the toughest opponents (at least 2 matches).
-- **Over time:** matches per week (grey) and wins (green), with a line for your win rate.
+- **Over time:** matches (grey) and wins (green), with a line for your win rate. **Per day** when your matches span less than a month, **per week** (Monday to Sunday) when they span more; the title says which (per day / per week) and hovering a bar shows its day or week.
 
 With fewer than 5 matches, win rates are dimmed and marked **few games**: so few matches aren't reliable. At the top you pick the period (**Last 30 days**, **Last 3 months**, **All time**) and whether archived decks count (**Include archived decks**; off by default).
 

@@ -1,5 +1,6 @@
 """Settings de DragonBall-EnhancedAPI. Toda la configuración sensible llega por variables de entorno."""
 import os
+import sys
 from pathlib import Path
 
 from celery.schedules import crontab
@@ -137,6 +138,16 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 # --- Celery ----------------------------------------------------------------
 CELERY_BROKER_URL = f"{REDIS_URL}/0"
 CELERY_RESULT_BACKEND = f"{REDIS_URL}/0"
+
+# Tests: caché y cola de tareas en memoria, propias de cada ejecución. Así no chocan con la web que corra en la misma
+# máquina (su candado del sync, sus límites de peticiones…) ni mandan tareas a su worker. Cada test empieza con la
+# caché vacía (config/test_runner.py).
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+if TESTING:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "tests"}}
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"
+    TEST_RUNNER = "config.test_runner.IsolatedRunner"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 60 * 60 * 3  # un sync completo puede tardar

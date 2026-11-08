@@ -833,6 +833,7 @@ export interface DeckStatsData {
   opponents: StatsOpponent[]
   matchups: Record<string, Record<string, { played: number; wins: number }>>
   weeks: { week: string; played: number; wins: number }[]
+  days: { day: string; played: number; wins: number }[]
   low_sample: number
   catalog: Record<number, CardSummary>
 }

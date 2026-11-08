@@ -449,7 +449,12 @@ def deck_stats(days: int | None = None, archived: bool = False) -> dict:
     ranked = [d for d in decks if d["played"] >= LOW_SAMPLE] or [d for d in decks if d["played"] >= 3] or decks
     best = max(ranked, key=lambda d: (d["win_rate"] or 0, d["played"]), default=None)
 
-    # Por semana (lunes a domingo).
+    # Por día y por semana (lunes a domingo): la web elige la escala según lo que abarquen las partidas.
+    by_day: dict[date, dict] = {}
+    for m in matches:
+        d = by_day.setdefault(m.played_on, {"day": m.played_on, "played": 0, "wins": 0})
+        d["played"] += 1
+        d["wins"] += m.result == Match.Result.WIN
     weeks: dict[date, dict] = {}
     for m in matches:
         start = m.played_on - timedelta(days=m.played_on.weekday())
@@ -467,5 +472,6 @@ def deck_stats(days: int | None = None, archived: bool = False) -> dict:
         "opponents": opp_list[:8],
         "matchups": {str(k): v for k, v in cells.items()},
         "weeks": [weeks[k] for k in sorted(weeks)],
+        "days": [by_day[k] for k in sorted(by_day)],
         "low_sample": LOW_SAMPLE,
     }

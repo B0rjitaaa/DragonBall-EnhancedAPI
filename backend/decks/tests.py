@@ -699,6 +699,8 @@ class DeckStatsTests(TestCase):
         self.assertEqual(d["matchups"][str(self.b.id)]["name:goku"], {"played": 2, "wins": 0})
         self.assertIn("10", d["catalog"])
         self.assertTrue(len(d["weeks"]) >= 2)
+        self.assertEqual(sum(x["played"] for x in d["days"]), 6)
+        self.assertEqual(len(d["days"]), 5)  # cinco días distintos (dos partidas el mismo día)
 
     def test_period_and_archived(self):
         self.assertEqual(self.get(days=30)["totals"]["played"], 5)

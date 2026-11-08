@@ -253,8 +253,7 @@ export default function DeckStats() {
             </section>
 
             <section className="stats-block">
-              <h3 className="loc-sub">Over time</h3>
-              <WeeksChart weeks={data.weeks} />
+              <TimeChart weeks={data.weeks} days={data.days} />
             </section>
           </div>
         </>
@@ -263,23 +262,43 @@ export default function DeckStats() {
   )
 }
 
-/** Partidas por semana (barras: victorias en verde sobre el total) y el porcentaje de victorias (línea). */
-function WeeksChart({ weeks }: { weeks: DeckStatsData['weeks'] }) {
-  if (weeks.length === 0) return null
+/** Partidas en el tiempo (barras: victorias en verde sobre el total) y el porcentaje de victorias (línea). Por días si las
+ *  partidas abarcan menos de un mes; por semanas (de lunes a domingo) si abarcan más. */
+function TimeChart({ weeks, days }: { weeks: DeckStatsData['weeks']; days: DeckStatsData['days'] }) {
+  if (days.length === 0) return null
+  const day = (iso: string) => new Date(`${iso}T12:00:00`)
+  const span = (day(days[days.length - 1].day).getTime() - day(days[0].day).getTime()) / 86400000
+  const daily = span < 31
+  const short = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  const points = daily
+    ? days.map((d) => ({ key: d.day, label: short(day(d.day)), title: day(d.day).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }), played: d.played, wins: d.wins }))
+    : weeks.map((w) => {
+        const end = new Date(day(w.week).getTime() + 6 * 86400000)
+        return { key: w.week, label: short(day(w.week)), title: `Week of ${short(day(w.week))}–${short(end)}`, played: w.played, wins: w.wins }
+      })
+  return (
+    <>
+      <h3 className="loc-sub">Over time · per {daily ? 'day' : 'week'}</h3>
+      <BarsChart points={points} />
+    </>
+  )
+}
+
+function BarsChart({ points }: { points: { key: string; label: string; title: string; played: number; wins: number }[] }) {
   const W = 560
   const H = 200
   const pad = { l: 28, r: 34, t: 12, b: 26 }
-  const max = Math.max(1, ...weeks.map((w) => w.played))
-  const slot = (W - pad.l - pad.r) / weeks.length
+  const max = Math.max(1, ...points.map((w) => w.played))
+  const slot = (W - pad.l - pad.r) / points.length
   const bw = Math.min(42, slot * 0.6)
   const y = (n: number) => pad.t + (H - pad.t - pad.b) * (1 - n / max)
   const yr = (r: number) => pad.t + (H - pad.t - pad.b) * (1 - r)
   const x = (i: number) => pad.l + slot * i + slot / 2
-  const line = weeks.map((w, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${yr(w.wins / w.played).toFixed(1)}`).join(' ')
-  const label = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  const line = points.map((w, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${yr(w.wins / w.played).toFixed(1)}`).join(' ')
+  const every = Math.ceil(points.length / 12)
   return (
     <div className="stats-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Matches per week and win rate">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Matches and win rate over time">
         {[0, 0.5, 1].map((r) => (
           <g key={r}>
             <line x1={pad.l} x2={W - pad.r} y1={yr(r)} y2={yr(r)} className="grid" />
@@ -291,21 +310,21 @@ function WeeksChart({ weeks }: { weeks: DeckStatsData['weeks'] }) {
         <text x={pad.l - 6} y={y(max) + 4} className="axis" textAnchor="end">
           {max}
         </text>
-        {weeks.map((w, i) => (
-          <g key={w.week}>
-            <title>{`Week of ${label(w.week)}: ${w.played} matches, ${w.wins} won`}</title>
+        {points.map((w, i) => (
+          <g key={w.key}>
+            <title>{`${w.title}: ${w.played} ${w.played === 1 ? 'match' : 'matches'}, ${w.wins} won`}</title>
             <rect x={x(i) - bw / 2} y={y(w.played)} width={bw} height={y(0) - y(w.played)} className="bar-all" rx="3" />
             <rect x={x(i) - bw / 2} y={y(w.wins)} width={bw} height={y(0) - y(w.wins)} className="bar-win" rx="3" />
-            {(weeks.length <= 12 || i % Math.ceil(weeks.length / 12) === 0) && (
+            {i % every === 0 && (
               <text x={x(i)} y={H - 8} className="axis" textAnchor="middle">
-                {label(w.week)}
+                {w.label}
               </text>
             )}
           </g>
         ))}
-        <path d={line} className="rate-line" />
-        {weeks.map((w, i) => (
-          <circle key={w.week} cx={x(i)} cy={yr(w.wins / w.played)} r="3.5" className="rate-dot" />
+        {points.length > 1 && <path d={line} className="rate-line" />}
+        {points.map((w, i) => (
+          <circle key={w.key} cx={x(i)} cy={yr(w.wins / w.played)} r="3.5" className="rate-dot" />
         ))}
       </svg>
       <p className="muted small stats-legend">
