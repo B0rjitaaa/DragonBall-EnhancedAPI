@@ -367,12 +367,12 @@ function DeckSection({
       <SectionHead section={section} count={decks.length} sorting={sorting} onSort={tab === 'decks' ? () => setSorting((v) => !v) : undefined}
         run={run} busy={busy} nextPosition={(decks.at(-1)?.position ?? 0) + 1}
         titleExtra={
-          <span className="segmented loc-tabs" role="tablist" aria-label="Decks view">
+          <span className="deck-view-tabs" role="tablist" aria-label="Decks view">
             <button role="tab" aria-selected={tab === 'decks'} className={tab === 'decks' ? 'on' : ''} onClick={() => chooseTab('decks')}>
-              Decks
+              🃏 Decks
             </button>
             <button role="tab" aria-selected={tab === 'stats'} className={tab === 'stats' ? 'on' : ''} onClick={() => chooseTab('stats')}>
-              Stats
+              📊 Stats
             </button>
           </span>
         } />

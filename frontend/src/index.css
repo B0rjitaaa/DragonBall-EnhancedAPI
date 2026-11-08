@@ -2387,7 +2387,14 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 
 /* Locations → Decks → Stats */
 .loc-section-title { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
-.loc-tabs button { padding: 0.3rem 0.8rem; font-size: 0.9rem; }
+/* Pestañas «Decks» | «Stats» junto al título (mismo estilo de pastilla que la barra de arriba) */
+.deck-view-tabs { display: inline-flex; gap: 0.35rem; }
+.deck-view-tabs button {
+  padding: 0.3rem 0.8rem; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+  color: var(--muted); font: inherit; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
+}
+.deck-view-tabs button:hover { color: var(--text); border-color: var(--muted); }
+.deck-view-tabs button.on { color: #1a1205; background: var(--accent); border-color: var(--accent); font-weight: 600; }
 .segmented button.on { background: color-mix(in srgb, var(--accent) 22%, var(--bg-2)); color: var(--accent-2); font-weight: 700; }
 .deck-stats-panel { display: grid; gap: 1.1rem; }
 .stats-filters { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
@@ -2395,7 +2402,8 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .stats-kpi { display: grid; gap: 0.2rem; align-content: start; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); min-width: 0; }
 .stats-kpi strong { font-size: 1.7rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .stats-kpi strong.stats-text { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stats-kpi strong.stats-split { font-size: 1.25rem; display: grid; }
+.stats-kpi strong.stats-split { font-size: 1.2rem; display: grid; }
+.stats-kpi strong.stats-split span { font-size: inherit; color: var(--text); }
 .stats-kpi span { color: var(--muted); font-size: 0.8rem; }
 .stats-kpi.few strong { opacity: 0.6; }
 .stats-kpi.streak-win strong { color: #4cc38a; }
