@@ -485,3 +485,20 @@ class PlannedDeckView(APIView):
     def delete(self, request, pk):
         get_object_or_404(PlannedDeck, pk=pk).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DeckStatsView(APIView):
+    """Locations → Decks → Stats. GET ?days=30|90 (sin él: todo) &archived=1 (incluir los del histórico)."""
+
+    def get(self, request):
+        from cards.views import deck_leaders
+
+        try:
+            days = int(request.query_params.get("days") or 0) or None
+        except ValueError:
+            days = None
+        data = services.deck_stats(days, request.query_params.get("archived") in ("1", "true"))
+        leaders = deck_leaders()
+        for d in data["decks"]:
+            d["leader"] = leaders.get(d["deck_id"])
+        return Response(_with_catalog(data))

@@ -1,5 +1,5 @@
 import type {
-  HealthCheck, SyncRunRow, ErrorEntry, PlannedDeck, PlannedDeckDetail, CardSummary, PrintingReviewPage, ReviewMark, HistoryDetail, HistoryFilter, HistoryPage, UndoCheck, RestorePointRow, HistoryActivity,
+  HealthCheck, SyncRunRow, ErrorEntry, DeckStatsData, PlannedDeck, PlannedDeckDetail, CardSummary, PrintingReviewPage, ReviewMark, HistoryDetail, HistoryFilter, HistoryPage, UndoCheck, RestorePointRow, HistoryActivity,
   BinderData, BinderSpot, BinderView, WantsData, CardDetail, ChangesResponse, DeckImportPreview, DeckImportResult, SavedPickList, HistoryCard, CsvImportPreview, DeckDetail, DeckListCard, DeckVersion, RestorePlan, RestoreResult, DeckVersionDetail, FacetsResponse, FieldDef,
   KeywordSkillsResponse, Location, LocationKind, Match, MatchInput, OwnedSummary, RadarResponse, RestorePreview, SearchResponse,
 } from './types'
@@ -111,6 +111,8 @@ export const api = {
   updatePlannedDeck: (id: number, body: { name?: string; notes?: string; source?: string }) =>
     request<PlannedDeck>(`/my-collection/planned-decks/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
   deletePlannedDeck: (id: number) => request<void>(`/my-collection/planned-decks/${id}/`, { method: 'DELETE' }),
+  deckStats: (days: number | null, archived: boolean, signal?: AbortSignal) =>
+    request<DeckStatsData>(`/my-collection/deck-stats/?${days ? `days=${days}&` : ''}${archived ? 'archived=1' : ''}`, { signal }),
   recentErrors: () => request<{ errors: ErrorEntry[]; open: number }>('/errors/'),
   fields: () => request<FieldDef[]>('/fields/'),
   facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>

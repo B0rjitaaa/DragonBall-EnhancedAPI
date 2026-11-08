@@ -31,6 +31,17 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
 4. Si quieres verlo antes, pulsa **«👁 Preview deck»** (previsualizar mazo): abre la misma vista que el detalle de un mazo, con el Leader, la curva de energía, los tipos y colores, la comprobación de las reglas de construcción y las cartas por secciones (las que te faltan, con la etiqueta violeta **«MISSING»**). Las estadísticas también filtran las cartas y puedes abrir la ficha de cada una. **No crea ni guarda nada**: **«← Back to the import»** te devuelve a la importación tal como la dejaste.
 5. Revisa el nombre (**«Deck name»**, que viene de la web de origen si lo tiene) y pulsa **«Create deck»** (crear mazo).
 
+### Estadísticas (Stats)
+
+En **«Locations» → «Decks»**, junto al título, las pestañas **«Decks» | «Stats»**. **«Stats»** cambia la sección por un panel con cómo te va según las partidas que anotas en cada mazo (**«+ Result»**). La pestaña elegida se recuerda.
+
+- **Arriba:** partidas jugadas, porcentaje de victorias (con victorias-derrotas-empates), la racha actual (**W3** = tres victorias seguidas, **L2** = dos derrotas), cómo te va **empezando primero o segundo**, tu mejor mazo (el de mayor porcentaje con al menos 3 partidas) y el rival que más te cuesta.
+- **«By deck»:** una fila por mazo con su Leader, partidas, V-D-E, una barra con su porcentaje, las 5 últimas partidas (● ganada, ○ perdida; de la más antigua a la más reciente), primero/segundo y cuándo jugaste por última vez. Se ordena pulsando el título de la columna y el nombre lleva al mazo.
+- **«Matchups»:** tus mazos frente a los Leaders rivales que más te has encontrado, con el porcentaje en color (verde si ganas, rojo si pierdes) y cuántas partidas; debajo, los rivales más difíciles (con al menos 2 partidas).
+- **«Over time»:** partidas por semana (gris) y las ganadas (verde), con la línea de tu porcentaje de victorias.
+
+Con menos de 5 partidas, los porcentajes salen atenuados con **«few games»**: con tan pocas partidas no son fiables. Arriba eliges el periodo (**«Last 30 days»**, **«Last 3 months»**, **«All time»**) y si cuentan los mazos del histórico (**«Include archived decks»**; por defecto no).
+
 ### Mazos futuros (Future decks)
 
 En **«Locations» → «Decks»**, debajo de los mazos en uso, el desplegable **«Future decks»** (mazos futuros; cerrado de entrada, como «Archive») guarda los mazos que quieres **montar más adelante para jugarlos**. Es solo la lista: **no es un mazo físico ni mueve ninguna copia**.

@@ -650,3 +650,56 @@ class PlannedDeckTests(TestCase):
         r = self.client.post(self.url, {"lines": lines, "source": "text", "name": "Para el torneo"}, format="json")
         self.assertEqual((r.status_code, r.json()["name"], r.json()["cards"]), (201, "Para el torneo", 5))
         self.assertEqual(self.client.post(self.url, {"source": "nada aquí"}, format="json").status_code, 400)
+
+
+class DeckStatsTests(TestCase):
+    """Locations → Decks → Stats: partidas por mazo, rivales y semanas."""
+
+    def setUp(self):
+        from datetime import date, timedelta
+
+        from decks.models import DeckVersion, Match
+
+        self.client = APIClient()
+        self.vegeta = Card.objects.create(id=10, card_number="BT11-032", name="Vegeta", card_type="LEADER")
+        self.a = Location.objects.create(name="Launch", kind="deck")
+        self.b = Location.objects.create(name="Cooler", kind="deck")
+        self.old = Location.objects.create(name="Viejo", kind="deck", status="parked")
+        va, vb, vo = (DeckVersion.objects.create(deck=d, number=1, principal=True) for d in (self.a, self.b, self.old))
+        today = date.today()
+
+        def play(v, result, first, days_ago, leader=10, name="Vegeta"):
+            Match.objects.create(version=v, result=result, went_first=first, played_on=today - timedelta(days=days_ago),
+                                 opponent_leader_bandai_id=leader, opponent_leader_name=name)
+
+        play(va, "win", True, 40)
+        play(va, "loss", False, 5)
+        play(va, "win", True, 2)
+        play(va, "win", False, 1)
+        play(vb, "loss", True, 3, leader=None, name="Goku")
+        play(vb, "loss", False, 3, leader=None, name="goku ")
+        play(vo, "win", True, 1)
+
+    def get(self, **params):
+        return self.client.get("/api/my-collection/deck-stats/", params).json()
+
+    def test_totals_decks_and_matchups(self):
+        d = self.get()
+        t = d["totals"]
+        self.assertEqual((t["played"], t["wins"], t["losses"], t["win_rate"]), (6, 3, 3, 0.5))  # sin el archivado
+        self.assertEqual(t["streak"], {"result": "win", "count": 2})
+        self.assertEqual((t["first"], t["second"]), ({"played": 3, "wins": 2}, {"played": 3, "wins": 1}))
+        launch = next(x for x in d["decks"] if x["name"] == "Launch")
+        self.assertEqual((launch["played"], launch["wins"], launch["last5"][-2:]), (4, 3, ["win", "win"]))
+        self.assertEqual(d["best_deck"]["name"], "Launch")
+        # Rival sin carta elegida: se agrupa por nombre (sin mayúsculas ni espacios).
+        keys = {o["key"]: o for o in d["opponents"]}
+        self.assertEqual((keys["10"]["played"], keys["name:goku"]["played"]), (4, 2))
+        self.assertEqual(d["toughest"][0]["key"], "name:goku")
+        self.assertEqual(d["matchups"][str(self.b.id)]["name:goku"], {"played": 2, "wins": 0})
+        self.assertIn("10", d["catalog"])
+        self.assertTrue(len(d["weeks"]) >= 2)
+
+    def test_period_and_archived(self):
+        self.assertEqual(self.get(days=30)["totals"]["played"], 5)
+        self.assertEqual(self.get(archived=1)["totals"]["played"], 7)

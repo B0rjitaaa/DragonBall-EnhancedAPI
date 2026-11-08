@@ -15,6 +15,7 @@ import { DEFAULT_BINDER, binderLabel, type BinderSize } from './lib/binder'
 import BinderSizePicker from './components/BinderSizePicker'
 import DeckImport from './components/DeckImport'
 import FutureDecks from './components/FutureDecks'
+import DeckStats from './components/DeckStats'
 
 const KINDS = Object.entries(KIND_LABELS) as [LocationKind, string][]
 const SECTIONS: { kind: LocationKind; title: string; add: string; placeholder: string }[] = [
@@ -201,8 +202,10 @@ export default function LocationsPage() {
 
 /** Cabecera de sección con «Ordenar» y «+ Nuevo…», y el formulario de alta cuando se abre. */
 function SectionHead({
-  section, count, sorting, onSort, run, busy, nextPosition,
+  section, count, sorting, onSort, run, busy, nextPosition, titleExtra,
 }: {
+  /** Algo junto al título (p. ej. las pestañas «Decks» | «Stats»). */
+  titleExtra?: ReactNode
   section: (typeof SECTIONS)[number]
   count: number
   sorting: boolean
@@ -219,9 +222,12 @@ function SectionHead({
   return (
     <>
       <div className="loc-section-head">
-        <h2>
-          {section.title} <small>{count}</small>
-        </h2>
+        <div className="loc-section-title">
+          <h2>
+            {section.title} <small>{count}</small>
+          </h2>
+          {titleExtra}
+        </div>
         <div className="loc-section-tools">
           {onSort && count > 1 && (
             <button className={`btn ghost ${sorting ? 'on' : ''}`} onClick={onSort}>
@@ -331,6 +337,22 @@ function DeckSection({
   onOrder: (ids: number[]) => void
 }) {
   const [sorting, setSorting] = useState(false)
+  // «Decks» o «Stats» (se recuerda en este navegador).
+  const [tab, setTab] = useState<'decks' | 'stats'>(() => {
+    try {
+      return window.localStorage.getItem('locations-deck-tab') === 'stats' ? 'stats' : 'decks'
+    } catch {
+      return 'decks'
+    }
+  })
+  const chooseTab = (t: 'decks' | 'stats') => {
+    setTab(t)
+    try {
+      window.localStorage.setItem('locations-deck-tab', t)
+    } catch {
+      /* sin almacenamiento */
+    }
+  }
   const active = decks.filter((d) => d.status !== 'parked')
   const parked = decks
     .filter((d) => d.status === 'parked')
@@ -342,8 +364,19 @@ function DeckSection({
   )
   return (
     <section className="loc-section" id="sec-deck">
-      <SectionHead section={section} count={decks.length} sorting={sorting} onSort={() => setSorting((v) => !v)}
-        run={run} busy={busy} nextPosition={(decks.at(-1)?.position ?? 0) + 1} />
+      <SectionHead section={section} count={decks.length} sorting={sorting} onSort={tab === 'decks' ? () => setSorting((v) => !v) : undefined}
+        run={run} busy={busy} nextPosition={(decks.at(-1)?.position ?? 0) + 1}
+        titleExtra={
+          <span className="segmented loc-tabs" role="tablist" aria-label="Decks view">
+            <button role="tab" aria-selected={tab === 'decks'} className={tab === 'decks' ? 'on' : ''} onClick={() => chooseTab('decks')}>
+              Decks
+            </button>
+            <button role="tab" aria-selected={tab === 'stats'} className={tab === 'stats' ? 'on' : ''} onClick={() => chooseTab('stats')}>
+              Stats
+            </button>
+          </span>
+        } />
+      {tab === 'stats' ? <DeckStats /> : <>
       <h3 className="loc-sub">
         In use <small>{active.length}</small>
       </h3>
@@ -394,6 +427,7 @@ function DeckSection({
           </ul>
         </details>
       )}
+      </>}
     </section>
   )
 }

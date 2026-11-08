@@ -802,3 +802,45 @@ export interface PlannedDeck {
   unknown: string[]
 }
 export type PlannedDeckDetail = DeckImportPreview & { planned: PlannedDeck }
+
+/** Locations → Decks → Stats. */
+export interface StatsRecord {
+  played: number
+  wins: number
+  losses: number
+  draws: number
+  win_rate: number | null
+}
+export interface DeckStatsData {
+  totals: StatsRecord & {
+    streak: { result: 'win' | 'loss' | 'draw' | null; count: number }
+    first: { played: number; wins: number }
+    second: { played: number; wins: number }
+  }
+  best_deck: { deck_id: number; name: string; win_rate: number | null; played: number } | null
+  toughest: StatsOpponent[]
+  decks: (StatsRecord & {
+    deck_id: number
+    uid: string
+    name: string
+    status: string
+    last5: ('win' | 'loss' | 'draw')[]
+    first: { played: number; wins: number }
+    second: { played: number; wins: number }
+    last_played: string
+    leader: { id: number; card_number: string; name: string; image: string } | null
+  })[]
+  opponents: StatsOpponent[]
+  matchups: Record<string, Record<string, { played: number; wins: number }>>
+  weeks: { week: string; played: number; wins: number }[]
+  low_sample: number
+  catalog: Record<number, CardSummary>
+}
+export interface StatsOpponent {
+  key: string
+  leader_bandai_id: number | null
+  name: string
+  played: number
+  wins: number
+  win_rate: number | null
+}

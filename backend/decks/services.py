@@ -371,3 +371,101 @@ def back_in_use(deck: Location) -> dict | None:
         move_copies(leader.card, source.location, deck, 1, source_fake=source.fake)
     card = leader.card
     return {"card_number": card.card_number, "name": card.name, "from": source.location.name, "fake": source.fake}
+
+
+# --- Estadísticas de los mazos (Locations → Decks → Stats) --------------------------------------
+
+LOW_SAMPLE = 5  # con menos partidas, los porcentajes se enseñan atenuados («few games»)
+
+
+def _rate(wins: int, played: int) -> float | None:
+    return round(wins / played, 3) if played else None
+
+
+def deck_stats(days: int | None = None, archived: bool = False) -> dict:
+    """Resumen, por mazo, enfrentamientos con Leaders rivales y evolución semanal de las partidas anotadas.
+
+    `days`: solo las partidas de los últimos N días. `archived`: incluir los mazos del histórico."""
+    from datetime import date, timedelta
+
+    qs = Match.objects.select_related("version__deck").order_by("played_on", "created_at")
+    if not archived:
+        qs = qs.exclude(version__deck__status=Location.Status.PARKED)
+    if days:
+        qs = qs.filter(played_on__gte=date.today() - timedelta(days=days))
+    matches = list(qs)
+
+    totals = record(matches)
+    # Racha actual: las últimas partidas seguidas con el mismo resultado (sin contar empates al final).
+    streak = {"result": None, "count": 0}
+    for m in reversed(matches):
+        if streak["result"] is None:
+            streak = {"result": m.result, "count": 1}
+        elif m.result == streak["result"]:
+            streak["count"] += 1
+        else:
+            break
+    first = [m for m in matches if m.went_first is True]
+    second = [m for m in matches if m.went_first is False]
+
+    # Por mazo.
+    by_deck: dict[int, list] = defaultdict(list)
+    for m in matches:
+        by_deck[m.version.deck_id].append(m)
+    decks = []
+    for deck_id, ms in by_deck.items():
+        deck = ms[0].version.deck
+        f = [m for m in ms if m.went_first is True]
+        s = [m for m in ms if m.went_first is False]
+        decks.append({
+            "deck_id": deck_id, "uid": str(deck.uid), "name": deck.name, "status": deck.status, **record(ms),
+            "last5": [m.result for m in ms[-5:]],  # de la más antigua a la más reciente
+            "first": {"played": len(f), "wins": sum(m.result == Match.Result.WIN for m in f)},
+            "second": {"played": len(s), "wins": sum(m.result == Match.Result.WIN for m in s)},
+            "last_played": ms[-1].played_on,
+        })
+    decks.sort(key=lambda d: (-d["played"], d["name"]))
+
+    # Rivales: por Leader (o por nombre si no se eligió la carta).
+    def opp_key(m):
+        return str(m.opponent_leader_bandai_id or f"name:{m.opponent_leader_name.strip().lower()}")
+    opponents: dict[str, dict] = {}
+    cells: dict[int, dict[str, dict]] = defaultdict(dict)
+    for m in matches:
+        k = opp_key(m)
+        o = opponents.setdefault(k, {"key": k, "leader_bandai_id": m.opponent_leader_bandai_id,
+                                     "name": m.opponent_leader_name, "played": 0, "wins": 0})
+        o["played"] += 1
+        o["wins"] += m.result == Match.Result.WIN
+        c = cells[m.version.deck_id].setdefault(k, {"played": 0, "wins": 0})
+        c["played"] += 1
+        c["wins"] += m.result == Match.Result.WIN
+    opp_list = sorted(opponents.values(), key=lambda o: (-o["played"], o["name"]))
+    for o in opp_list:
+        o["win_rate"] = _rate(o["wins"], o["played"])
+    toughest = sorted((o for o in opp_list if o["played"] >= 2), key=lambda o: (o["win_rate"], -o["played"]))[:5]
+
+    # Mejor mazo: el de mayor porcentaje con al menos 3 partidas (si no, el que más ha ganado).
+    ranked = [d for d in decks if d["played"] >= 3] or decks
+    best = max(ranked, key=lambda d: (d["win_rate"] or 0, d["played"]), default=None)
+
+    # Por semana (lunes a domingo).
+    weeks: dict[date, dict] = {}
+    for m in matches:
+        start = m.played_on - timedelta(days=m.played_on.weekday())
+        w = weeks.setdefault(start, {"week": start, "played": 0, "wins": 0})
+        w["played"] += 1
+        w["wins"] += m.result == Match.Result.WIN
+
+    return {
+        "totals": {**totals, "streak": streak,
+                   "first": {"played": len(first), "wins": sum(m.result == Match.Result.WIN for m in first)},
+                   "second": {"played": len(second), "wins": sum(m.result == Match.Result.WIN for m in second)}},
+        "best_deck": {"deck_id": best["deck_id"], "name": best["name"], "win_rate": best["win_rate"], "played": best["played"]} if best else None,
+        "toughest": toughest,
+        "decks": decks,
+        "opponents": opp_list[:8],
+        "matchups": {str(k): v for k, v in cells.items()},
+        "weeks": [weeks[k] for k in sorted(weeks)],
+        "low_sample": LOW_SAMPLE,
+    }
