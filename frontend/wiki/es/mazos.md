@@ -33,7 +33,7 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
 
 ### Estadísticas (Stats)
 
-En **«Locations» → «Decks»**, junto al título, las pestañas **«Decks» | «Stats»**. **«Stats»** cambia la sección por un panel con cómo te va según las partidas que anotas en cada mazo (**«+ Result»**). La pestaña elegida se recuerda.
+En **«Locations» → «Decks»**, junto al título, las pestañas **«In use» | «Stats»**. **«Stats»** cambia la sección por un panel con cómo te va según las partidas que anotas en cada mazo (**«+ Result»**). La pestaña elegida se recuerda.
 
 - **Arriba:** partidas jugadas, porcentaje de victorias (con victorias-derrotas-empates), la racha actual (**W3** = tres victorias seguidas, **L2** = dos derrotas), cómo te va **empezando primero o segundo**, tu mejor mazo (el de mayor porcentaje con al menos 5 partidas) y el rival que más te cuesta.
 - **«By deck»:** una fila por mazo con su Leader, partidas, V-D-E, una barra con su porcentaje, las 5 últimas partidas (● ganada, ○ perdida; de la más antigua a la más reciente), primero/segundo y cuándo jugaste por última vez. Se ordena pulsando el título de la columna y el nombre lleva al mazo.

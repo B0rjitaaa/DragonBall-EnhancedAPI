@@ -77,18 +77,38 @@ export default function LocationsPage() {
     return () => window.clearTimeout(t)
   }, [toast])
 
-  // Pestaña activa según la sección que se está viendo.
+  const clickedUntil = useRef(0)
+  // Pestaña activa: la última sección cuyo título ya ha pasado bajo la barra de arriba (la primera si ninguna).
+  // Se recalcula al desplazarse y cuando cambia la altura de la página (p. ej. al pasar de «In use» a «Stats»).
   useEffect(() => {
     if (!locations) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-        if (visible[0]) setCurrent(visible[0].target.id.replace('sec-', '') as LocationKind)
-      },
-      { rootMargin: '-110px 0px -55% 0px' },
-    )
-    document.querySelectorAll('.loc-section[id]').forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
+    let frame = 0
+    const update = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const sections = [...document.querySelectorAll<HTMLElement>('.loc-section[id]')]
+        if (!sections.length) return
+        const line = 130
+        let pick = sections[0]
+        for (const el of sections) if (el.getBoundingClientRect().top <= line) pick = el
+        // Al final de la página los últimos títulos no llegan arriba: entonces, la última sección.
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4 && window.scrollY > 0) pick = sections[sections.length - 1]
+        // Tras pulsar una pestaña de la barra, manda esa hasta que termine el desplazamiento.
+        if (Date.now() < clickedUntil.current) return
+        setCurrent(pick.id.replace('sec-', '') as LocationKind)
+      })
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    const resize = new ResizeObserver(update)
+    resize.observe(document.body)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+      resize.disconnect()
+    }
   }, [locations])
 
   const run: Run = async (action) => {
@@ -157,7 +177,15 @@ export default function LocationsPage() {
 
       <nav className="loc-tabs" aria-label="Sections">
         {SECTIONS.filter((s) => s.kind !== 'other' || counts.other > 0).map((s) => (
-          <a key={s.kind} href={`#sec-${s.kind}`} className={current === s.kind ? 'active' : ''}>
+          <a
+            key={s.kind}
+            href={`#sec-${s.kind}`}
+            className={current === s.kind ? 'active' : ''}
+            onClick={() => {
+              setCurrent(s.kind)
+              clickedUntil.current = Date.now() + 1200
+            }}
+          >
             {s.title} <span>{counts[s.kind]}</span>
           </a>
         ))}
@@ -369,7 +397,7 @@ function DeckSection({
         titleExtra={
           <span className="deck-view-tabs" role="tablist" aria-label="Decks view">
             <button role="tab" aria-selected={tab === 'decks'} className={tab === 'decks' ? 'on' : ''} onClick={() => chooseTab('decks')}>
-              🃏 Decks
+              🃏 In use
             </button>
             <button role="tab" aria-selected={tab === 'stats'} className={tab === 'stats' ? 'on' : ''} onClick={() => chooseTab('stats')}>
               📊 Stats
