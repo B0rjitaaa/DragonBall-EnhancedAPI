@@ -1,3 +1,6 @@
+import json
+from unittest import mock
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -581,6 +584,26 @@ class DeckImportTests(TestCase):
         data = self.preview("https://time-chamber.net/decks/import?leader=EX20-01&main=BT29-86x2&z=BT21-070x1&side=EX20-03x1").data
         self.assertEqual(data["source"], "timechamber")
         self.assertEqual(data["totals"]["cards"], 5)
+
+    def test_time_chamber_saved_and_short_links(self):
+        api = json.dumps({
+            "name": "Cell control",
+            "leader": {"cardNumber": "EX20-01"},
+            "cardsMain": {"1:0": {"count": 2}, "9:1": {"count": 1}},
+            "cardsZ": {"2:0": {"count": 1}},
+            "cardsSide": {"3:0": {"count": 1}},
+            "viewOrderMain": ["9:1", "1:0"],
+            "cardCache": {"1:0": {"card_number": "BT29-086"}, "2:0": {"card_number": "BT21-070"}, "3:0": {"card_number": "EX20-03"}},
+        })
+        deck_id = "1a408d97-6b92-454c-ba15-3cff3d58a378"
+        with mock.patch("decks.importer._fetch", return_value=api) as fetch:
+            data = self.preview(f"https://time-chamber.net/decks/{deck_id}/view?share=d1kzVN6Mfc4").data
+            self.assertEqual(fetch.call_args.args[0], f"https://time-chamber.net/api/v1/decks/{deck_id}?share_code=d1kzVN6Mfc4")
+            self.assertEqual((data["source"], data["name"], data["totals"]["cards"]), ("timechamber", "Cell control", 5))
+            self.assertEqual(data["unread"], ["9:1"])  # sin número en cardCache
+            self.preview("https://time-chamber.net/s/d1kzVN6Mfc4")
+            self.assertEqual(fetch.call_args.args[0], "https://time-chamber.net/api/v1/decks/share/d1kzVN6Mfc4")
+        self.assertEqual(self.preview("https://time-chamber.net/cards").status_code, 400)
 
     def test_unknown_site_asks_for_text(self):
         response = self.preview("https://example.com/deck/1")

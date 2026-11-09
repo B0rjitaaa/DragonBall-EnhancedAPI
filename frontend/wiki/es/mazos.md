@@ -15,7 +15,7 @@ Un **mazo** es una [ubicación](ubicaciones.md) de tipo «Deck». Al abrirlo (`/
 En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea un mazo a partir de una lista que hayas visto en otra web, con las cartas que ya tienes:
 
 1. Pega el **enlace del mazo** o la **lista**:
-   - enlaces de **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) y enlaces de importación de **Time Chamber**;
+   - enlaces de **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) y **Time Chamber**, tanto los de un mazo guardado o compartido (`time-chamber.net/decks/…/view?share=…`, `time-chamber.net/s/…`) como los de importación;
    - de cualquier otra web, usa su opción de *exportar* o *copiar lista* y pega el texto. Cada línea necesita un número de carta: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Las cabeceras de sección (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) son opcionales: sin ellas, la carta de tipo LEADER se toma como Leader.
 2. Pulsa **«Check the list»** (comprobar la lista). De cada carta verás:
    - **«✓ free»** (libres): copias en «Unsorted», un archivador o una caja;

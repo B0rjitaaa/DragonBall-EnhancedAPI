@@ -15,7 +15,7 @@ A **deck** is a [location](ubicaciones.md) of type Deck. When you open it (`/col
 In **Locations → Decks**, **⇩ Import deck** creates a deck from a list you found elsewhere, using the cards you already have:
 
 1. Paste the **deck link** or the **deck list**:
-   - links from **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) and **Time Chamber** import links;
+   - links from **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) and **Time Chamber**, both saved or shared decks (`time-chamber.net/decks/…/view?share=…`, `time-chamber.net/s/…`) and import links;
    - from any other site, use its *export* or *copy list* option and paste the text. Each line needs a card number: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Section headers (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) are optional: without them, the LEADER card is taken as the Leader.
 2. Press **Check the list**. For each card you'll see:
    - **✓ free**: copies in Unsorted, a binder or a box;

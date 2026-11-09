@@ -3,7 +3,10 @@
 Fuentes:
 - DeckPlanet (dbs-deckplanet.com/…/deck/<id>): la página trae el mazo en los datos de Next.js (`deckData`).
 - Top Deck Diffusion (topdeckdiffusion.com/decks/<id>): la página trae `<script id="export-deck-data">`.
-- Time Chamber (time-chamber.net/decks/import?leader=…&main=…&z=…&side=…): la lista va en la dirección.
+- Time Chamber:
+  - time-chamber.net/decks/import?leader=…&main=…&z=…&side=…: la lista va en la dirección.
+  - time-chamber.net/decks/<id>/view?share=<código> (o /decks/<id>, /decks/<id>/edit, /s/<código>): la web es una
+    aplicación de navegador, así que se lee su API (/api/v1/decks/…), que trae el número de cada carta en `cardCache`.
 - Texto: lo que exportan casi todas las webs («4 Jiren, the Avenger [BT14-018]», «4 BT14-018», «BT14-018 x4»),
   con secciones «Leader», «Main Deck», «Z Deck», «Side Deck» opcionales.
 
@@ -19,7 +22,7 @@ import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from django.db import transaction
 from django.db.models import Max
@@ -74,7 +77,7 @@ def _parse_url(url: str) -> ParsedDeck:
     parsed = urlparse(url)
     host = (parsed.hostname or "").lower().removeprefix("www.")
     if host == "time-chamber.net":
-        return _parse_time_chamber(parsed.query)
+        return _parse_time_chamber_link(parsed)
     site = FETCH_HOSTS.get(host)
     if site is None:
         raise DeckImportError(
@@ -85,11 +88,11 @@ def _parse_url(url: str) -> ParsedDeck:
     return _parse_deckplanet(page) if site == "deckplanet" else _parse_topdeckdiffusion(page)
 
 
-def _fetch(url: str) -> str:
+def _fetch(url: str, accept: str | None = None) -> str:
     from curl_cffi import requests as http
 
     try:
-        resp = http.get(url, impersonate="chrome", timeout=20)
+        resp = http.get(url, impersonate="chrome", timeout=20, headers={"Accept": accept} if accept else None)
     except Exception as exc:  # red, DNS, certificado…
         raise DeckImportError(f"Couldn't open the link ({exc.__class__.__name__}). Try again or paste the list.") from exc
     if resp.status_code != 200:
@@ -154,6 +157,53 @@ def _parse_topdeckdiffusion(page: str) -> ParsedDeck:
         for row in data.get(key) or []:
             if row.get("number") and row.get("qty"):
                 deck.lines.append((row["number"], section, int(row["qty"])))
+    return deck
+
+
+TIME_CHAMBER_API = "https://time-chamber.net/api/v1"
+UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+
+
+def _parse_time_chamber_link(parsed) -> ParsedDeck:
+    """Las tres formas de enlace de Time Chamber: con la lista en la dirección, de un mazo guardado o corto (/s/…)."""
+    path = parsed.path.rstrip("/")
+    if path == "/decks/import":
+        return _parse_time_chamber(parsed.query)
+    share = (parse_qs(parsed.query).get("share") or [""])[0]
+    if m := re.fullmatch(rf"/decks/({UUID})(?:/view|/edit)?", path, re.I):
+        api = f"{TIME_CHAMBER_API}/decks/{m.group(1)}" + (f"?share_code={quote(share)}" if share else "")
+    elif m := re.fullmatch(r"/s/([A-Za-z0-9_-]+)", path):
+        api = f"{TIME_CHAMBER_API}/decks/share/{m.group(1)}"
+    else:
+        raise DeckImportError("That Time Chamber link isn't a deck: open the deck and copy its link (or use Share)")
+    try:
+        data = json.loads(_fetch(api, accept="application/json"))
+    except ValueError as exc:
+        raise DeckImportError("Couldn't read the deck from Time Chamber") from exc
+    return _parse_time_chamber_api(data)
+
+
+def _parse_time_chamber_api(data: dict) -> ParsedDeck:
+    """Respuesta de /api/v1/decks/…: las secciones son {«idInterno:variante»: {count}} y `cardCache` da el número."""
+    deck = ParsedDeck(source="timechamber", name=str(data.get("name") or "").strip())
+    cache = data.get("cardCache") or {}
+    leader = data.get("leader") or {}
+    if leader.get("cardNumber"):
+        deck.lines.append((leader["cardNumber"], "leader", 1))
+    for key, section in (("cardsMain", "main"), ("cardsZ", "z"), ("cardsSide", "side")):
+        order = data.get(f"viewOrder{key.removeprefix('cards')}") or []
+        cards = data.get(key) or {}
+        for ref in [*order, *(k for k in cards if k not in order)]:
+            if ref not in cards:
+                continue
+            number = (cache.get(ref) or {}).get("card_number")
+            count = int((cards[ref] or {}).get("count") or 0)
+            if number and count:
+                deck.lines.append((number, section, count))
+            elif count:
+                deck.unread.append(ref)
+    if not deck.lines:
+        raise DeckImportError("That Time Chamber deck is empty or private")
     return deck
 
 
