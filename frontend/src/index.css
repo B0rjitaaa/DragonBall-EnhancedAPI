@@ -2418,7 +2418,6 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .stats-table tr.few td:not(:first-child) { opacity: 0.6; }
 .stats-sort { border: 0; background: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; padding: 0; }
 .stats-deck { display: flex; align-items: center; gap: 0.55rem; color: var(--text); text-decoration: none; font-weight: 600; }
-.stats-deck:hover { color: var(--accent-2); }
 .stats-deck img, .stats-deck .locdeck-thumb-empty { width: 30px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 3px; }
 .stats-bar { display: inline-block; width: 90px; height: 8px; border-radius: 4px; background: var(--bg-3); overflow: hidden; vertical-align: middle; margin-right: 0.5rem; }
 .stats-bar i { display: block; height: 100%; border-radius: 4px; }
@@ -2447,6 +2446,33 @@ button.cd-tile-value:hover, .cd-tile-link:hover { color: var(--accent-2); text-d
 .stats-chart .bar-win { fill: #4cc38a; }
 .stats-chart .rate-line { fill: none; stroke: var(--accent); stroke-width: 2; }
 .stats-chart .rate-dot { fill: var(--accent); }
+.stats-chart .bar-hl { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0; }
+.stats-chart g.hover .bar-hl { opacity: 1; }
+.stats-chart g.hover .bar-all { fill: color-mix(in srgb, var(--muted) 55%, transparent); }
+.stats-chart .hit { fill: transparent; cursor: default; }
+.stats-chart .rate-dot { pointer-events: none; transition: r 0.1s; }
+.stats-tip { position: fixed; z-index: 1000; pointer-events: none; max-width: 260px; padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); color: var(--text); box-shadow: 0 6px 20px rgb(0 0 0 / 0.35); font-size: 0.82rem; }
+.stats-tip-game { display: flex; gap: 0.55rem; align-items: center; white-space: nowrap; }
+.stats-tip-game img { width: 34px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 3px; }
+.stats-tip-point { display: grid; gap: 0.25rem; }
+.stats-tip-point ul { list-style: none; margin: 0.2rem 0 0; padding: 0.3rem 0 0; border-top: 1px solid var(--line); display: grid; gap: 0.15rem; }
+.stats-tip-point li { display: flex; justify-content: space-between; gap: 1rem; }
+.stats-tip .res-win { color: #4cc38a; }
+.stats-tip .res-loss { color: #f87171; }
+.stats-tip .res-draw { color: var(--muted); }
+.stats-last5 i { cursor: help; }
+.stats-hint { font-size: 0.72rem; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.stats-pick { cursor: pointer; transition: opacity 0.15s, background 0.15s; }
+.stats-pick:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.stats-pick.sel td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.stats-pick.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.stats-pick.dim { opacity: 0.45; }
+.stats-pick.dim:hover { opacity: 0.8; }
+.stats-deck a { color: inherit; text-decoration: none; }
+.stats-deck a:hover { color: var(--accent-2); text-decoration: underline; }
+.stats-showing { display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); }
+.stats-chip { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.8rem; cursor: pointer; }
+.stats-chip:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 .stats-legend { display: flex; gap: 0.5rem; align-items: center; margin: 0.3rem 0 0; }
 .stats-legend i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; }
 .stats-legend .lg-all { background: color-mix(in srgb, var(--muted) 35%, transparent); }

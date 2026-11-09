@@ -824,7 +824,7 @@ export interface DeckStatsData {
     uid: string
     name: string
     status: string
-    last5: ('win' | 'loss' | 'draw')[]
+    last5: StatsGame[]
     first: { played: number; wins: number }
     second: { played: number; wins: number }
     last_played: string
@@ -832,10 +832,24 @@ export interface DeckStatsData {
   })[]
   opponents: StatsOpponent[]
   matchups: Record<string, Record<string, { played: number; wins: number }>>
-  weeks: { week: string; played: number; wins: number }[]
-  days: { day: string; played: number; wins: number }[]
+  weeks: { week: string; played: number; wins: number; decks: StatsDayDeck[] }[]
+  days: { day: string; played: number; wins: number; decks: StatsDayDeck[] }[]
   low_sample: number
   catalog: Record<number, CardSummary>
+}
+export interface StatsGame {
+  result: 'win' | 'loss' | 'draw'
+  played_on: string
+  went_first: boolean | null
+  opponent_leader_bandai_id: number | null
+  opponent: string
+}
+export interface StatsDayDeck {
+  deck_id: number
+  name: string
+  wins: number
+  losses: number
+  draws: number
 }
 export interface StatsOpponent {
   key: string

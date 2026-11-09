@@ -488,7 +488,8 @@ class PlannedDeckView(APIView):
 
 
 class DeckStatsView(APIView):
-    """Locations → Decks → Stats. GET ?days=30|90 (sin él: todo) &archived=1 (incluir los del histórico)."""
+    """Locations → Decks → Stats. GET ?days=30|90 (sin él: todo) &archived=1 (incluir los del histórico)
+    &decks=1,2 (solo esos mazos en el resumen, los enfrentamientos y la gráfica)."""
 
     def get(self, request):
         from cards.views import deck_leaders
@@ -497,7 +498,8 @@ class DeckStatsView(APIView):
             days = int(request.query_params.get("days") or 0) or None
         except ValueError:
             days = None
-        data = services.deck_stats(days, request.query_params.get("archived") in ("1", "true"))
+        deck_ids = [int(x) for x in (request.query_params.get("decks") or "").split(",") if x.strip().isdigit()]
+        data = services.deck_stats(days, request.query_params.get("archived") in ("1", "true"), deck_ids or None)
         leaders = deck_leaders()
         for d in data["decks"]:
             d["leader"] = leaders.get(d["deck_id"])

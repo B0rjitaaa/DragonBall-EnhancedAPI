@@ -382,10 +382,11 @@ def _rate(wins: int, played: int) -> float | None:
     return round(wins / played, 3) if played else None
 
 
-def deck_stats(days: int | None = None, archived: bool = False) -> dict:
+def deck_stats(days: int | None = None, archived: bool = False, deck_ids: list[int] | None = None) -> dict:
     """Resumen, por mazo, enfrentamientos con Leaders rivales y evolución semanal de las partidas anotadas.
 
-    `days`: solo las partidas de los últimos N días. `archived`: incluir los mazos del histórico."""
+    `days`: solo las partidas de los últimos N días. `archived`: incluir los mazos del histórico. `deck_ids`: solo esos
+    mazos para el resumen, los enfrentamientos y la gráfica; la lista por mazo sigue con todos para poder elegir."""
     from datetime import date, timedelta
 
     qs = Match.objects.select_related("version__deck").order_by("played_on", "created_at")
@@ -393,7 +394,8 @@ def deck_stats(days: int | None = None, archived: bool = False) -> dict:
         qs = qs.exclude(version__deck__status=Location.Status.PARKED)
     if days:
         qs = qs.filter(played_on__gte=date.today() - timedelta(days=days))
-    matches = list(qs)
+    all_matches = list(qs)
+    matches = [m for m in all_matches if m.version.deck_id in deck_ids] if deck_ids else all_matches
 
     totals = record(matches)
     # Racha actual: las últimas partidas seguidas con el mismo resultado (sin contar empates al final).
@@ -410,7 +412,7 @@ def deck_stats(days: int | None = None, archived: bool = False) -> dict:
 
     # Por mazo.
     by_deck: dict[int, list] = defaultdict(list)
-    for m in matches:
+    for m in all_matches:
         by_deck[m.version.deck_id].append(m)
     decks = []
     for deck_id, ms in by_deck.items():
@@ -419,7 +421,10 @@ def deck_stats(days: int | None = None, archived: bool = False) -> dict:
         s = [m for m in ms if m.went_first is False]
         decks.append({
             "deck_id": deck_id, "uid": str(deck.uid), "name": deck.name, "status": deck.status, **record(ms),
-            "last5": [m.result for m in ms[-5:]],  # de la más antigua a la más reciente
+            # De la más antigua a la más reciente, con el rival para la leyenda de cada bolita.
+            "last5": [{"result": m.result, "played_on": m.played_on, "went_first": m.went_first,
+                       "opponent_leader_bandai_id": m.opponent_leader_bandai_id, "opponent": m.opponent_leader_name}
+                      for m in ms[-5:]],
             "first": {"played": len(f), "wins": sum(m.result == Match.Result.WIN for m in f)},
             "second": {"played": len(s), "wins": sum(m.result == Match.Result.WIN for m in s)},
             "last_played": ms[-1].played_on,
@@ -446,21 +451,27 @@ def deck_stats(days: int | None = None, archived: bool = False) -> dict:
     toughest = sorted((o for o in opp_list if o["played"] >= 2), key=lambda o: (o["win_rate"], -o["played"]))[:5]
 
     # Mejor mazo: el de mayor porcentaje con partidas suficientes (5; si ninguno, 3; si no, cualquiera).
-    ranked = [d for d in decks if d["played"] >= LOW_SAMPLE] or [d for d in decks if d["played"] >= 3] or decks
+    pool = [d for d in decks if d["deck_id"] in deck_ids] if deck_ids else decks
+    ranked = [d for d in pool if d["played"] >= LOW_SAMPLE] or [d for d in pool if d["played"] >= 3] or pool
     best = max(ranked, key=lambda d: (d["win_rate"] or 0, d["played"]), default=None)
 
     # Por día y por semana (lunes a domingo): la web elige la escala según lo que abarquen las partidas.
+    # Cada punto lleva también el desglose por mazo para la leyenda de la gráfica.
+    def bucket(store: dict, key: date, field: str, m) -> None:
+        b = store.setdefault(key, {field: key, "played": 0, "wins": 0, "decks": {}})
+        b["played"] += 1
+        b["wins"] += m.result == Match.Result.WIN
+        d = b["decks"].setdefault(m.version.deck_id, {"deck_id": m.version.deck_id, "name": m.version.deck.name,
+                                                      "wins": 0, "losses": 0, "draws": 0})
+        d[{"win": "wins", "loss": "losses"}.get(m.result, "draws")] += 1
+
     by_day: dict[date, dict] = {}
-    for m in matches:
-        d = by_day.setdefault(m.played_on, {"day": m.played_on, "played": 0, "wins": 0})
-        d["played"] += 1
-        d["wins"] += m.result == Match.Result.WIN
     weeks: dict[date, dict] = {}
     for m in matches:
-        start = m.played_on - timedelta(days=m.played_on.weekday())
-        w = weeks.setdefault(start, {"week": start, "played": 0, "wins": 0})
-        w["played"] += 1
-        w["wins"] += m.result == Match.Result.WIN
+        bucket(by_day, m.played_on, "day", m)
+        bucket(weeks, m.played_on - timedelta(days=m.played_on.weekday()), "week", m)
+    for b in (*by_day.values(), *weeks.values()):
+        b["decks"] = sorted(b["decks"].values(), key=lambda d: (-(d["wins"] + d["losses"] + d["draws"]), d["name"]))
 
     return {
         "totals": {**totals, "streak": streak,

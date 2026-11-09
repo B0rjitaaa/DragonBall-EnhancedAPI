@@ -690,7 +690,8 @@ class DeckStatsTests(TestCase):
         self.assertEqual(t["streak"], {"result": "win", "count": 2})
         self.assertEqual((t["first"], t["second"]), ({"played": 3, "wins": 2}, {"played": 3, "wins": 1}))
         launch = next(x for x in d["decks"] if x["name"] == "Launch")
-        self.assertEqual((launch["played"], launch["wins"], launch["last5"][-2:]), (4, 3, ["win", "win"]))
+        self.assertEqual((launch["played"], launch["wins"], [g["result"] for g in launch["last5"][-2:]]), (4, 3, ["win", "win"]))
+        self.assertEqual(launch["last5"][-1]["opponent_leader_bandai_id"], 10)
         self.assertEqual(d["best_deck"]["name"], "Launch")
         # Rival sin carta elegida: se agrupa por nombre (sin mayúsculas ni espacios).
         keys = {o["key"]: o for o in d["opponents"]}
@@ -701,6 +702,15 @@ class DeckStatsTests(TestCase):
         self.assertTrue(len(d["weeks"]) >= 2)
         self.assertEqual(sum(x["played"] for x in d["days"]), 6)
         self.assertEqual(len(d["days"]), 5)  # cinco días distintos (dos partidas el mismo día)
+
+    def test_selected_decks(self):
+        d = self.get(decks=f"{self.b.id}")
+        self.assertEqual((d["totals"]["played"], d["totals"]["wins"]), (2, 0))
+        self.assertEqual(len(d["decks"]), 2)  # la lista por mazo sigue con todos para poder elegir
+        self.assertEqual(d["best_deck"]["name"], "Cooler")
+        self.assertEqual([o["key"] for o in d["opponents"]], ["name:goku"])
+        day = d["days"][0]
+        self.assertEqual(day["decks"], [{"deck_id": self.b.id, "name": "Cooler", "wins": 0, "losses": 2, "draws": 0}])
 
     def test_period_and_archived(self):
         self.assertEqual(self.get(days=30)["totals"]["played"], 5)

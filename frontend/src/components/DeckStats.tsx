@@ -1,9 +1,10 @@
 // Locations → Decks → Stats: cómo te va con tus mazos según las partidas anotadas. Resumen arriba, una fila por mazo,
 // enfrentamientos con los Leaders rivales y la evolución semana a semana. Con pocas partidas, los porcentajes se
-// enseñan atenuados («few games») y siempre con cuántas partidas son.
-import { useEffect, useMemo, useState } from 'react'
+// enseñan atenuados («few games») y siempre con cuántas partidas son. Al pulsar mazos en «By deck» el resto (resumen,
+// enfrentamientos y gráfica) se calcula solo con esos.
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
-import type { DeckStatsData, StatsOpponent } from '../lib/types'
+import type { DeckStatsData, StatsDayDeck, StatsGame, StatsOpponent } from '../lib/types'
 import { cardThumb } from '../lib/types'
 
 const PERIODS: [number | null, string][] = [[30, 'Last 30 days'], [90, 'Last 3 months'], [null, 'All time']]
@@ -15,6 +16,28 @@ const rateOf = (wins: number, played: number) => (played ? wins / played : null)
 function ago(iso: string) {
   const days = Math.round((Date.now() - new Date(`${iso}T12:00:00`).getTime()) / 86400000)
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 30 ? `${days} days ago` : new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+const longDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+const RESULT = { win: 'Win', loss: 'Loss', draw: 'Draw' } as const
+
+/** Leyenda flotante propia (la del navegador tarda en salir): sigue al ratón y no se sale de la pantalla. */
+type Tip = { x: number; y: number; body: ReactNode } | null
+function Tooltip({ tip }: { tip: Tip }) {
+  if (!tip) return null
+  const left = tip.x > window.innerWidth - 280
+  return (
+    <div className="stats-tip" style={{ top: tip.y + 14, ...(left ? { right: window.innerWidth - tip.x + 12 } : { left: tip.x + 12 }) }}>
+      {tip.body}
+    </div>
+  )
+}
+function tipHandlers(setTip: (t: Tip) => void, body: () => ReactNode) {
+  return {
+    onMouseEnter: (e: React.MouseEvent) => setTip({ x: e.clientX, y: e.clientY, body: body() }),
+    onMouseMove: (e: React.MouseEvent) => setTip({ x: e.clientX, y: e.clientY, body: body() }),
+    onMouseLeave: () => setTip(null),
+  }
 }
 
 /** Color de un porcentaje de victorias: rojo (0%) → ámbar (50%) → verde (100%). */
@@ -30,18 +53,25 @@ export default function DeckStats() {
   const [data, setData] = useState<DeckStatsData | null>(null)
   const [error, setError] = useState('')
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'played', desc: true })
+  const [selected, setSelected] = useState<number[]>([])
+  const [tip, setTip] = useState<Tip>(null)
 
   useEffect(() => {
     const ctrl = new AbortController()
     api
-      .deckStats(days, archived, ctrl.signal)
+      .deckStats(days, archived, selected, ctrl.signal)
       .then((d) => {
         setData(d)
         setError('')
+        // Si al cambiar el periodo un mazo elegido se queda sin partidas, deja de estar elegido.
+        const present = selected.filter((id) => d.decks.some((x) => x.deck_id === id))
+        if (present.length !== selected.length) setSelected(present)
       })
       .catch((e: Error) => e.name !== 'AbortError' && setError(e.message))
     return () => ctrl.abort()
-  }, [days, archived])
+  }, [days, archived, selected])
+
+  const toggle = (id: number) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
   const decks = useMemo(() => {
     const list = [...(data?.decks ?? [])]
@@ -72,6 +102,23 @@ export default function DeckStats() {
     const card = o.leader_bandai_id ? data.catalog[o.leader_bandai_id] : null
     return card ? `${card.name}` : o.name || 'Unknown'
   }
+  const gameTip = (g: StatsGame) => () => {
+    const card = g.opponent_leader_bandai_id ? data.catalog[g.opponent_leader_bandai_id] : null
+    return (
+      <div className="stats-tip-game">
+        {card && <img src={cardThumb(card)} alt="" referrerPolicy="no-referrer" />}
+        <div>
+          <b className={`res-${g.result}`}>{RESULT[g.result]}</b> vs <b>{card?.name ?? (g.opponent || 'Unknown')}</b>
+          <div className="muted small">
+            {longDate(g.played_on)}
+            {g.went_first != null && ` · going ${g.went_first ? 'first' : 'second'}`}
+          </div>
+        </div>
+      </div>
+    )
+  }
+  const chosen = data.decks.filter((d) => selected.includes(d.deck_id))
+  const matrixDecks = selected.length ? data.decks.filter((d) => selected.includes(d.deck_id)) : data.decks
 
   return (
     <div className="deck-stats-panel">
@@ -86,6 +133,19 @@ export default function DeckStats() {
         <label className="small">
           <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Include archived decks
         </label>
+        {chosen.length > 0 && (
+          <span className="stats-showing">
+            Showing:
+            {chosen.map((d) => (
+              <button key={d.deck_id} className="stats-chip" onClick={() => toggle(d.deck_id)} title="Remove from the filter">
+                {d.name} ✕
+              </button>
+            ))}
+            <button className="link small" onClick={() => setSelected([])}>
+              Clear
+            </button>
+          </span>
+        )}
       </div>
 
       {t.played === 0 ? (
@@ -135,7 +195,9 @@ export default function DeckStats() {
           </div>
 
           <section className="stats-block">
-            <h3 className="loc-sub">By deck</h3>
+            <h3 className="loc-sub">
+              By deck <span className="muted stats-hint">· click decks to filter the stats</span>
+            </h3>
             <div className="stats-table-wrap">
               <table className="stats-table">
                 <thead>
@@ -151,15 +213,22 @@ export default function DeckStats() {
                 </thead>
                 <tbody>
                   {decks.map((d) => (
-                    <tr key={d.deck_id} className={few(d.played) ? 'few' : ''}>
+                    <tr
+                      key={d.deck_id}
+                      className={`stats-pick ${few(d.played) ? 'few' : ''} ${selected.includes(d.deck_id) ? 'sel' : selected.length ? 'dim' : ''}`}
+                      onClick={() => toggle(d.deck_id)}
+                      aria-selected={selected.includes(d.deck_id)}
+                    >
                       <td>
-                        <a className="stats-deck" href={`/collection/deck/${d.uid}`}>
+                        <span className="stats-deck">
                           {d.leader ? <img src={d.leader.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="locdeck-thumb-empty" />}
                           <span>
-                            {d.name}
+                            <a href={`/collection/deck/${d.uid}`} onClick={(e) => e.stopPropagation()} title="Open the deck">
+                              {d.name}
+                            </a>
                             {d.status === 'parked' && <small className="muted"> · archived</small>}
                           </span>
-                        </a>
+                        </span>
                       </td>
                       <td className="num">{d.played}</td>
                       <td className="num">
@@ -175,9 +244,9 @@ export default function DeckStats() {
                         </span>
                       </td>
                       <td>
-                        <span className="stats-last5" aria-label={d.last5.join(', ')}>
-                          {d.last5.map((r, i) => (
-                            <i key={i} className={r} title={r} />
+                        <span className="stats-last5" aria-label={d.last5.map((g) => `${g.result} vs ${g.opponent}`).join(', ')}>
+                          {d.last5.map((g, i) => (
+                            <i key={i} className={g.result} {...tipHandlers(setTip, gameTip(g))} />
                           ))}
                         </span>
                       </td>
@@ -211,7 +280,7 @@ export default function DeckStats() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.decks.map((d) => (
+                    {matrixDecks.map((d) => (
                       <tr key={d.deck_id}>
                         <th className="stats-row-name">{d.name}</th>
                         {data.opponents.map((o) => {
@@ -253,38 +322,69 @@ export default function DeckStats() {
             </section>
 
             <section className="stats-block">
-              <TimeChart weeks={data.weeks} days={data.days} />
+              <TimeChart weeks={data.weeks} days={data.days} setTip={setTip} />
             </section>
           </div>
         </>
       )}
+      <Tooltip tip={tip} />
     </div>
   )
 }
 
 /** Partidas en el tiempo (barras: victorias en verde sobre el total) y el porcentaje de victorias (línea). Por días si las
  *  partidas abarcan menos de un mes; por semanas (de lunes a domingo) si abarcan más. */
-function TimeChart({ weeks, days }: { weeks: DeckStatsData['weeks']; days: DeckStatsData['days'] }) {
+type Point = { key: string; label: string; title: string; played: number; wins: number; decks: StatsDayDeck[] }
+
+function TimeChart({ weeks, days, setTip }: { weeks: DeckStatsData['weeks']; days: DeckStatsData['days']; setTip: (t: Tip) => void }) {
   if (days.length === 0) return null
   const day = (iso: string) => new Date(`${iso}T12:00:00`)
   const span = (day(days[days.length - 1].day).getTime() - day(days[0].day).getTime()) / 86400000
   const daily = span < 31
   const short = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-  const points = daily
-    ? days.map((d) => ({ key: d.day, label: short(day(d.day)), title: day(d.day).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }), played: d.played, wins: d.wins }))
+  const points: Point[] = daily
+    ? days.map((d) => ({ key: d.day, label: short(day(d.day)), title: longDate(d.day), played: d.played, wins: d.wins, decks: d.decks }))
     : weeks.map((w) => {
         const end = new Date(day(w.week).getTime() + 6 * 86400000)
-        return { key: w.week, label: short(day(w.week)), title: `Week of ${short(day(w.week))}–${short(end)}`, played: w.played, wins: w.wins }
+        return { key: w.week, label: short(day(w.week)), title: `Week of ${short(day(w.week))}–${short(end)}`, played: w.played, wins: w.wins, decks: w.decks }
       })
   return (
     <>
       <h3 className="loc-sub">Over time · per {daily ? 'day' : 'week'}</h3>
-      <BarsChart points={points} />
+      <BarsChart points={points} setTip={setTip} />
     </>
   )
 }
 
-function BarsChart({ points }: { points: { key: string; label: string; title: string; played: number; wins: number }[] }) {
+function pointTip(w: Point) {
+  const draws = w.decks.reduce((n, d) => n + d.draws, 0)
+  const losses = w.played - w.wins - draws
+  return (
+    <div className="stats-tip-point">
+      <b>{w.title}</b>
+      <div>
+        {w.played} {w.played === 1 ? 'match' : 'matches'} · <span className="res-win">{w.wins} won</span> · <span className="res-loss">{losses} lost</span>
+        {draws > 0 && ` · ${draws} drawn`} · <b>{pct(rateOf(w.wins, w.played))}</b>
+      </div>
+      {w.decks.length > 0 && (
+        <ul>
+          {w.decks.map((d) => (
+            <li key={d.deck_id}>
+              <span>{d.name}</span>
+              <span className="muted">
+                {d.wins}–{d.losses}
+                {d.draws > 0 && `–${d.draws}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function BarsChart({ points, setTip }: { points: Point[]; setTip: (t: Tip) => void }) {
+  const [hover, setHover] = useState<string | null>(null)
   const W = 560
   const H = 200
   const pad = { l: 28, r: 34, t: 12, b: 26 }
@@ -311,8 +411,8 @@ function BarsChart({ points }: { points: { key: string; label: string; title: st
           {max}
         </text>
         {points.map((w, i) => (
-          <g key={w.key}>
-            <title>{`${w.title}: ${w.played} ${w.played === 1 ? 'match' : 'matches'}, ${w.wins} won`}</title>
+          <g key={w.key} className={hover === w.key ? 'hover' : ''}>
+            <rect x={x(i) - bw / 2} y={y(w.played)} width={bw} height={y(0) - y(w.played)} className="bar-hl" rx="3" />
             <rect x={x(i) - bw / 2} y={y(w.played)} width={bw} height={y(0) - y(w.played)} className="bar-all" rx="3" />
             <rect x={x(i) - bw / 2} y={y(w.wins)} width={bw} height={y(0) - y(w.wins)} className="bar-win" rx="3" />
             {i % every === 0 && (
@@ -324,8 +424,31 @@ function BarsChart({ points }: { points: { key: string; label: string; title: st
         ))}
         {points.length > 1 && <path d={line} className="rate-line" />}
         {points.map((w, i) => (
-          <circle key={w.key} cx={x(i)} cy={yr(w.wins / w.played)} r="3.5" className="rate-dot" />
+          <circle key={w.key} cx={x(i)} cy={yr(w.wins / w.played)} r={hover === w.key ? 5 : 3.5} className="rate-dot" />
         ))}
+        {/* Zona de toda la columna para que la leyenda salga sin tener que acertar en la barra. */}
+        {points.map((w, i) => {
+          const h = tipHandlers(setTip, () => pointTip(w))
+          return (
+            <rect
+              key={w.key}
+              x={pad.l + slot * i}
+              y={pad.t}
+              width={slot}
+              height={H - pad.t - pad.b}
+              className="hit"
+              onMouseEnter={(e) => {
+                setHover(w.key)
+                h.onMouseEnter(e)
+              }}
+              onMouseMove={h.onMouseMove}
+              onMouseLeave={() => {
+                setHover(null)
+                h.onMouseLeave()
+              }}
+            />
+          )
+        })}
       </svg>
       <p className="muted small stats-legend">
         <i className="lg-all" /> matches <i className="lg-win" /> won <i className="lg-line" /> win rate

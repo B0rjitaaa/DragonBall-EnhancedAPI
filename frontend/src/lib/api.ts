@@ -111,8 +111,11 @@ export const api = {
   updatePlannedDeck: (id: number, body: { name?: string; notes?: string; source?: string }) =>
     request<PlannedDeck>(`/my-collection/planned-decks/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
   deletePlannedDeck: (id: number) => request<void>(`/my-collection/planned-decks/${id}/`, { method: 'DELETE' }),
-  deckStats: (days: number | null, archived: boolean, signal?: AbortSignal) =>
-    request<DeckStatsData>(`/my-collection/deck-stats/?${days ? `days=${days}&` : ''}${archived ? 'archived=1' : ''}`, { signal }),
+  deckStats: (days: number | null, archived: boolean, decks: number[] = [], signal?: AbortSignal) =>
+    request<DeckStatsData>(
+      `/my-collection/deck-stats/?${days ? `days=${days}&` : ''}${archived ? 'archived=1&' : ''}${decks.length ? `decks=${decks.join(',')}` : ''}`,
+      { signal },
+    ),
   recentErrors: () => request<{ errors: ErrorEntry[]; open: number }>('/errors/'),
   fields: () => request<FieldDef[]>('/fields/'),
   facets: (scope: Scope = 'all', location: number | null = null, includeFakes = false) =>
