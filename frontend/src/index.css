@@ -803,6 +803,9 @@ strong.loc-title { padding: 0.35rem 0; }
 .deck-leader-card:hover { transform: translateY(-3px) rotate(-0.6deg); }
 .deck-leader-card img { display: block; width: 100%; aspect-ratio: 63 / 88; object-fit: cover; }
 .deck-leader-card.empty { display: grid; place-items: center; aspect-ratio: 63 / 88; border: 1px dashed var(--line); color: var(--muted); cursor: default; }
+.deck-leader-card.empty.pick { cursor: pointer; width: 100%; background: transparent; font: inherit; gap: 4px; align-content: center; }
+.deck-leader-card.empty.pick span { font-size: 2rem; line-height: 1; }
+.deck-leader-card.empty.pick:hover { color: var(--text); border-color: var(--accent); }
 .deck-flip {
   position: absolute; right: 6px; bottom: 6px; padding: 0.15rem 0.5rem; border-radius: 999px;
   font-size: 0.72rem; font-weight: 600; color: #fff; background: rgba(0, 0, 0, 0.6);

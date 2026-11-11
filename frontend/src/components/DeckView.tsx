@@ -7,7 +7,7 @@ import { colorClass } from '../lib/colors'
 import type { CardSummary, DeckChange, DeckDetail, DeckListCard, DeckVersionDetail, Location, RestoreResult } from '../lib/types'
 import { deckListText, isExportable, timeChamberUrl, type ExportDeck } from '../lib/deckExport'
 import { cardThumb } from '../lib/types'
-import { CardPicker, MatchesPanel, SaveListModal, VersionBar, versionLabel } from './DeckHistory'
+import { CardPicker, LEADER_HINT, LEADER_QUERY, MatchesPanel, SaveListModal, VersionBar, versionLabel } from './DeckHistory'
 import { PickListDialog } from './PickList'
 import HistoryList from './HistoryList'
 
@@ -15,9 +15,10 @@ import HistoryList from './HistoryList'
 const MAIN_MIN = 50
 const MAIN_MAX = 60
 const MAX_COPIES = 4
-// Límites de keyword skills (los mismos textos que publica Bandai en su página de keyword skills).
+// Límites de keyword skills (los mismos textos que publica Bandai en su página de keyword skills):
+// [Ultimate] es 1 carta en todo el mazo (no 1 copia de cada); [Super Combo], 4 en total.
 const SKILL_LIMITS: { skill: string; max: number; scope: 'card' | 'deck'; label: string }[] = [
-  { skill: 'Ultimate', max: 1, scope: 'card', label: 'Ultimate: 1 copy max' },
+  { skill: 'Ultimate', max: 1, scope: 'deck', label: 'Ultimate: 1 max in the deck' },
   { skill: 'Super Combo', max: 4, scope: 'deck', label: 'Super Combo: 4 max in the deck' },
   { skill: 'Dragon Ball', max: 7, scope: 'deck', label: 'Dragon Ball: 7 max in total' },
 ]
@@ -286,6 +287,7 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
   const [historyError, setHistoryError] = useState('')
   const [restored, setRestored] = useState<RestoreResult | null>(null)
   const [picking, setPicking] = useState(false)
+  const [pickingLeader, setPickingLeader] = useState(false)
   const [saving, setSaving] = useState(false)
   // Lo editado en la lista principal (copias absolutas por carta y parte) y las cartas añadidas desde el catálogo.
   const [{ draft, added, order: draftOrder }, setDraftState] = useState(() => loadDraft(deck.id))
@@ -374,6 +376,17 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
       added: { ...st.added, [card.id]: card },
       draft: { ...st.draft, [draftKey(card.id, 'deck')]: (listing[draftKey(card.id, 'deck')] ?? 0) + 1 },
     }))
+  }
+
+  // Poner otro Leader: se quitan los que haya en la lista y entra 1 copia del elegido.
+  const replaceLeader = (card: CardSummary, current: CardSummary[]) => {
+    setDraftState((st) => {
+      const draft = { ...st.draft }
+      for (const l of current) draft[draftKey(l.id, 'deck')] = 0
+      draft[draftKey(card.id, 'deck')] = 1
+      return { ...st, added: { ...st.added, [card.id]: card }, draft }
+    })
+    setPickingLeader(false)
   }
 
   // Cartas a mostrar: la lista principal (con lo editado) o la de la lista elegida.
@@ -535,6 +548,10 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
               <img src={leaderImage} alt={`Leader: ${leader.name}`} referrerPolicy="no-referrer" />
               {leader.back_image_url && <span className="deck-flip">{showFront ? 'Front' : 'Awaken'} ⟲</span>}
             </button>
+          ) : viewingCurrent ? (
+            <button className="deck-leader-card empty pick" onClick={() => setPickingLeader(true)} title="Choose the Leader">
+              <span aria-hidden>+</span> Choose Leader
+            </button>
           ) : (
             <div className="deck-leader-card empty">No Leader</div>
           )}
@@ -544,10 +561,15 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
                 {leader.card_number} · details
               </button>
               {viewingCurrent && (
+                <button className="link small" onClick={() => setPickingLeader(true)} title="Choose another Leader">
+                  Change
+                </button>
+              )}
+              {viewingCurrent && (
                 <button
                   className="link small danger"
                   onClick={() => setQty(leader.id, 'deck', 0)}
-                  title="Remove the Leader from the list (add another with “Add card”)"
+                  title="Remove the Leader from the list"
                 >
                   Remove
                 </button>
@@ -699,6 +721,16 @@ export default function DeckView({ deck, cards, panelFilter, loading, onOpen, on
       {canReorderNow && !filtering && <p className="reorder-hint">Drag the cards to reorder them within their section (on mobile, press and hold a card).</p>}
 
       {picking && <CardPicker onPick={addCard} quantityOf={(id) => qtyOf(id, 'deck')} onClose={() => setPicking(false)} />}
+      {pickingLeader && (
+        <CardPicker
+          title="Choose the Leader"
+          query={LEADER_QUERY}
+          hint={`${LEADER_HINT} It goes into the draft: nothing moves until you save the list.`}
+          onPick={(card) => replaceLeader(card, leaders)}
+          quantityOf={(id) => qtyOf(id, 'deck')}
+          onClose={() => setPickingLeader(false)}
+        />
+      )}
       {saving && detail && (
         <SaveListModal
           deckId={deck.id}
@@ -1001,10 +1033,11 @@ export function DeckPreview({
 }: {
   name: string
   eyebrow?: string
-  /** Editar la lista (un mazo futuro): copias −/+, pasar al side, añadir cartas y quitar el Leader. */
+  /** Editar la lista (un mazo futuro): copias −/+, pasar al side, añadir cartas y elegir, cambiar o quitar el Leader. */
   editor?: {
     change: (card: CardSummary, part: Part, delta: number) => void
     add: () => void
+    pickLeader: () => void
   }
   /** Leader, Main Deck y Z Deck (cada carta con `quantity` y, si faltan copias, `missing`). */
   pool: CardSummary[]
@@ -1067,6 +1100,10 @@ export function DeckPreview({
               <img src={leaderImage} alt={`Leader: ${leader.name}`} referrerPolicy="no-referrer" />
               {leader.back_image_url && <span className="deck-flip">{showFront ? 'Front' : 'Awaken'} ⟲</span>}
             </button>
+          ) : editor ? (
+            <button className="deck-leader-card empty pick" onClick={editor.pickLeader} title="Choose the Leader">
+              <span aria-hidden>+</span> Choose Leader
+            </button>
           ) : (
             <div className="deck-leader-card empty">No Leader</div>
           )}
@@ -1076,7 +1113,12 @@ export function DeckPreview({
                 {leader.card_number} · details
               </button>
               {editor && (
-                <button className="link small danger" onClick={() => editor.change(leader, 'deck', -copies(leader))} title="Remove the Leader from the list (add another with “Add card”)">
+                <button className="link small" onClick={editor.pickLeader} title="Choose another Leader">
+                  Change
+                </button>
+              )}
+              {editor && (
+                <button className="link small danger" onClick={() => editor.change(leader, 'deck', -copies(leader))} title="Remove the Leader from the list">
                   Remove
                 </button>
               )}

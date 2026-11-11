@@ -3,7 +3,7 @@
 // montarlo, pasa por la importación de mazos con todas sus comprobaciones y deja de ser futuro.
 import { useCallback, useEffect, useRef, useState } from "react";
 import DeckImport from "./DeckImport";
-import { CardPicker } from "./DeckHistory";
+import { CardPicker, LEADER_HINT, LEADER_QUERY } from "./DeckHistory";
 import type { Part } from "./DeckView";
 import DeckPreviewDialog from "./DeckPreviewDialog";
 import { previewDeckCards } from "../lib/deckPreview";
@@ -287,7 +287,7 @@ function FutureDeckDialog({
   const [editing, setEditing] = useState<"name" | "list" | null>(null);
   const [draft, setDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [picking, setPicking] = useState(false)
+  const [picking, setPicking] = useState<boolean | "leader">(false)
   // El buscador se cierra con su propio Escape: este aviso evita que ese mismo Escape cierre también el mazo.
   const pickerJustClosed = useRef(false)
   const closePicker = () => {
@@ -455,10 +455,32 @@ function FutureDeckDialog({
       onClose={onClose}
       title={<>☆ Future deck</>}
       eyebrow="Future deck · not built yet"
-      editor={{ change, add: () => setPicking(true) }}
-      keepOpenOnEscape={() => picking || pickerJustClosed.current}
+      editor={{
+        change,
+        add: () => setPicking(true),
+        pickLeader: () => setPicking("leader"),
+      }}
+      keepOpenOnEscape={() => !!picking || pickerJustClosed.current}
       overlay={
-        picking && (
+        picking === "leader" ? (
+          <CardPicker
+            title="Choose the Leader"
+            query={LEADER_QUERY}
+            hint={`${LEADER_HINT} It's saved right away; no cards move.`}
+            quantityOf={quantityOf}
+            onClose={closePicker}
+            onPick={(card) => {
+              picked.current.set(card.id, card);
+              // Fuera el Leader (o Leaders) que hubiera y entra 1 copia del elegido.
+              for (const l of pool.filter((c) => c.card_type === "LEADER"))
+                if (l.card_number !== card.card_number)
+                  change(l, "deck", -(l.quantity ?? 0));
+              if (!quantityOf(card.id)) change(card, "deck", 1);
+              closePicker();
+            }}
+          />
+        ) : (
+          picking && (
           <CardPicker
             quantityOf={quantityOf}
             onClose={closePicker}
@@ -468,6 +490,7 @@ function FutureDeckDialog({
               change(card, "deck", 1);
             }}
           />
+          )
         )
       }
       back={<>← Back</>}

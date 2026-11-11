@@ -48,7 +48,7 @@ In **Locations → Decks**, under the decks in use, the **Future decks** drop-do
 
 - **Add one:** **+ Future deck** and paste the link (DeckPlanet, Top Deck Diffusion, Time Chamber) or the text list, as when importing. You can also keep any list you're importing as a future deck with **☆ Save as future deck** in the check.
 - **The list** shows each deck with its Leader and how many of its copies you have: free (green), in other decks (amber) and missing (purple), with an estimate of what they'd cost.
-- **Opening one** shows the deck view (curve, types, colours, deck-building rules and cards by section) with the ones you're missing marked **MISSING**. **You can edit the list right there**: **−** / **+** on each card to change copies, **→ Side** / **↩ Deck** to move them to the side or back, **Add card** to add cards with the search, and **Remove** under the Leader to take it out. Each change is saved right away and what you have is recalculated. You can also rename it, replace the whole list or delete it.
+- **Opening one** shows the deck view (curve, types, colours, deck-building rules and cards by section) with the ones you're missing marked **MISSING**. **You can edit the list right there**: **−** / **+** on each card to change copies, **→ Side** / **↩ Deck** to move them to the side or back, **Add card** to add cards with the search, and under the Leader **Change** to swap it for another or **Remove** to take it out. If there's no Leader, click the **+ Choose Leader** slot. Each change is saved right away and what you have is recalculated. You can also rename it, replace the whole list or delete it.
 - **🔨 Build this deck** opens the import with its list and all the usual checks (where each copy comes from, which decks give cards, what's missing…). Once created, the deck joins your decks and **leaves Future decks**.
 
 ### When you already have a deck with that Leader
@@ -96,7 +96,8 @@ When the box and the main list match, everything adds up. If you move copies fro
 
 - **See the other side:** tap the Leader to switch between **Front** ⟲ **Awaken**. The Awaken side is shown by default.
 - **“number · details”** opens its card page.
-- **Remove** takes it out of the list. To put in another one, use **Add card**.
+- **Change** opens the search with Leaders only: the one you pick replaces the current one.
+- **Remove** takes it out of the list. If the list has no Leader, the slot says **+ Choose Leader**: click it to pick one.
 
 ### Counters
 
@@ -117,7 +118,7 @@ If everything is fine it reads **✓ Meets the deck-building rules**. If not, **
 | BT1-030 Name: N copies (max 4) | 4 copies max of the **same number**, adding up all its printings (normal + alt-art…) across the Main and Z Deck. |
 | … is Banned | It can't be played. |
 | … is Limited: 1 copy max | Only 1 copy. |
-| Ultimate: 1 copy max | Cards with [Ultimate]. |
+| Ultimate: 1 max in the deck | Only 1 card with [Ultimate] in the whole deck (not 1 of each). |
 | Super Combo: 4 max in the deck | 4 [Super Combo] cards max. |
 | Dragon Ball: 7 max in total | 7 [Dragon Ball] cards max. |
 | There are N Leader cards in the deck | It's a warning, not an error. |

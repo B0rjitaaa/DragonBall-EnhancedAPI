@@ -48,7 +48,7 @@ En **«Locations» → «Decks»**, debajo de los mazos en uso, el desplegable *
 
 - **Añadir uno:** **«+ Future deck»** y pega el enlace (DeckPlanet, Top Deck Diffusion, Time Chamber) o la lista en texto, como al importar. También puedes guardar como mazo futuro cualquier lista que estés importando, con **«☆ Save as future deck»** en la comprobación.
 - **En la lista** ves cada mazo con su Leader y cuántas copias tienes de las que pide: libres (verde), en otros mazos (ámbar) y las que faltan (violeta), con lo que costarían aproximadamente.
-- **Al abrirlo** sale la vista de un mazo (curva, tipos, colores, reglas de construcción y cartas por secciones) con las que te faltan marcadas **«MISSING»**. **Puedes editar la lista ahí mismo**: **−** / **+** en cada carta para cambiar las copias, **«→ Side»** / **«↩ Deck»** para pasarlas al side o devolverlas, **«Add card»** para añadir cartas con el buscador y **«Remove»** bajo el Leader para quitarlo. Cada cambio se guarda al momento y se recalcula lo que tienes. También puedes cambiarle el nombre, cambiar la lista entera o borrarlo.
+- **Al abrirlo** sale la vista de un mazo (curva, tipos, colores, reglas de construcción y cartas por secciones) con las que te faltan marcadas **«MISSING»**. **Puedes editar la lista ahí mismo**: **−** / **+** en cada carta para cambiar las copias, **«→ Side»** / **«↩ Deck»** para pasarlas al side o devolverlas, **«Add card»** para añadir cartas con el buscador, y bajo el Leader **«Change»** para cambiarlo por otro o **«Remove»** para quitarlo. Si no tiene Leader, pulsa el hueco **«+ Choose Leader»**. Cada cambio se guarda al momento y se recalcula lo que tienes. También puedes cambiarle el nombre, cambiar la lista entera o borrarlo.
 - **«🔨 Build this deck»** (montar el mazo) abre la importación ya con su lista, con todas las comprobaciones de siempre (de dónde sale cada copia, qué mazos ceden cartas, qué falta…). Al crearlo, el mazo pasa a tus mazos y **deja de estar en «Future decks»**.
 
 ### Si ya tienes un mazo con ese Leader
@@ -96,7 +96,8 @@ Cuando la caja y la principal coinciden, todo cuadra. Si mueves copias por fuera
 
 - **Ver la otra cara:** pulsa el Leader para alternar **Front** ⟲ **Awaken**. Por defecto se ve la cara Awaken.
 - **«número · details»** abre su ficha.
-- **«Remove»** lo quita de la lista. Para poner otro, usa «Add card».
+- **«Change»** abre el buscador solo con Leaders: el que elijas sustituye al actual.
+- **«Remove»** lo quita de la lista. Si la lista no tiene Leader, el hueco dice **«+ Choose Leader»**: púlsalo para elegirlo.
 
 ### Contadores
 
@@ -117,7 +118,7 @@ Si todo está bien se lee **«✓ Meets the deck-building rules»**. Si no, **«
 | BT1-030 Nombre: N copies (max 4) | Máximo 4 copias de un **mismo número**, sumando todas sus impresiones (normal + alt-art…) en Main y Z Deck. |
 | … is Banned | No se puede jugar. |
 | … is Limited: 1 copy max | Solo 1 copia. |
-| Ultimate: 1 copy max | Las cartas con [Ultimate]. |
+| Ultimate: 1 max in the deck | Solo 1 carta con [Ultimate] en todo el mazo (no 1 de cada). |
 | Super Combo: 4 max in the deck | Máximo 4 cartas [Super Combo]. |
 | Dragon Ball: 7 max in total | Máximo 7 cartas [Dragon Ball]. |
 | There are N Leader cards in the deck | Es una advertencia, no un error. |

@@ -525,14 +525,23 @@ export function SaveListModal({
   )
 }
 
+/** Para el buscador: solo Leaders (elegir o cambiar el Leader de un mazo). */
+export const LEADER_QUERY = { op: 'and', children: [{ field: 'type', operator: 'eq', value: 'LEADER' }] }
+export const LEADER_HINT = 'Click a Leader to put it in the deck. It replaces the current Leader.'
+
 /** Buscar una carta en todo el catálogo para añadirla a la lista. */
 export function CardPicker({
   onPick,
   quantityOf,
   onClose,
   hint = 'Click a card to add a copy (you can click several times). It goes into the draft: nothing moves until you save the list and make it main.',
+  title = 'Add card to the list',
+  query,
 }: {
   hint?: string
+  title?: string
+  /** Condiciones del buscador que se aplican siempre (p. ej. solo Leaders). */
+  query?: unknown
   onPick: (card: CardSummary) => void
   /** Copias que ya hay de esa carta en la lista. */
   quantityOf: (id: number) => number
@@ -553,7 +562,7 @@ export function CardPicker({
     const t = window.setTimeout(() => {
       setLoading(true)
       api
-        .search({ q: text, page_size: 30, ordering: 'number' }, ctrl.signal)
+        .search({ q: text, page_size: 30, ordering: 'number', ...(query ? { query } : {}) }, ctrl.signal)
         .then((r) => setResults(r.results))
         .catch(() => {})
         .finally(() => setLoading(false))
@@ -562,10 +571,12 @@ export function CardPicker({
       ctrl.abort()
       window.clearTimeout(t)
     }
-  }, [q])
+    // `query` es un objeto fijo para cada uso del buscador: se compara por su contenido.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, JSON.stringify(query)])
 
   return (
-    <Modal title="Add card to the list" onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <div className="card-picker">
         <input
           className="input"
