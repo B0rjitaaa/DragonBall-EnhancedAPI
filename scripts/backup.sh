@@ -13,6 +13,8 @@
 #   KEEP_WEEKLY      copias semanales (domingos)         (4)
 #   BACKUP_REMOTE    destino rsync fuera del equipo, p. ej. usuario@192.168.1.60:  (vacío = no)
 #   BACKUP_SSH_KEY   clave SSH para BACKUP_REMOTE        (~/.ssh/dbs_backup_ed25519)
+#   BACKUP_REMOTE_TRIES  intentos de la copia remota      (3)
+#   BACKUP_REMOTE_WAIT   segundos entre intentos          (60)
 #   BACKUP_RCLONE    destino rclone en la nube, p. ej. b2:mis-copias/dbs o gdrive:dbs  (vacío = no;
 #                    hace falta rclone instalado y el remoto creado con `rclone config`)
 #
@@ -29,6 +31,8 @@ KEEP_DAILY="${KEEP_DAILY:-7}"
 KEEP_WEEKLY="${KEEP_WEEKLY:-4}"
 BACKUP_REMOTE="${BACKUP_REMOTE:-}"
 BACKUP_SSH_KEY="${BACKUP_SSH_KEY:-$HOME/.ssh/dbs_backup_ed25519}"
+BACKUP_REMOTE_TRIES="${BACKUP_REMOTE_TRIES:-3}"
+BACKUP_REMOTE_WAIT="${BACKUP_REMOTE_WAIT:-60}"
 BACKUP_RCLONE="${BACKUP_RCLONE:-}"
 
 log() { echo "$*"; logger -t dbs-backup "$*" 2>/dev/null || true; }
@@ -133,12 +137,23 @@ prune "$KEEP_WEEKLY" "$BACKUP_DIR/weekly"
 # (y /api/health/ lo avisa) en vez de dar toda la copia por fallida.
 if [ -n "$BACKUP_REMOTE" ]; then
     STEP="remote copy"
-    if rsync -aH --delete --exclude /running.json --exclude /request/ -e "ssh -i $BACKUP_SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
-        "$BACKUP_DIR/" "$BACKUP_REMOTE"; then
-        REMOTE_STATUS="ok"
+    # Se reintenta: el otro equipo puede no contestar un momento (p. ej. el WiFi de la
+    # Raspberry en ahorro de energía) y un corte breve no debe acabar en aviso.
+    REMOTE_STATUS="error"
+    for try in $(seq 1 "$BACKUP_REMOTE_TRIES"); do
+        if rsync -aH --delete --exclude /running.json --exclude /request/ -e "ssh -i $BACKUP_SSH_KEY -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new" \
+            "$BACKUP_DIR/" "$BACKUP_REMOTE"; then
+            REMOTE_STATUS="ok"
+            break
+        fi
+        if [ "$try" -lt "$BACKUP_REMOTE_TRIES" ]; then
+            log "remote copy to $BACKUP_REMOTE failed (try $try of $BACKUP_REMOTE_TRIES), retrying in ${BACKUP_REMOTE_WAIT}s"
+            sleep "$BACKUP_REMOTE_WAIT"
+        fi
+    done
+    if [ "$REMOTE_STATUS" = "ok" ]; then
         log "remote copy to $BACKUP_REMOTE"
     else
-        REMOTE_STATUS="error"
         log "remote copy to $BACKUP_REMOTE FAILED"
     fi
 fi

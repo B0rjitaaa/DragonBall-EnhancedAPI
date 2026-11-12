@@ -105,6 +105,8 @@ If those files change, run `make backups` again.
 | `KEEP_WEEKLY` | 4 |
 | `BACKUP_REMOTE` | empty: no rsync copy (another machine or VPS) |
 | `BACKUP_SSH_KEY` | `~/.ssh/dbs_backup_ed25519` |
+| `BACKUP_REMOTE_TRIES` | 3: attempts at the rsync copy before it counts as failed (in case the other machine doesn't answer for a moment) |
+| `BACKUP_REMOTE_WAIT` | 60: seconds between attempts |
 | `BACKUP_RCLONE` | empty: no cloud copy (e.g. `b2:mis-copias-dbs/dbs`) |
 
 > [!WARNING]
