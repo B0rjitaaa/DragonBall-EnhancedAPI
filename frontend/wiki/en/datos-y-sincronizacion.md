@@ -48,6 +48,19 @@ When each card is saved, its information is processed:
 - **Bandai's typos:** they're fixed (“Doube Strike” → “Double Strike”…) and quotes are unified.
 - **Search text:** prepared so that brackets and capital letters don't matter.
 
+### Sets that aren't on TCG+ yet
+
+When a set comes out, the official website (**dbs-cardgame.com**) publishes it before Bandai TCG+. Meanwhile it can be brought in from the official website:
+
+```bash
+docker compose exec backend python manage.py import_official_set 428032   # the «Series» value in its card search
+```
+
+- They're saved as **provisional cards**, with their text, attributes, back side, image and skills, just like the TCG+ ones. They show up in News and the scanner recognises them.
+- The ones TCG+ already has are skipped. Running it again updates the provisional cards without duplicating them.
+- **When TCG+ publishes them**, the sync moves everything that pointed to the provisional card (copies in your collection, wants, deck lists, side, matches, scans and history) to the TCG+ card and deletes the provisional one. If you had copies of both, they're added up. They aren't announced as new again.
+- `import_official_set --reconcile` only does that replacement.
+
 ## The official website: ban list, errata, Q&A and keyword skills
 
 Four lists are downloaded from **dbs-cardgame.com**:
@@ -107,6 +120,7 @@ They're run with `docker compose exec backend python manage.py <command>`:
 | `sync_rulings [--snapshot]` | Updates the Q&A. |
 | `sync_keyword_skills [--snapshot]` | Updates the keyword skills and reclassifies the cards. |
 | `add_printing <base_id> --image URL --set "…"` | Adds an own printing. |
+| `import_official_set <series> [--reconcile]` | Brings in from the official website a set TCG+ doesn't have yet, as provisional cards. |
 | `build_thumbs [--collection-only]` | Generates the missing thumbnails, your collection's first. |
 | `build_fingerprints [--force] [--limit N]` | Computes the missing scanner fingerprints (it runs by itself when they're missing). |
 | `download_card_images` | Downloads the missing official images. |

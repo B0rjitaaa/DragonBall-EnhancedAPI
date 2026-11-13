@@ -66,6 +66,15 @@ def sync_cards(full: bool = False) -> dict:
         _, failed = client.fetch_details(ids, on_result=on_result)
         if buffer:
             flush()
+        # Las cartas provisionales de la web oficial que TCG+ ya publica pasan a la de TCG+.
+        try:
+            from .official_site import reconcile
+
+            run_merged = reconcile()["merged"]
+            if run_merged:
+                logger.info("Sync: %s provisional cards replaced by the TCG+ ones", run_merged)
+        except Exception:  # noqa: BLE001 - no debe tumbar la sincronización
+            logger.exception("Could not replace the provisional cards")
         run.failed_ids += failed
         run.status = SyncRun.Status.PARTIAL if run.failed_ids else SyncRun.Status.SUCCESS
     except Exception as exc:  # noqa: BLE001

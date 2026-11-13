@@ -48,6 +48,19 @@ Al guardar cada carta se procesa su información:
 - **Erratas de Bandai:** se corrigen («Doube Strike» → «Double Strike»…) y se unifican las comillas.
 - **Texto de búsqueda:** se prepara para que no importen los corchetes ni las mayúsculas.
 
+### Colecciones que aún no están en TCG+
+
+Cuando sale una colección, la web oficial (**dbs-cardgame.com**) la publica antes que Bandai TCG+. Mientras tanto se puede traer de la web oficial:
+
+```bash
+docker compose exec backend python manage.py import_official_set 428032   # el valor de «Series» en su buscador
+```
+
+- Se guardan como **cartas provisionales**, con su texto, atributos, reverso, imagen y habilidades, igual que las de TCG+. Salen en Novedades y el escáner las reconoce.
+- Las que TCG+ ya tiene se saltan. Volver a lanzarlo actualiza las provisionales, sin duplicarlas.
+- **Cuando TCG+ las publica**, la sincronización pasa a la carta de TCG+ todo lo que apuntaba a la provisional (copias de tu colección, wants, listas de mazos, side, partidas, escaneos e historial) y borra la provisional. Si tenías copias de las dos, se suman. No se vuelven a anunciar como nuevas.
+- `import_official_set --reconcile` hace solo esa sustitución.
+
 ## La web oficial: ban list, errata, Q&A y keyword skills
 
 De **dbs-cardgame.com** se descargan cuatro listas:
@@ -107,6 +120,7 @@ Se ejecutan con `docker compose exec backend python manage.py <comando>`:
 | `sync_rulings [--snapshot]` | Actualiza las Q&A. |
 | `sync_keyword_skills [--snapshot]` | Actualiza las keyword skills y reclasifica las cartas. |
 | `add_printing <id_base> --image URL --set "…"` | Añade una impresión propia. |
+| `import_official_set <serie> [--reconcile]` | Trae de la web oficial una colección que TCG+ aún no tiene, como cartas provisionales. |
 | `build_thumbs [--collection-only]` | Genera las miniaturas que falten, primero las de tu colección. |
 | `build_fingerprints [--force] [--limit N]` | Calcula las huellas del escáner que falten (se lanza solo cuando faltan). |
 | `download_card_images` | Descarga las imágenes oficiales que falten. |
