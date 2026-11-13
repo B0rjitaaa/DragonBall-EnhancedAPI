@@ -119,6 +119,24 @@ class ParseTests(TestCase):
         again = official_site.import_set("428032", page=page(LEADER, BATTLE, padding=20))
         self.assertEqual((again["created"], Card.objects.count()), (0, 22))
 
+    def test_variants_keep_the_card_number(self):
+        variant = LEADER.replace("<dt class=\"cardNumber\">BT32-001</dt>", "<dt class=\"cardNumber\">BT32-001_PR</dt>", 1) \
+            .replace("Uncommon[UC]", "Special Leader Rare[SLR]").replace("BT32-001.png", "BT32-001_PR.png")
+        official_site.import_set("428032", page=page(LEADER, variant, BATTLE, padding=20))
+        cards = Card.objects.filter(card_number="BT32-001").order_by("id")
+        self.assertEqual([(c.rarity_code, c.raw["official_site"]["number"]) for c in cards],
+                         [("UC", "BT32-001"), ("SLR", "BT32-001_PR")])
+        self.assertTrue(all(c.has_back for c in cards))
+        self.assertTrue(cards[1].image_url.endswith("BT32-001_PR.png"))
+        # Con la normal ya en TCG+, solo se salta esa; la variante sigue
+        Card.objects.filter(card_number="BT32-001", rarity_code="UC").delete()
+        upsert_cards([{"id": 120010, "card_number": "BT32-001", "card_name": "TCG+",
+                       "card_config": [{"config_name": "Rarity", "value": "Uncommon[UC]"}]}])
+        again = official_site.import_set("428032", page=page(LEADER, variant, BATTLE, padding=20))
+        self.assertEqual((again["in_tcgplus"], again["created"]), (1, 0))
+        # Y la sustitución no mete la variante en la normal si TCG+ no tiene su rareza
+        self.assertEqual(official_site.reconcile(), {"merged": 0})
+
     def test_too_few_cards_is_an_error(self):
         with self.assertRaises(RuntimeError):
             official_site.import_set("428032", page=page(LEADER))

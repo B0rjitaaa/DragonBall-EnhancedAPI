@@ -22,6 +22,7 @@ from django.db.models import Case, IntegerField, Value, When
 from .changes import record_card_changes, snapshot_cards
 from .importer import invalidate_facets, upsert_cards
 from .models import Card, CardChange
+from .parsing import parse_rarity
 from .printings import CUSTOM_ID_START
 
 logger = logging.getLogger(__name__)
@@ -155,7 +156,10 @@ def parse_cardlist(page: str) -> list[dict]:
         back_match = BACK_RE.search(block)
         front = block[:back_match.start()] if back_match else block
         back = back_match.group(1) if back_match else ""
-        number = _plain(re.search(r'<dt class="cardNumber">(.*?)</dt>', front, re.S).group(1))
+        official = _plain(re.search(r'<dt class="cardNumber">(.*?)</dt>', front, re.S).group(1))
+        # Las variantes (arte alternativo) llevan sufijo en la web oficial: BT32-001_PR, BT32-006_SPR…
+        # TCG+ les da el mismo número que a la normal y las distingue por la rareza.
+        number = official.split("_", 1)[0]
         data = {
             "card_number": number,
             "card_name": _plain(re.search(r'<dd class="cardName">(.*?)</dd>', front, re.S).group(1)),
@@ -164,6 +168,7 @@ def parse_cardlist(page: str) -> list[dict]:
             "card_set": card_set_name(_field(front, "seriesCol"), number),
             "card_config": _config(front),
             "regulations": REGULATIONS,
+            "official_site": {"number": official},
         }
         if back:
             data.update({
@@ -194,24 +199,29 @@ def import_set(category: str, page: str | None = None) -> dict:
     if len(cards) < MIN_EXPECTED:
         raise RuntimeError(f"Only {len(cards)} cards in the official list: wrong series or the website changed?")
     numbers = [c["card_number"] for c in cards]
-    in_tcgplus = set(Card.objects.filter(card_number__in=numbers, id__lt=CUSTOM_ID_START)
-                     .values_list("card_number", flat=True))
-    provisional = {c.card_number: c.id for c in Card.objects.filter(id__gte=CUSTOM_ID_START, raw__has_key="official_site")}
+    tcgplus = set(Card.objects.filter(card_number__in=numbers, id__lt=CUSTOM_ID_START)
+                  .values_list("card_number", "rarity_code"))
+    tcgplus_numbers = {n for n, _ in tcgplus}
+    # Por su número en la web oficial (con el sufijo de la variante).
+    provisional = {(c.raw["official_site"].get("number") or c.card_number): c.id
+                   for c in Card.objects.filter(id__gte=CUSTOM_ID_START, raw__has_key="official_site")}
     last = Card.objects.filter(id__gte=CUSTOM_ID_START).order_by("-id").values_list("id", flat=True).first()
     next_id = (last or CUSTOM_ID_START) + 1
 
-    items = []
+    items, skipped = [], 0
     for data in cards:
-        number = data["card_number"]
-        if number in in_tcgplus:
+        number, official = data["card_number"], data["official_site"]["number"]
+        rarity = parse_rarity(dict((c["config_name"], c.get("value")) for c in data["card_config"]).get("Rarity"))[1]
+        if (number, rarity) in tcgplus or (not _is_variant(official) and number in tcgplus_numbers):
+            skipped += 1
             continue
-        card_id = provisional.get(number)
+        card_id = provisional.get(official)
         if card_id is None:
             card_id, next_id = next_id, next_id + 1
         data["id"] = card_id
         if "backcard_card_name" in data:
             data["backcard_id"] = card_id  # solo marca que tiene reverso (como en TCG+)
-        data["official_site"] = {"category": category, "fetched": date.today().isoformat()}
+        data["official_site"] = {"number": official, "category": category, "fetched": date.today().isoformat()}
         items.append(data)
 
     ids = [d["id"] for d in items]
@@ -223,15 +233,24 @@ def import_set(category: str, page: str | None = None) -> dict:
         from scanner.tasks import build_fingerprints
 
         build_fingerprints.delay()
-    return {"listed": len(cards), "in_tcgplus": len(in_tcgplus), "created": created, "updated": updated,
+    return {"listed": len(cards), "in_tcgplus": skipped, "created": created, "updated": updated,
             "failed": len(failed)}
 
 
 # --- Cuando llega a TCG+ ------------------------------------------------------------
 
+def _is_variant(official_number: str) -> bool:
+    return "_" in (official_number or "")
+
+
 def _tcgplus_card(card: Card) -> Card | None:
-    """La impresión de TCG+ que sustituye a la provisional: la de su misma rareza (la del sobre) o la primera."""
-    return (Card.objects.filter(card_number=card.card_number, id__lt=CUSTOM_ID_START)
+    """La impresión de TCG+ que sustituye a la provisional: la de su misma rareza o, si es la normal, la primera.
+
+    Una variante (arte alternativo) solo se sustituye por la de su rareza: si TCG+ no la tiene, se queda."""
+    same = Card.objects.filter(card_number=card.card_number, id__lt=CUSTOM_ID_START)
+    if _is_variant(card.raw.get("official_site", {}).get("number", "")):
+        return same.filter(rarity_code=card.rarity_code).order_by("id").first()
+    return (same
             .annotate(same=Case(When(rarity_code=card.rarity_code, then=Value(0)), default=Value(1),
                                 output_field=IntegerField()))
             .order_by("same", "id").first())
