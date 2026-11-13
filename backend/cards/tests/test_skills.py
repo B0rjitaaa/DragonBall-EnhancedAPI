@@ -4,7 +4,7 @@ from rest_framework.test import APIClient
 
 from cards.importer import upsert_cards
 from cards.models import Card
-from cards.skills import Catalog, parse_keyword_page
+from cards.skills import Catalog, parse_keyword_page, with_extras
 
 from .test_cards import GOKU, LEADER, LOCMEM, PROMO, VEGETA
 
@@ -56,6 +56,19 @@ class CatalogTests(TestCase):
         self.assertEqual(out, {"timing": ["Auto"], "keyword_skills": ["Barrier", "Over Realm X", "Z-Stack"],
                                "keyword_rules": ["Once per Turn"]})
 
+    def test_new_skills_not_on_the_official_page(self):
+        # Endure y Release (BT32) aún no están en la web oficial: se añaden con el texto de las cartas
+        self.assertEqual(self.catalog.classify("Endure 2")["name"], "Endure X")
+        self.assertEqual(self.catalog.classify("Release 4")["name"], "Release X")
+        out = self.catalog.assign(["Auto", "Release 4", "Endure 3"])
+        self.assertEqual(out["keyword_skills"], ["Endure X"])
+        self.assertEqual(out["keyword_rules"], ["Release X"])
+        # Si la web oficial las publica, manda la suya (no se duplican)
+        official = [{"name": "Endure X", "category": "skill", "description": "Official.", "order": 1}]
+        names = [e["name"] for e in with_extras(official)]
+        self.assertEqual(names.count("Endure X"), 1)
+        self.assertIn("Release X", names)
+
     def test_parse_official_page(self):
         updated, entries = parse_keyword_page(PAGE)
         self.assertEqual(updated, "Jul. 22, 2022")
@@ -86,6 +99,6 @@ class SkillApiTests(TestCase):
             "field": "keyword_rule", "operator": "has", "value": "Once per Turn"}}, format="json")
         self.assertEqual([c["id"] for c in r.json()["results"]], [1])
         data = client.get("/api/keyword-skills/").json()
-        self.assertEqual(len(data["skills"]), 61)
+        self.assertEqual(len(data["skills"]), 63)  # 61 oficiales + Endure X y Release X
         self.assertEqual(data["aliases"]["Once Per Turn"], "Once per Turn")
         self.assertIn("Ultimate", data["deck_rules"])

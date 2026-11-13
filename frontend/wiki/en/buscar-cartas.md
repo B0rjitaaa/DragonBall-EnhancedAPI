@@ -8,7 +8,7 @@
 
 | Element | What it does |
 |---|---|
-| **★ DragonBall EnhancedAPI** | Goes back to the starting state. Clears the text, the filters and the advanced tree, sets **Advanced mode** to OFF, the order to **Card number** and the page to 1. It also closes any open card page and scrolls to the top. |
+| **★ DragonBall EnhancedAPI** | Goes back to the starting state. Clears the text, the filters and the advanced tree, sets **Advanced mode** to OFF, the order to **Card Number (low)** and the page to 1. It also closes any open card page and scrolls to the top. |
 | **☰** | Opens the filters panel. Only shown on narrow screens (phone or tablet, up to 900 px). |
 | **Search box** | Free-text search (see below). |
 | **Sort selector** | Changes the order of the results. |
@@ -85,6 +85,7 @@ If a section has more than 10 values:
 In **Activate Timing**, **Keyword Skills** and **Keywords**:
 - Hovering over a value shows its **official explanation**, the one from Bandai's rules page.
 - If a skill is newer than that page, the tooltip says “Not listed on the official keyword skills page (it's newer than its last update).”
+- **Endure X** and **Release X** (new in BT32) aren't on that page yet: their explanation is the reminder text printed on the cards.
 - The **ⓘ** icon opens the official keyword skills page.
 - Skills with a number (**Over Realm X**, **Burst X**, **Limit X**…) have a small button to **Pick specific values** (Over Realm 3, 4, 5…). Those values always combine with OR.
 
@@ -110,7 +111,8 @@ On narrow screens the panel is hidden: open it with **☰**. It closes:
 
 | Option | Order |
 |---|---|
-| **Card number** (default) | Series → set number → collector number (BT1-001, BT1-002… BT2-001…) |
+| **Card Number (high)** | The other way round: from the highest numbers to the lowest (XD3-10, XD3-09…) |
+| **Card Number (low)** (default) | Series → set number → collector number (BT1-001, BT1-002… BT2-001…) |
 | **Oldest** / **Newest** | By the order in which Bandai added each card |
 | **Name A-Z** | Alphabetical |
 | **Energy ↑ / ↓** | By cost |

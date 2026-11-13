@@ -8,7 +8,7 @@ El buscador, **«Search»** (`/`), es la página principal. Tiene todo el catál
 
 | Elemento | Qué hace |
 |---|---|
-| **★ DragonBall EnhancedAPI** | Vuelve al estado inicial. Borra el texto, los filtros y el árbol avanzado, pone «Advanced mode» en OFF, el orden en «Card number» y la página 1. También cierra la ficha abierta y sube al principio. |
+| **★ DragonBall EnhancedAPI** | Vuelve al estado inicial. Borra el texto, los filtros y el árbol avanzado, pone «Advanced mode» en OFF, el orden en «Card Number (low)» y la página 1. También cierra la ficha abierta y sube al principio. |
 | **☰** | Abre el panel de filtros. Solo aparece en pantallas estrechas (móvil o tableta, hasta 900 px). |
 | **Caja de búsqueda** | Búsqueda por texto libre (ver abajo). |
 | **Selector de orden** | Cambia el orden de los resultados. |
@@ -85,6 +85,7 @@ Si un apartado tiene más de 10 valores:
 En **Activate Timing**, **Keyword Skills** y **Keywords**:
 - Al pasar el ratón por un valor ves su **explicación oficial**, la de la página de reglas de Bandai.
 - Si una habilidad es más nueva que esa página, el aviso dice «Not listed on the official keyword skills page (it's newer than its last update).»
+- **Endure X** y **Release X** (nuevas en BT32) aún no están en esa página: su explicación es el recordatorio que traen las propias cartas.
 - El icono **ⓘ** abre la página oficial de keyword skills.
 - Las habilidades con número (**Over Realm X**, **Burst X**, **Limit X**…) tienen un botoncito, **«Pick specific values»**, para elegir valores concretos (Over Realm 3, 4, 5…). Esos valores se combinan siempre con O.
 
@@ -110,7 +111,8 @@ En pantallas estrechas el panel está escondido: ábrelo con **☰**. Se cierra:
 
 | Opción | Orden |
 |---|---|
-| **«Card number»** (por defecto) | Serie → número de set → número de colección (BT1-001, BT1-002… BT2-001…) |
+| **«Card Number (high)»** | Al revés: de los números más altos a los más bajos (XD3-10, XD3-09…) |
+| **«Card Number (low)»** (por defecto) | Serie → número de set → número de colección (BT1-001, BT1-002… BT2-001…) |
 | **«Oldest»** / **«Newest»** | Por el orden en que Bandai dio de alta cada carta |
 | **«Name A-Z»** | Alfabético |
 | **Energy ↑ / ↓** | Por coste |

@@ -22,7 +22,8 @@ const PAGE_SIZE = 48
 // Escáner de cartas (DragonBall-CameraCardChecker), en el mismo servidor.
 
 const ORDERINGS: [string, string][] = [
-  ['number', 'Card number'],
+  ['-number', 'Card Number (high)'],
+  ['number', 'Card Number (low)'],
   ['-newest', 'Oldest'],
   ['newest', 'Newest'],
   ['name', 'Name A-Z'],

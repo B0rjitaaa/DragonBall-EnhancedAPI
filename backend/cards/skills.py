@@ -39,6 +39,26 @@ DECK_RULES = {
 }
 
 
+# Habilidades nuevas que la página oficial aún no recoge (no se actualiza desde 2022). El texto es el
+# recordatorio que traen las propias cartas (BT32 CHROMATIC ASCENSION). Si la web las añade, manda la suya.
+EXTRA_ENTRIES = [
+    {"name": "Endure X", "category": "skill",
+     "description": "When this card is played, until the end of your opponent's turn, if this card would be "
+                    "removed from a Battle Area, you may remove the specified number of energy markers instead, "
+                    "only once."},
+    {"name": "Release X", "category": "keyword",
+     "description": "Remove the specified number of energy markers."},
+]
+
+
+def with_extras(entries: list[dict]) -> list[dict]:
+    """Las oficiales y, detrás, las de EXTRA_ENTRIES que no estén ya."""
+    names = {_key(e["name"]) for e in entries}
+    last = max((e.get("order", 0) for e in entries), default=0)
+    extra = [{**e, "order": last + i} for i, e in enumerate(EXTRA_ENTRIES, 1) if _key(e["name"]) not in names]
+    return [*entries, *extra]
+
+
 def _key(name: str) -> str:
     return normalize_keyword(name).lower()
 
@@ -61,14 +81,14 @@ class Catalog:
 
     @classmethod
     def from_snapshot(cls) -> Catalog:
-        return cls(json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))["entries"])
+        return cls(with_extras(json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))["entries"]))
 
     @classmethod
     def from_db(cls) -> Catalog:
         from .models import KeywordSkill
 
         rows = list(KeywordSkill.objects.values("name", "category", "description", "order"))
-        return cls(rows) if rows else cls.from_snapshot()
+        return cls(with_extras(rows)) if rows else cls.from_snapshot()
 
     def classify(self, keyword: str) -> dict | None:
         k = _key(keyword)
@@ -129,7 +149,7 @@ def store_entries(entries: list[dict], updated: str, source: str) -> None:
 
     KeywordSkill.objects.all().delete()
     KeywordSkill.objects.bulk_create([
-        KeywordSkill(list_updated=updated, source=source, **e) for e in entries])
+        KeywordSkill(list_updated=updated, source=source, **e) for e in with_extras(entries)])
 
 
 def recompute_cards(catalog: Catalog | None = None) -> int:
