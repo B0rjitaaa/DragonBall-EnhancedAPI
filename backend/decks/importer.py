@@ -227,20 +227,43 @@ def _parse_time_chamber(query: str) -> ParsedDeck:
 
 HEADERS = (
     (re.compile(r"\bleader\b", re.I), "leader"),
-    (re.compile(r"\bz[\s-]?deck\b", re.I), "z"),
+    (re.compile(r"\bz[\s-]?deck\b|^\s*z\b", re.I), "z"),  # «Z Deck», «Z-deck» o solo «Z (10)»
     (re.compile(r"\bside(\s?deck|board)?\b", re.I), "side"),
     (re.compile(r"\b(main(\s?deck)?|deck)\b", re.I), "main"),
 )
+
+
+# «3. BT32-038 Vegeta» / «### 3) …»: número de una lista o un título, no copias.
+LIST_MARKER = re.compile(r"^\d{1,3}[.)]\s+")
+# «Main (52): 4x …», «Z (10): …», «Side deck: …»: la sección y la primera carta en la misma línea.
+SECTION_PREFIX = re.compile(r"^(leader|main(?:\s?deck)?|z(?:[\s-]?deck)?|side(?:\s?deck|board)?)\b[^:]{0,20}:\s*", re.I)
+SECTION_NAMES = {"l": "leader", "m": "main", "z": "z", "s": "side"}
+
+
+def _text_items(text: str):
+    """Las líneas de la lista ya limpias: sin viñetas, títulos ni números de lista, y partidas por «·» (varias cartas
+    en una línea). Devuelve (sección indicada al principio de la línea o None, texto)."""
+    for raw in text.splitlines():
+        line = raw.strip().strip("-•*").strip()
+        line = LIST_MARKER.sub("", line.lstrip("#").strip())
+        if not line:
+            continue
+        prefix = SECTION_PREFIX.match(line)
+        section = SECTION_NAMES[prefix.group(1)[0].lower()] if prefix else None
+        if prefix:
+            line = line[prefix.end():]
+        for i, part in enumerate(p.strip() for p in line.split("·")):
+            if part:
+                yield (section if i == 0 else None), part
 
 
 def parse_text(text: str) -> ParsedDeck:
     """Una lista en texto: una carta por línea con sus copias, y secciones opcionales."""
     deck = ParsedDeck(source="text")
     section = "main"
-    for raw in text.splitlines():
-        line = raw.strip().strip("-•*").strip()
-        if not line:
-            continue
+    for header, line in _text_items(text):
+        if header:
+            section = header
         number = NUMBER.search(line)
         if number is None:
             # Cabecera de sección («_____Leader_____», «## Z Deck», «Side Deck:»…) o línea que no es una carta.

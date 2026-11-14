@@ -16,7 +16,7 @@ In **Locations → Decks**, **⇩ Import deck** creates a deck from a list you f
 
 1. Paste the **deck link** or the **deck list**:
    - links from **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) and **Time Chamber**, both saved or shared decks (`time-chamber.net/decks/…/view?share=…`, `time-chamber.net/s/…`) and import links;
-   - from any other site, use its *export* or *copy list* option and paste the text. Each line needs a card number: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Section headers (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) are optional: without them, the LEADER card is taken as the Leader.
+   - from any other site, use its *export* or *copy list* option and paste the text. Each line needs a card number: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Section headers (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) are optional: without them, the LEADER card is taken as the Leader. A line with several cards separated by “·” also works (`Z (10): 2x EX23-03 · 1x BT29-004`), and numbered titles like `3. BT32-038 Vegeta` count as 1 copy, not 3.
 2. Press **Check the list**. For each card you'll see:
    - **✓ free**: copies in Unsorted, a binder or a box;
    - **in “Deck X”**: copies you have, but in another deck;

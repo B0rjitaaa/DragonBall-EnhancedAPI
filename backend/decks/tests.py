@@ -325,6 +325,18 @@ class DeckImportTests(TestCase):
     def preview(self, source):
         return self.client.post("/api/my-collection/decks/import/preview/", {"source": source}, format="json")
 
+    def test_text_list_numbered_title_and_dotted_lines(self):
+        """«### 3. EX20-01 Cell» es un título (no 3 copias) y «Main (6): 4x A · 2x B» trae todas las cartas de la línea."""
+        from decks.importer import parse_text
+
+        deck = parse_text("### 3. EX20-01 Cell (rojo)\nPlan: jugar fuerte\nMain (6): 4x BT29-86 Goku Black · 2x EX20-03 Android 17\n"
+                          "Z (2): 1x BT21-070 Z Cell · 1x BT21-070 Z Cell")
+        self.assertEqual(deck.lines, [("EX20-01", "main", 1), ("BT29-86", "main", 4), ("EX20-03", "main", 2),
+                                      ("BT21-070", "z", 1), ("BT21-070", "z", 1)])
+        # El bloque de código: «Z (2)» en su propia línea también cambia de sección.
+        deck = parse_text("Main (4)\n4 BT29-86\nZ (1)\n1 BT21-070 Z Cell")
+        self.assertEqual(deck.lines, [("BT29-86", "main", 4), ("BT21-070", "z", 1)])
+
     def test_text_list_preview(self):
         data = self.preview(self.text).data
         rows = {r["number"]: r for r in data["rows"]}

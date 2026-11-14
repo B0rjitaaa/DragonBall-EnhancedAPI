@@ -16,7 +16,7 @@ En **«Locations» → «Decks»**, **«⇩ Import deck»** (importar mazo) crea
 
 1. Pega el **enlace del mazo** o la **lista**:
    - enlaces de **DeckPlanet** (`dbs-deckplanet.com/…/deck/…`), **Top Deck Diffusion** (`topdeckdiffusion.com/decks/…`) y **Time Chamber**, tanto los de un mazo guardado o compartido (`time-chamber.net/decks/…/view?share=…`, `time-chamber.net/s/…`) como los de importación;
-   - de cualquier otra web, usa su opción de *exportar* o *copiar lista* y pega el texto. Cada línea necesita un número de carta: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Las cabeceras de sección (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) son opcionales: sin ellas, la carta de tipo LEADER se toma como Leader.
+   - de cualquier otra web, usa su opción de *exportar* o *copiar lista* y pega el texto. Cada línea necesita un número de carta: `4 Goku Black [BT29-086]`, `4 BT29-086`, `BT29-086 x4`… Las cabeceras de sección (*Leader*, *Main Deck*, *Z Deck*, *Side Deck*) son opcionales: sin ellas, la carta de tipo LEADER se toma como Leader. También vale una línea con varias cartas separadas por «·» (`Z (10): 2x EX23-03 · 1x BT29-004`), y los títulos numerados como `3. BT32-038 Vegeta` cuentan como 1 copia, no como 3.
 2. Pulsa **«Check the list»** (comprobar la lista). De cada carta verás:
    - **«✓ free»** (libres): copias en «Unsorted», un archivador o una caja;
    - **«in “Mazo X”»**: copias que tienes, pero en otro mazo;
