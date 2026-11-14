@@ -1152,6 +1152,8 @@ export function DeckPreview({
             )}
           </div>
           <RulesCheck issues={issues} />
+          {/* Un mazo futuro también se puede llevar a Time Chamber o copiar en texto (con las copias que pide la lista). */}
+          {editor && <DeckExport deck={{ leader, main, z: zDeck, side }} />}
           {note && <p className="muted small">{note}</p>}
         </div>
 
