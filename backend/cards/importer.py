@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 FACETS_VERSION_KEY = "facets:version"
 BATCH_SIZE = 500
 UPDATE_FIELDS = [
-    # legality* la gestiona banlist.apply_banlist(): no se pisa al reimportar
-    f.name for f in Card._meta.concrete_fields if f.name not in {"id", "created_at", "legality", "legality_since"}
+    # legality* (banlist), has_errata (erratas) y rulings_count (Q&A) los calculan sus listas
+    # oficiales: no se pisan al reimportar, se vuelven a aplicar tras el upsert
+    f.name for f in Card._meta.concrete_fields
+    if f.name not in {"id", "created_at", "legality", "legality_since", "has_errata", "rulings_count"}
 ]
 
 
@@ -50,7 +52,13 @@ def upsert_cards(items: Iterable[dict]) -> tuple[int, int, list[int]]:
             )
 
     from .banlist import apply_banlist  # evitar import circular
-    apply_banlist({c.card_number for c in parsed})
+    from .errata import apply_errata
+    from .rulings import apply_rulings
+
+    numbers = {c.card_number for c in parsed}
+    apply_banlist(numbers)
+    apply_errata(numbers)
+    apply_rulings(numbers)
     invalidate_facets()
     created = len(set(ids) - existing)
     return created, len(ids) - created, errors

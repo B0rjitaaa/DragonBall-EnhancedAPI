@@ -82,12 +82,12 @@ export default function CardModal({ id, skills, onClose, onFilter, children, onO
   const name = card ? (back ? card.back_name : card.name) : ''
   const deckRules = card ? card.keyword_skills.map((s) => skills.deckRule(s)).filter(Boolean) : []
   const isLeader = card?.card_type === 'LEADER'
-  const text = card ? (back ? card.back_text : card.errata ? errataText(card.text, card.errata.before, card.errata.after, printed) : card.text) : ''
+  const text = card ? (back ? card.back_text : card.errata ? errataText(card.text, card.errata.match ?? card.errata.before, card.errata.after, printed) : card.text) : ''
 
   const copyText = async () => {
     if (!card) return
     const plain = plainCardText(
-      back ? card.back_text : card.errata ? errataText(card.text, card.errata.before, card.errata.after).replace(/⟦\+([^⟧]*)⟧/g, '$1') : card.text,
+      back ? card.back_text : card.errata ? errataText(card.text, card.errata.match ?? card.errata.before, card.errata.after).replace(/⟦\+([^⟧]*)⟧/g, '$1') : card.text,
     )
     try {
       await navigator.clipboard.writeText(plain)

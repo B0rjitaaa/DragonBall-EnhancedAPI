@@ -13,6 +13,7 @@ import json
 import logging
 import re
 from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 
 from django.conf import settings
@@ -104,18 +105,23 @@ def store_entries(entries: list[dict], updated: str, source: str) -> int:
     return len(entries)
 
 
-def apply_rulings() -> int:
-    """Actualiza Card.rulings_count con el número de Q&A de cada card_number."""
-    counts = Counter(CardRuling.objects.values_list("card_number", flat=True))
+def apply_rulings(numbers: Iterable[str] | None = None) -> int:
+    """Actualiza Card.rulings_count con el número de Q&A de cada card_number (con `numbers`, solo esas)."""
+    rulings = CardRuling.objects.all()
+    cards = Card.objects.all()
+    if numbers is not None:
+        numbers = set(numbers)
+        rulings = rulings.filter(card_number__in=numbers)
+        cards = cards.filter(card_number__in=numbers)
+    counts = Counter(rulings.values_list("card_number", flat=True))
     with transaction.atomic():
-        Card.objects.exclude(rulings_count=0).exclude(card_number__in=counts).update(rulings_count=0)
-        changed = 0
+        changed = cards.exclude(rulings_count=0).exclude(card_number__in=counts).update(rulings_count=0)
         # agrupar por recuento para hacer pocos UPDATE
         by_count: dict[int, list[str]] = {}
         for number, n in counts.items():
             by_count.setdefault(n, []).append(number)
-        for n, numbers in by_count.items():
-            changed += Card.objects.filter(card_number__in=numbers).exclude(rulings_count=n).update(rulings_count=n)
+        for n, nums in by_count.items():
+            changed += cards.filter(card_number__in=nums).exclude(rulings_count=n).update(rulings_count=n)
     return changed
 
 

@@ -4,7 +4,10 @@ Fuente: https://www.dbs-cardgame.com/us-en/rule/errata-cards.php
 - `sync_errata()` descarga y parsea la web oficial (tarea Celery semanal).
 - Si la web no responde o cambia, se mantiene lo que haya en BD (inicialmente, la copia
   de `data/errata_snapshot.json` que carga la migración).
-- `apply_errata()` marca `Card.has_errata` en todas las impresiones con ese card_number.
+- `apply_errata()` marca `Card.has_errata` en todas las impresiones con ese card_number. Se vuelve
+  a aplicar tras cada sincronización de cartas (el upsert no toca esa marca).
+- `find_before()` localiza en el texto de la carta la frase antigua de la errata aunque cambien
+  espacios, saltos o comillas; la ficha la cambia por la nueva (el texto guardado es el impreso).
 """
 from __future__ import annotations
 
@@ -12,6 +15,7 @@ import html as htmllib
 import json
 import logging
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 from django.conf import settings
@@ -95,12 +99,58 @@ def store_entries(entries: list[dict], updated: str, source: str) -> int:
     return len(entries)
 
 
-def apply_errata() -> int:
-    """Marca Card.has_errata según los números con errata."""
-    numbers = set(CardErrata.objects.values_list("card_number", flat=True))
+MIN_PATCH = 20  # textos «antes» más cortos no se buscan (podrían coincidir donde no toca)
+_LOOSE = {
+    "'": "['’‘]", "’": "['’‘]", "‘": "['’‘]", '"': '["“”]', "“": '["“”]', "”": '["“”]',
+    "-": "[-—–]", "—": "[-—–]", "–": "[-—–]", "(": "[(（]", "（": "[(（]", ")": "[)）]", "）": "[)）]",
+    "・": "[・•]", "•": "[・•]",
+}
+_GAP = r"(?:\s|<br\s*/?>)"
+
+
+def _loose(text: str) -> re.Pattern | None:
+    """Patrón que encuentra `text` en el texto de TCG+ aunque cambien espacios, saltos (<br>),
+    los espacios alrededor de «:», comillas, guiones o paréntesis de ancho completo."""
+    text = re.sub(r"\s*[:：]\s*", ":", BR_RE.sub("\n", text)).strip()
+    if len(text) < MIN_PATCH:
+        return None
+    out = []
+    for ch in re.sub(r"\s+", " ", text):
+        if ch == " ":
+            out.append(f"{_GAP}+")
+        elif ch == ":":
+            out.append(f"{_GAP}*[:：]{_GAP}*")
+        else:
+            out.append(_LOOSE.get(ch) or re.escape(ch))
+    return re.compile("".join(out))
+
+
+def find_before(text: str, before: str, after: str = "") -> str | None:
+    """Fragmento exacto del texto de la carta que corresponde a la frase antigua de la errata, o
+    None si no está o si el texto ya trae la frase nueva (TCG+ a veces ya lo tiene corregido)."""
+    old, done = _loose(before), _loose(after)
+    found = old.search(text or "") if old else None
+    if not found:
+        return None
+    # Si la errata añade texto, la frase nueva contiene a la antigua: entonces ya está corregido.
+    # Si la errata borra texto, la nueva está dentro de la antigua y eso no cuenta.
+    if done:
+        for m in done.finditer(text):
+            if m.start() <= found.start() and found.end() <= m.end():
+                return None
+    return found.group(0)
+
+
+def apply_errata(numbers: Iterable[str] | None = None) -> int:
+    """Marca Card.has_errata según los números con errata (con `numbers`, solo esas cartas).
+    Devuelve cuántas impresiones cambian."""
+    errata_numbers = set(CardErrata.objects.values_list("card_number", flat=True))
+    cards = Card.objects.all()
+    if numbers is not None:
+        cards = cards.filter(card_number__in=set(numbers))
     with transaction.atomic():
-        Card.objects.filter(has_errata=True).exclude(card_number__in=numbers).update(has_errata=False)
-        return Card.objects.filter(card_number__in=numbers, has_errata=False).update(has_errata=True)
+        changed = cards.filter(has_errata=True).exclude(card_number__in=errata_numbers).update(has_errata=False)
+        return changed + cards.filter(card_number__in=errata_numbers, has_errata=False).update(has_errata=True)
 
 
 def load_snapshot() -> int:

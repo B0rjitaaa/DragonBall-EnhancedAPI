@@ -148,7 +148,8 @@ export default function CardText({ text, skills, onKeyword }: Props) {
 export function errataText(text: string, before: string, after: string, printed = false): string {
   // Con «<» y «>» de verdad en los tres, así la frase de la errata se encuentra aunque uno venga con «&lt;».
   const clean = (s: string) => decodeEntities(s).replace(/[’‘]/g, "'")
-  const [t, b, a] = [clean(text), clean(before), clean(after)]
+  // Los saltos de la errata como los del texto de la carta (<br>)
+  const [t, b, a] = [clean(text), clean(before), clean(after).replace(/\n/g, '<br>')]
   if (!b || !t.includes(b)) return t
   const x = b.split(/(\s+)/)
   const y = a.split(/(\s+)/)
@@ -161,5 +162,9 @@ export function errataText(text: string, before: string, after: string, printed 
   const oldMid = x.slice(i, x.length - j).join('')
   const newMid = y.slice(i, y.length - j).join('')
   const marked = printed ? `${pre}${oldMid.trim() ? `⟦-${oldMid}⟧` : ''}${post}` : `${pre}${newMid.trim() ? `⟦+${newMid}⟧` : ''}${post}`
-  return t.replace(b, marked)
+  // Una marca que cruza un salto se parte en una por línea (el texto se pinta línea a línea)
+  const perLine = marked.replace(/⟦([+-])([^⟧]*)⟧/g, (_, sign: string, body: string) =>
+    body.split(/(<br\s*\/?>)/i).map((p) => (!p.trim() || /^<br/i.test(p) ? p : `⟦${sign}${p}⟧`)).join(''),
+  )
+  return t.replace(b, () => perLine)
 }

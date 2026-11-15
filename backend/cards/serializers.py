@@ -98,8 +98,13 @@ class CardDetailSerializer(serializers.ModelSerializer):
     def get_errata(self, card) -> dict | None:
         if not card.has_errata:
             return None
+        from .errata import find_before
+
         entry = CardErrata.objects.filter(card_number=card.card_number).first()
-        return CardErrataSerializer(entry).data if entry else None
+        if not entry:
+            return None
+        # La frase antigua tal como aparece en el texto de esta impresión (espacios, <br>, comillas…)
+        return {**CardErrataSerializer(entry).data, "match": find_before(card.text, entry.before, entry.after)}
 
     def get_price(self, card) -> dict | None:
         return card_price(card, changes=True)

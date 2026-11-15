@@ -338,6 +338,8 @@ export interface CardErrataInfo {
   image_url: string
   date: string
   list_updated: string
+  /** La frase antigua tal como aparece en el texto de esta impresión (null si no está o ya viene corregida). */
+  match?: string | null
 }
 
 export interface CardRuling {

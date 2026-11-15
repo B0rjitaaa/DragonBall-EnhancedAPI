@@ -132,3 +132,45 @@ class ApplyAndApiTests(TestCase):
         has_qa = self.client.post("/api/cards/search/", {"query": {
             "field": "has_ruling", "operator": "eq", "value": True}}, format="json")
         self.assertEqual([c["id"] for c in has_qa.json()["results"]], [10])
+
+
+OLD_TEXT = ("[Auto] When this card is played : Draw 1 card.<br>[Auto] If this card is removed from a "
+            "Battle Area by a skill, choose up to 1 {SSB Son Goku, Hope for Victory} in your hand.")
+BEFORE = ("[Auto] If this card is removed from a Battle Area by a skill, choose up to 1 "
+          "{SSB Son Goku, Hope for Victory} in your hand.")
+AFTER = ("[Auto] If this card is removed from a Battle Area by an opponent’s skill, choose up to 1 "
+         "{SSB Son Goku, Hope for Victory} in your hand.")
+
+
+class FindBeforeTests(TestCase):
+    def test_find_before(self):
+        self.assertEqual(errata.find_before(OLD_TEXT, BEFORE, AFTER), OLD_TEXT.split("<br>")[1])
+        # Ya corregido en TCG+: no hay nada que cambiar
+        self.assertIsNone(errata.find_before(OLD_TEXT.replace("by a skill", "by an opponent's skill"), BEFORE, AFTER))
+        # Espacios de «:», <br> en vez de salto y comillas distintas; la errata borra texto
+        text = "[Counter: Attack] Negate the attack.<br>Your opponent can't play."
+        self.assertEqual(errata.find_before(text, "[Counter : Attack] Negate the attack.\nYour opponent can’t play.",
+                                            "[Counter : Attack] Negate the attack."), text)
+        # Erratas sin frase que buscar (p. ej. «Now considered to have [Super Combo]»)
+        self.assertIsNone(errata.find_before(OLD_TEXT, "Did not have it.", "Now considered to have [Super Combo]"))
+
+
+@override_settings(CACHES=LOCMEM)
+class ReimportKeepsErrataTests(TestCase):
+    def test_reimport_keeps_flags(self):
+        CardErrata.objects.all().delete()
+        CardRuling.objects.all().delete()
+        card = {**make(20, "BT10-038", "Trunks"), "card_text": OLD_TEXT}
+        upsert_cards([card])
+        CardErrata.objects.create(card_number="BT10-038", card_name="Trunks", before=BEFORE, after=AFTER)
+        CardRuling.objects.create(card_number="BT10-038", order=1, question="Q?", answer="A.")
+        errata.apply_errata()
+        rulings.apply_rulings()
+        # La sincronización vuelve a importar la carta: no se pierden la marca ni las Q&A
+        upsert_cards([card])
+        c = Card.objects.get(id=20)
+        self.assertTrue(c.has_errata)
+        self.assertEqual(c.rulings_count, 1)
+        self.assertEqual(c.text, OLD_TEXT)  # el texto guardado sigue siendo el impreso
+        data = APIClient().get("/api/cards/20/").json()
+        self.assertEqual(data["errata"]["match"], OLD_TEXT.split("<br>")[1])
