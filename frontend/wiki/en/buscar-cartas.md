@@ -49,7 +49,7 @@ At the very top there are two checkboxes: **Has errata** and **Has Q&A**. Below 
 | **Color** | Buttons with the colour | Yes |
 | **Energy** | Buttons by cost | Yes |
 | **Power** | Range min – max | Yes |
-| **Activate Timing** | Buttons with their official explanation | Yes |
+| **Activate Timing** | Buttons with their official explanation (Activate, Auto, Permanent and the four **Counter** skills) | Yes |
 | **Keyword Skills** | List with explanation and variants | Yes |
 | **Keywords** | List with explanation and variants | Yes |
 | **Special Trait** | List | No |
@@ -86,6 +86,7 @@ In **Activate Timing**, **Keyword Skills** and **Keywords**:
 - Hovering over a value shows its **official explanation**, the one from Bandai's rules page.
 - If a skill is newer than that page, the tooltip says “Not listed on the official keyword skills page (it's newer than its last update).”
 - **Endure X** and **Release X** (new in BT32) aren't on that page yet: their explanation is the reminder text printed on the cards.
+- The four **Counter** skills (Counter : Play, Attack, Counter and Battle Card Attack) are in **Activate Timing**, even though the official page lists them under Keyword Skills.
 - The **ⓘ** icon opens the official keyword skills page.
 - Skills with a number (**Over Realm X**, **Burst X**, **Limit X**…) have a small button to **Pick specific values** (Over Realm 3, 4, 5…). Those values always combine with OR.
 

@@ -2,7 +2,9 @@
 
 La web las divide en tres categorías, que usamos tal cual:
 - timing  -> "Activate Timing": Permanent, Auto, Activate : Main/Battle…
-- skill   -> "Keyword Skills":  Barrier, Blocker, Over Realm X, Counter : Play…
+- skill   -> "Keyword Skills":  Barrier, Blocker, Over Realm X…
+Excepción: los cuatro [Counter : …] la web los pone en Keyword Skills, pero aquí van con los
+Activate Timing (son el momento en que se activa la carta) para que estén siempre a la vista.
 - keyword -> "Keywords":        Limit X, Once per Turn, Bond X, Burst X…
 
 `Catalog` asigna cada habilidad de una carta ('Over Realm 3', 'Once Per Turn') a su nombre
@@ -51,12 +53,22 @@ EXTRA_ENTRIES = [
 ]
 
 
+# Categoría propia para algunas oficiales: los [Counter : …] se filtran en Activate Timing.
+TIMING_PREFIXES = ("counter:",)
+
+
+def _category(entry: dict) -> dict:
+    if entry["category"] != "timing" and _key(entry["name"]).startswith(TIMING_PREFIXES):
+        return {**entry, "category": "timing"}
+    return entry
+
+
 def with_extras(entries: list[dict]) -> list[dict]:
-    """Las oficiales y, detrás, las de EXTRA_ENTRIES que no estén ya."""
+    """Las oficiales (con los Counter pasados a timing) y, detrás, las de EXTRA_ENTRIES que no estén ya."""
     names = {_key(e["name"]) for e in entries}
     last = max((e.get("order", 0) for e in entries), default=0)
     extra = [{**e, "order": last + i} for i, e in enumerate(EXTRA_ENTRIES, 1) if _key(e["name"]) not in names]
-    return [*entries, *extra]
+    return [_category(e) for e in (*entries, *extra)]
 
 
 def _key(name: str) -> str:

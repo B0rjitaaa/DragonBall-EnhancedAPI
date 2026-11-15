@@ -49,7 +49,7 @@ Arriba del todo hay dos casillas: **«Has errata»** y **«Has Q&A»**. Debajo, 
 | **Color** | Botones con el color | Sí |
 | **Energy** | Botones por coste | Sí |
 | **Power** | Rango mín – máx | Sí |
-| **Activate Timing** | Botones con su explicación oficial | Sí |
+| **Activate Timing** | Botones con su explicación oficial (Activate, Auto, Permanent y los cuatro **Counter**) | Sí |
 | **Keyword Skills** | Lista con explicación y variantes | Sí |
 | **Keywords** | Lista con explicación y variantes | Sí |
 | **Special Trait** | Lista | No |
@@ -86,6 +86,7 @@ En **Activate Timing**, **Keyword Skills** y **Keywords**:
 - Al pasar el ratón por un valor ves su **explicación oficial**, la de la página de reglas de Bandai.
 - Si una habilidad es más nueva que esa página, el aviso dice «Not listed on the official keyword skills page (it's newer than its last update).»
 - **Endure X** y **Release X** (nuevas en BT32) aún no están en esa página: su explicación es el recordatorio que traen las propias cartas.
+- Los cuatro **Counter** (Counter : Play, Attack, Counter y Battle Card Attack) están en **Activate Timing**, aunque la página oficial los pone en Keyword Skills.
 - El icono **ⓘ** abre la página oficial de keyword skills.
 - Las habilidades con número (**Over Realm X**, **Burst X**, **Limit X**…) tienen un botoncito, **«Pick specific values»**, para elegir valores concretos (Over Realm 3, 4, 5…). Esos valores se combinan siempre con O.
 

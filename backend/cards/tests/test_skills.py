@@ -69,6 +69,14 @@ class CatalogTests(TestCase):
         self.assertEqual(names.count("Endure X"), 1)
         self.assertIn("Release X", names)
 
+    def test_counters_go_to_timing(self):
+        # La web los pone en Keyword Skills; aquí se filtran en Activate Timing
+        out = self.catalog.assign(["Counter: Play", "Counter: Battle Card Attack", "Barrier"])
+        self.assertEqual(out["timing"], ["Counter : Play", "Counter : Battle Card Attack"])
+        self.assertEqual(out["keyword_skills"], ["Barrier"])
+        official = [{"name": "Counter : Attack", "category": "skill", "description": "x", "order": 1}]
+        self.assertEqual(with_extras(official)[0]["category"], "timing")
+
     def test_parse_official_page(self):
         updated, entries = parse_keyword_page(PAGE)
         self.assertEqual(updated, "Jul. 22, 2022")

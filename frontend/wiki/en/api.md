@@ -43,7 +43,7 @@ Everything the web app does goes through a **JSON REST API**, and you can use it
         {"field": "color", "operator": "has", "value": "Red"}
       ]},
       {"op": "and", "children": [
-        {"field": "keyword_skill", "operator": "has", "value": "Counter : Play"},
+        {"field": "timing", "operator": "has", "value": "Counter : Play"},
         {"field": "energy", "operator": "lte", "value": 2}
       ]}
     ]

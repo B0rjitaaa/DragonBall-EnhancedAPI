@@ -43,7 +43,7 @@ Todo lo que hace la web pasa por una **API REST en JSON**, y se puede usar direc
         {"field": "color", "operator": "has", "value": "Red"}
       ]},
       {"op": "and", "children": [
-        {"field": "keyword_skill", "operator": "has", "value": "Counter : Play"},
+        {"field": "timing", "operator": "has", "value": "Counter : Play"},
         {"field": "energy", "operator": "lte", "value": 2}
       ]}
     ]

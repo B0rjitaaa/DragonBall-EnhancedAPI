@@ -95,7 +95,7 @@ OR (any)
 │   ├── Type is LEADER
 │   └── Color includes Red
 └── AND (all)
-    ├── Keyword Skills includes Counter : Play
+    ├── Activate Timing includes Counter : Play
     └── Energy ≤ 2
 ```
 
