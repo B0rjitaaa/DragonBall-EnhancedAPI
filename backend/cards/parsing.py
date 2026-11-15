@@ -113,6 +113,19 @@ def split_multi(value: Any) -> list[str]:
     return list(dict.fromkeys(p for p in parts if p))
 
 
+# Bandai deja «Color» vacío en algunas cartas (todo el blanco de BT29). Si tienen coste de color se
+# deduce de él; las que no lo tienen (Líderes, Z-Battle) van aquí a mano.
+COLOR_FIXES = {"BT29-105": ["White"], "BT29-106": ["White"], "BT29-107": ["White"]}
+CARD_COLORS = ("Red", "Blue", "Green", "Yellow", "Black", "White")
+
+
+def card_colors(card_number: str, color: Any, cost_colors: list[str]) -> list[str]:
+    """Colores de la carta: los de «Color»; si viene vacío, los del coste de color o COLOR_FIXES."""
+    return (split_multi(color)
+            or list(dict.fromkeys(c for c in cost_colors if c in CARD_COLORS))
+            or list(COLOR_FIXES.get(card_number, [])))
+
+
 def config_to_dict(config: list[dict] | None) -> dict[str, str | None]:
     return {item.get("config_name"): clean(item.get("value")) for item in (config or []) if item.get("config_name")}
 
@@ -241,6 +254,8 @@ def parse_card(data: dict) -> dict[str, Any]:
         own=[cfg.get("Keyword Skill") or "", back_cfg.get("Keyword Skill") or ""],
     )
 
+    cost_colors = [normalize_attr(c) for c in COLOR_COST_RE.findall(cfg.get("Color Cost") or "")]
+
     return {
         "id": int(data["id"]),
         "card_number": card_number,
@@ -250,12 +265,12 @@ def parse_card(data: dict) -> dict[str, Any]:
         "card_set": clean(data.get("card_set")) or "",
         **parse_card_number(card_number),
         "card_type": (cfg.get("Type") or "").upper(),  # a veces viene 'Battle' en vez de 'BATTLE'
-        "colors": split_multi(cfg.get("Color")),
+        "colors": card_colors(card_number, cfg.get("Color"), cost_colors),
         "rarity": rarity,
         "rarity_code": rarity_code,
         "energy": to_int(cfg.get("Energy")),
         "color_cost": COLOR_COST_RE.sub(lambda m: f"({normalize_attr(m.group(1))})", cfg.get("Color Cost") or ""),
-        "color_cost_colors": [normalize_attr(c) for c in COLOR_COST_RE.findall(cfg.get("Color Cost") or "")],
+        "color_cost_colors": cost_colors,
         "combo_energy": to_int(cfg.get("Combo Energy")),
         "combo_power": to_int(cfg.get("Combo power") or cfg.get("Combo Power")),
         "power": to_int(cfg.get("Power")),

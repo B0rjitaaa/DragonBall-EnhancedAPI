@@ -77,6 +77,16 @@ class ParsingTests(TestCase):
         self.assertEqual(card["color_cost_colors"], ["Blue", "1"])
         self.assertEqual(card["special_traits"], ["Frieza's Army", "Saiyan"])
 
+    def test_missing_color_from_cost_or_fixes(self):
+        # BT29 blanco: TCG+ deja «Color» vacío; se saca del coste o de COLOR_FIXES.
+        card = parse_card(make_card(98, "BT29-151", "Baby", Type="BATTLE", Color_Cost="(White)(White)(1)"))
+        self.assertEqual(card["colors"], ["White"])
+        leader = parse_card(make_card(97, "BT29-105", "Bulla", Type="LEADER"))
+        self.assertEqual(leader["colors"], ["White"])
+        self.assertEqual(parse_card(make_card(96, "BT99-001", "X", Type="LEADER"))["colors"], [])
+        # Si «Color» viene, manda él aunque el coste diga otra cosa.
+        self.assertEqual(parse_card(VEGETA)["colors"], ["Blue", "Green"])
+
     def test_keywords_and_families(self):
         kws, fams, mentions = extract_keywords("[Activate : Main/Battle][Limit 1][+1][Counter : Play][Revive Blue/Green]")
         self.assertEqual(mentions, [])
