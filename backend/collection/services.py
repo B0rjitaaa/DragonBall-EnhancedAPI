@@ -5,7 +5,7 @@ from django.db.models import F
 
 from cards.models import Card
 
-from .models import CollectionEntry, Location
+from .models import CollectionEntry, Location, StatusChange
 
 
 class AmbiguousLocation(Exception):
@@ -132,14 +132,15 @@ def move_copies(
 
 
 def delete_location(location: Location) -> None:
-    """Borra una ubicación; sus copias vuelven a "Sin ubicar"."""
+    """Borra una ubicación; sus copias vuelven a "Sin ubicar".
+
+    Un mazo con partidas anotadas no se borra de la base de datos: se queda como «borrado» (no sale en
+    ninguna lista) para que sus partidas sigan contando en las estadísticas."""
     from django.apps import apps
 
     if location.is_default:
         raise ValueError(f"“{location.name}” cannot be deleted")
-    if location.deck_versions.filter(matches__isnull=False).exists():
-        # Se perdería el historial de versiones y partidas del mazo.
-        raise ValueError(f"“{location.name}” has recorded matches: delete them first or change its type")
+    keep = location.deck_versions.filter(matches__isnull=False).exists()
     default = Location.default()
     with transaction.atomic():
         for entry in list(CollectionEntry.objects.select_for_update().filter(location=location)):
@@ -148,7 +149,20 @@ def delete_location(location: Location) -> None:
                 # Los escaneos que añadieron esas copias siguen apuntando a ellas (para deshacer).
                 apps.get_model("scanner", "Scan").objects.filter(collection_entry=entry).update(collection_entry=kept)
             entry.delete()
-        location.delete()
+        if not keep:
+            location.delete()
+            return
+        if apps.is_installed("decks"):
+            apps.get_model("decks", "SideCard").objects.filter(deck=location).delete()
+            apps.get_model("decks", "PickList").objects.filter(deck=location).delete()
+        # El nombre queda libre para otra ubicación (el nombre es único).
+        base = f"{location.name} (deleted)"[:80]
+        name, n = base, 2
+        while Location.all_objects.filter(name=name).exclude(pk=location.pk).exists():
+            name, n = f"{base[:74]} ({n})", n + 1
+        location.name, location.status, location.position = name, Location.Status.DELETED, 0
+        location.save(update_fields=["name", "status", "position"])
+        StatusChange.objects.create(location=location, status=Location.Status.DELETED)
 
 
 def reorder_location(location: Location, card_ids: list[int]) -> None:

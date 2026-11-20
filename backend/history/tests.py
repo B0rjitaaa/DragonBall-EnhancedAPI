@@ -119,6 +119,19 @@ class HistoryTests(TestCase):
         self.assertTrue(DeckVersion.objects.get().principal)
         self.assertEqual(DeckVersion.objects.get().cards.get().quantity, 2)
 
+    def test_undo_deleting_a_deck_with_matches(self):
+        version = DeckVersion.objects.create(deck=self.other, number=1, principal=True)
+        Match.objects.create(version=version, played_on="2026-11-01", result="win", opponent_leader_name="Goku")
+        self.assertEqual(self.api.delete(f"/api/my-collection/locations/{self.other.id}/").status_code, 204)
+        self.assertFalse(Location.objects.filter(pk=self.other.pk).exists())
+        act = self.history()["results"][0]
+        self.assertIn("Deleted deck “Mazo viejo” (its matches are kept)", act["title"])
+        self.undo(act["id"])
+        deck = Location.objects.get(pk=self.other.pk)
+        self.assertEqual((deck.name, deck.status), ("Mazo viejo", "active"))
+        self.assertEqual(qty(self.a, deck), 2)
+        self.assertEqual(Match.objects.count(), 1)
+
     def test_matches_deleted_in_cascade_come_back(self):
         # Borrar un mazo desde el admin se lleva sus listas y partidas en cascada: deshacerlo las recupera.
         version = DeckVersion.objects.create(deck=self.other, number=1, principal=True)

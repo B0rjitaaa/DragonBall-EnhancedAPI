@@ -111,7 +111,7 @@ El diálogo **«Edit location»** (opción «Edit…» del menú) permite cambia
 **«Delete…»** pide confirmación: «Delete “Caja 3”? Its N copies will move to “Unsorted”.» Los escaneos que apuntaban a esa ubicación también pasan a «Unsorted».
 
 > [!WARNING]
-> - Un mazo con **partidas anotadas** no se puede borrar. Borra antes sus partidas o cámbiale el tipo.
+> - Si borras un mazo con **partidas anotadas**, las partidas se conservan: ver [Borrar un mazo](#borrar-un-mazo-solo-mazos).
 > - El estado «en uso / en el histórico» no se cambia editando: se cambia con las opciones de abajo.
 
 ### Mover al histórico (solo mazos)
@@ -139,3 +139,13 @@ El aviso te dice de dónde la ha sacado; el resto de cartas las recuperas restau
 En los mazos que han pasado alguna vez por el histórico verás un registro («Usage log…») con:
 - cuántas veces ha pasado al histórico y si ahora está en uso o en el histórico;
 - cada entrada con fecha y hora: **«To the archive»**, con cuántas copias salieron, o **«Back in use»**.
+
+### Borrar un mazo (solo mazos)
+
+**«Delete deck…»** está en el menú ⋯ de cada mazo, tanto en «In use» como en el histórico. Pide confirmación: «Delete “Nombre”? Its N copies will move to “Unsorted”.» Al confirmar:
+- todas sus copias, auténticas y falsas, pasan a **«Unsorted»**;
+- el mazo desaparece de «Locations» y de las demás listas, y se vacían su side deck y su lista para recoger cartas;
+- si tenía **partidas anotadas**, no se pierden: siguen en **«📊 Stats»** al marcar **«Include archived decks»**, con el nombre del mazo y la etiqueta **«deleted»** (sin enlace, porque el mazo ya no existe);
+- su nombre queda libre para otro mazo.
+
+Si te equivocas, puedes deshacerlo desde [«History»](herramientas.md#history-historico-de-cambios): el mazo vuelve con su nombre y sus cartas.

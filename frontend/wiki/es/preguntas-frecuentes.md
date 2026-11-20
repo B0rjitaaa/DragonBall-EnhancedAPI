@@ -33,7 +33,7 @@ Sí, si tienes una **copia JSON** de antes, la de «Download backup» (descargar
 
 ### ¿Qué pasa con mis cartas si borro una ubicación?
 
-Pasan a **«Unsorted»** (sin ubicar): no se pierde ninguna copia. Un mazo con partidas anotadas no se puede borrar; mándalo al histórico.
+Pasan a **«Unsorted»** (sin ubicar): no se pierde ninguna copia. Si es un mazo con partidas anotadas, las partidas se conservan en las estadísticas. Ver [Borrar un mazo](ubicaciones.md#borrar-un-mazo-solo-mazos).
 
 ### ¿Cómo desmonto un mazo sin perder su lista?
 

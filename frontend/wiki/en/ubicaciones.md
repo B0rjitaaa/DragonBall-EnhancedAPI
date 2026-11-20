@@ -111,7 +111,7 @@ The **Edit location** dialog lets you change:
 **Delete…** asks for confirmation: “Delete “Box 3”? Its N copies will move to “Unsorted”.” Scans that pointed to that location also move to Unsorted.
 
 > [!WARNING]
-> - A deck with **logged matches** can't be deleted. Delete its matches first or change its type.
+> - If you delete a deck with **logged matches**, the matches are kept: see [Deleting a deck](#deleting-a-deck-decks-only).
 > - The “in use / archived” status isn't changed by editing: it's changed with the options below.
 
 ### Move to archive (decks only)
@@ -139,3 +139,13 @@ The notice tells you where it took it from; you get the rest of the cards back b
 Decks that have been archived at least once have a log with:
 - how many times it has been archived and whether it's now in use or archived;
 - each entry with date and time: **To the archive**, with how many copies left, or **Back in use**.
+
+### Deleting a deck (decks only)
+
+**Delete deck…** is in each deck's ⋯ menu, both in **In use** and in the archive. It asks for confirmation: “Delete “Name”? Its N copies will move to “Unsorted”.” When you confirm:
+- all its copies, genuine and fake, go to **Unsorted**;
+- the deck disappears from Locations and every other list, and its side deck and pick list are emptied;
+- if it had **logged matches**, they aren't lost: they stay in **📊 Stats** when you tick **Include archived decks**, with the deck's name and the **deleted** tag (no link, since the deck no longer exists);
+- its name is free for another deck.
+
+If you make a mistake, you can undo it from [History](herramientas.md#history): the deck comes back with its name and its cards.

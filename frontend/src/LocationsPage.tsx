@@ -55,6 +55,7 @@ export default function LocationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<Location | null>(null)
+  const [deleting, setDeleting] = useState<Location | null>(null)
   const [logOf, setLogOf] = useState<Location | null>(null)
   const [retiring, setRetiring] = useState<Location | null>(null)
   const [toast, setToast] = useState<{ text: string; href?: string } | null>(null)
@@ -199,12 +200,13 @@ export default function LocationsPage() {
         </a>
       )}
 
-      <DeckSection decks={decks} busy={busy} run={run} onEdit={setEditing} onStatus={setStatus} onLog={setLogOf} onOrder={saveOrder} />
+      <DeckSection decks={decks} busy={busy} run={run} onEdit={setEditing} onDelete={setDeleting} onStatus={setStatus} onLog={setLogOf} onOrder={saveOrder} />
       {SECTIONS.filter((s) => s.kind !== 'deck' && (s.kind !== 'other' || counts.other > 0)).map((s) => (
         <ListSection key={s.kind} section={s} items={ofKind(s.kind)} busy={busy} run={run} onEdit={setEditing} onOrder={saveOrder} />
       ))}
 
       {editing && <EditDialog loc={editing} run={run} onClose={() => setEditing(null)} />}
+      {deleting && <DeleteDeckDialog deck={deleting} run={run} onClose={() => setDeleting(null)} />}
       {logOf && <LogDialog deck={logOf} onClose={() => setLogOf(null)} />}
       {retiring && (
         <HistoryDialog
@@ -354,12 +356,13 @@ function Sortable({ id, children }: { id: number; children: (dragging: boolean) 
 }
 
 function DeckSection({
-  decks, busy, run, onEdit, onStatus, onLog, onOrder,
+  decks, busy, run, onEdit, onDelete, onStatus, onLog, onOrder,
 }: {
   decks: Location[]
   busy: boolean
   run: Run
   onEdit: (l: Location) => void
+  onDelete: (l: Location) => void
   onStatus: (l: Location, s: Location['status']) => void
   onLog: (l: Location) => void
   onOrder: (ids: number[]) => void
@@ -388,7 +391,7 @@ function DeckSection({
   const section = SECTIONS[0]
   const tile = (d: Location, handle = false, dragging = false) => (
     <DeckTile key={d.id} deck={d} busy={busy} sorting={sorting} handle={handle} dragging={dragging}
-      menu={<LocMenu loc={d} onEdit={onEdit} onStatus={onStatus} onLog={onLog} />} />
+      menu={<LocMenu loc={d} onEdit={onEdit} onDelete={onDelete} onStatus={onStatus} onLog={onLog} />} />
   )
   return (
     <section className="loc-section" id="sec-deck">
@@ -449,7 +452,7 @@ function DeckSection({
                 <button className="btn" disabled={busy} onClick={() => onStatus(d, 'active')}>
                   Use again
                 </button>
-                <LocMenu loc={d} onEdit={onEdit} onStatus={onStatus} onLog={onLog} />
+                <LocMenu loc={d} onEdit={onEdit} onDelete={onDelete} onStatus={onStatus} onLog={onLog} />
               </li>
             ))}
           </ul>
@@ -586,12 +589,13 @@ function ListSection({
   )
 }
 
-/** Menú «⋯» de una ubicación: editar y, en los mazos, moverlo al histórico o volver a usarlo. */
+/** Menú «⋯» de una ubicación: editar y, en los mazos, moverlo al histórico o volver a usarlo, y borrarlo. */
 function LocMenu({
-  loc, onEdit, onStatus, onLog,
+  loc, onEdit, onDelete, onStatus, onLog,
 }: {
   loc: Location
   onEdit: (l: Location) => void
+  onDelete?: (l: Location) => void
   onStatus?: (l: Location, s: Location['status']) => void
   onLog?: (l: Location) => void
 }) {
@@ -635,6 +639,11 @@ function LocMenu({
           {onLog && !!loc.status_log?.length && (
             <button role="menuitem" onClick={pick(() => onLog(loc))}>
               Usage log…
+            </button>
+          )}
+          {onDelete && (
+            <button role="menuitem" className="danger-text" onClick={pick(() => onDelete(loc))}>
+              Delete deck…
             </button>
           )}
         </div>
@@ -736,6 +745,46 @@ function EditDialog({ loc, run, onClose }: { loc: Location; run: Run; onClose: (
             <button className="btn primary">Save</button>
           </div>
         )}
+      </form>
+    </dialog>
+  )
+}
+
+/** Borrar un mazo: sus copias pasan a «Unsorted». Si tiene partidas anotadas, se guardan para las estadísticas. */
+function DeleteDeckDialog({ deck, run, onClose }: { deck: Location; run: Run; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    ref.current?.showModal()
+  }, [])
+  return (
+    <dialog ref={ref} className="loc-dialog" onClose={onClose} onClick={(e) => e.target === ref.current && onClose()}>
+      <form method="dialog" onSubmit={(e) => e.preventDefault()}>
+        <h2>Delete deck</h2>
+        <div className="loc-dialog-danger">
+          <p>
+            Delete <strong>“{deck.name}”</strong>?{' '}
+            {deck.copies
+              ? `Its ${deck.copies} ${deck.copies === 1 ? 'copy' : 'copies'} will move to “Unsorted”.`
+              : 'It has no copies.'}
+          </p>
+          <p className="muted small">Its recorded matches are kept in Stats. You can undo it from the History.</p>
+          <div className="loc-dialog-actions">
+            <span className="spacer" />
+            <button type="button" className="btn ghost" onClick={onClose} autoFocus>
+              No, keep it
+            </button>
+            <button
+              type="button"
+              className="btn danger"
+              onClick={() => {
+                void run(() => api.deleteLocation(deck.id))
+                onClose()
+              }}
+            >
+              Yes, delete
+            </button>
+          </div>
+        </div>
       </form>
     </dialog>
   )

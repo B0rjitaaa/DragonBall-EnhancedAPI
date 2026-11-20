@@ -25,7 +25,7 @@ PAGE_SIZE = 30
 def _location_names(items) -> dict[int, str]:
     """Nombres de las ubicaciones que salen en los cambios (también las borradas, por su «antes»)."""
     ids = {i.key[1] for i in items if i.model == "entry"} | {i.location_id for i in items if i.location_id}
-    names = dict(Location.objects.filter(id__in=ids).values_list("id", "name"))
+    names = dict(Location.all_objects.filter(id__in=ids).values_list("id", "name"))
     for i in items:
         if i.model == "location":
             for values in (i.after, i.before):
@@ -87,6 +87,11 @@ def _other_changes(items, names: dict[int, str], cards: dict[int, dict]) -> list
                     out.append(f"Created {a['kind']} “{a['name']}”")
             elif a is None:
                 out.append(f"Deleted {b['kind']} “{b['name']}”")
+            elif a["status"] == "deleted" or b["status"] == "deleted":
+                # Mazo con partidas: se guarda como «borrado» (o vuelve al deshacer), no se renombra
+                deleted = a["status"] == "deleted"
+                out.append(f"{'Deleted' if deleted else 'Restored'} {b['kind']} “{(b if deleted else a)['name']}”"
+                           + (" (its matches are kept)" if deleted else ""))
             else:
                 if b["name"] != a["name"]:
                     out.append(f"Renamed “{b['name']}” → “{a['name']}”")

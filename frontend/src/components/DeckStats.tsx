@@ -223,10 +223,15 @@ export default function DeckStats() {
                         <span className="stats-deck">
                           {d.leader ? <img src={d.leader.image} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <span className="locdeck-thumb-empty" />}
                           <span>
-                            <a href={`/collection/deck/${d.uid}`} onClick={(e) => e.stopPropagation()} title="Open the deck">
-                              {d.name}
-                            </a>
+                            {d.status === 'deleted' ? (
+                              <span>{d.name.replace(/ \(deleted(?: \d+)?\)$/, '')}</span>
+                            ) : (
+                              <a href={`/collection/deck/${d.uid}`} onClick={(e) => e.stopPropagation()} title="Open the deck">
+                                {d.name}
+                              </a>
+                            )}
                             {d.status === 'parked' && <small className="muted"> · archived</small>}
+                            {d.status === 'deleted' && <small className="muted"> · deleted</small>}
                           </span>
                         </span>
                       </td>

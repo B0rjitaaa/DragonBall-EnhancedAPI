@@ -95,9 +95,28 @@ class DeckListsTests(TestCase):
         box = Location.objects.create(name="Caja", kind="storage")
         self.assertEqual(self.client.get(f"/api/my-collection/decks/{box.id}/").status_code, 404)
 
-    def test_a_deck_with_matches_cannot_be_deleted(self):
+    def test_deleting_a_deck_with_matches_keeps_them(self):
         self.match()
-        self.assertEqual(self.client.delete(f"/api/my-collection/locations/{self.deck.id}/").status_code, 400)
+        CollectionEntry.objects.create(card=self.b, location=self.deck, quantity=1)
+        self.assertEqual(self.client.delete(f"/api/my-collection/locations/{self.deck.id}/").status_code, 204)
+        # Sus cartas pasan a Unsorted y el mazo no sale en ninguna lista…
+        self.assertFalse(CollectionEntry.objects.filter(location_id=self.deck.id).exists())
+        self.assertTrue(CollectionEntry.objects.filter(card=self.b, location=Location.default()).exists())
+        self.assertFalse(Location.objects.filter(pk=self.deck.pk).exists())
+        names = [loc["name"] for loc in self.client.get("/api/my-collection/locations/").data]
+        self.assertNotIn(self.deck.name, names)
+        self.assertEqual(self.client.get(f"/api/my-collection/decks/{self.deck.id}/").status_code, 404)
+        # …pero sus partidas siguen en las estadísticas (con «archived») y el nombre queda libre
+        deck = Location.all_objects.get(pk=self.deck.pk)
+        self.assertEqual((deck.status, deck.name), ("deleted", f"{self.deck.name} (deleted)"))
+        from decks.models import Match
+
+        self.assertEqual(Match.objects.filter(version__deck=deck).count(), 1)
+        self.assertEqual(self.client.get("/api/my-collection/deck-stats/").data["decks"], [])
+        stats = self.client.get("/api/my-collection/deck-stats/?archived=1").data["decks"]
+        self.assertEqual([(d["name"], d["status"]) for d in stats], [(deck.name, "deleted")])
+        self.assertEqual(self.client.post("/api/my-collection/locations/", {"name": self.deck.name, "kind": "deck"},
+                                          format="json").status_code, 201)
 
 
 class RestoreVersionTests(TestCase):

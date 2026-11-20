@@ -33,7 +33,7 @@ Open it in **My collection** and use **Move…** in its details, or the [List vi
 
 ### What happens to my cards if I delete a location?
 
-They go to **Unsorted**: no copy is lost. A deck with logged matches can't be deleted; move it to the archive instead.
+They go to **Unsorted**: no copy is lost. If it's a deck with logged matches, the matches are kept in the stats. See [Deleting a deck](ubicaciones.md#deleting-a-deck-decks-only).
 
 ### How do I take a deck apart without losing its list?
 

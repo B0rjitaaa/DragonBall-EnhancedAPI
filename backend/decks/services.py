@@ -391,7 +391,8 @@ def deck_stats(days: int | None = None, archived: bool = False, deck_ids: list[i
 
     qs = Match.objects.select_related("version__deck").order_by("played_on", "created_at")
     if not archived:
-        qs = qs.exclude(version__deck__status=Location.Status.PARKED)
+        # Los mazos del histórico y los borrados (se guardan por sus partidas) solo con «archived»
+        qs = qs.exclude(version__deck__status__in=[Location.Status.PARKED, Location.Status.DELETED])
     if days:
         qs = qs.filter(played_on__gte=date.today() - timedelta(days=days))
     all_matches = list(qs)

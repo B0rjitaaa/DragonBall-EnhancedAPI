@@ -83,7 +83,7 @@ def snapshot() -> Snapshot:
     for spec in SPECS:
         nk = len(spec.key)
         # Una sola conversión a tipos de JSON por tabla (fila a fila era lo que más tardaba).
-        rows = _plain_rows(list(spec.model.objects.values_list(*spec.key, *spec.fields)))
+        rows = _plain_rows(list(spec.model._base_manager.values_list(*spec.key, *spec.fields)))
         out[spec.name] = {_key_str(r[:nk]): dict(zip(spec.fields, r[nk:])) for r in rows}
     return out
 
@@ -244,7 +244,7 @@ class UndoConflict(Exception):
 
 
 def _current_row(spec: Spec, key: list) -> dict | None:
-    row = spec.model.objects.filter(**dict(zip(spec.key, key))).values(*spec.fields).first()
+    row = spec.model._base_manager.filter(**dict(zip(spec.key, key))).values(*spec.fields).first()
     return _plain(row) if row is not None else None
 
 
@@ -274,20 +274,20 @@ def _apply(targets: list[tuple[str, list, dict | None]]) -> None:
     deletes = sorted((t for t in targets if t[2] is None), key=lambda t: -order[t[0]])
     for model, key, _ in deletes:
         spec = SPEC[model]
-        spec.model.objects.filter(**dict(zip(spec.key, key))).delete()
+        spec.model._base_manager.filter(**dict(zip(spec.key, key))).delete()
     upserts = sorted((t for t in targets if t[2] is not None),
                      key=lambda t: (order[t[0]], bool(t[2].get("principal")) if t[0] == "version" else False))
     for model, key, values in upserts:
         spec = SPEC[model]
         lookup = dict(zip(spec.key, key))
-        qs = spec.model.objects.filter(**lookup)
+        qs = spec.model._base_manager.filter(**lookup)
         if not qs.exists():
             obj = spec.model(**lookup, **values)
             if model == "pick_list":
                 obj.done = []
-            spec.model.objects.bulk_create([obj])
+            spec.model._base_manager.bulk_create([obj])
         # update(): sin save(), así se conservan las fechas de creación y no se recalcula nada.
-        spec.model.objects.filter(**lookup).update(**values)
+        spec.model._base_manager.filter(**lookup).update(**values)
 
 
 def preview_undo(activity: Activity) -> dict:

@@ -14,6 +14,13 @@ OLD_DEFAULT_LOCATION_NAME = "Sin ubicar"
 BINDER_MAX_SIDE = 6
 
 
+class LocationManager(models.Manager):
+    """Las ubicaciones visibles: sin los mazos borrados que se guardan por sus partidas."""
+
+    def get_queryset(self):
+        return super().get_queryset().exclude(status="deleted")
+
+
 class Location(models.Model):
     """Dónde están guardadas las copias: un mazo, un archivador, una caja…"""
 
@@ -27,6 +34,8 @@ class Location(models.Model):
         # Solo cuenta en los mazos: "en el histórico" = ya no lo usas (sus copias pasan a "Sin ubicar").
         ACTIVE = "active", "In use"
         PARKED = "parked", "Archived"
+        # Mazo borrado que tenía partidas: no sale en ningún sitio, pero se guarda para sus estadísticas.
+        DELETED = "deleted", "Deleted"
 
     # Identificador estable para enlaces (/coleccion/mazo/<uid>), que no cambia al renombrar.
     uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -49,6 +58,9 @@ class Location(models.Model):
     is_default = models.BooleanField(default=False)
     position = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LocationManager()
+    all_objects = models.Manager()  # también los mazos borrados (estadísticas, historial)
 
     class Meta:
         ordering = ["-is_default", "position", "name"]
