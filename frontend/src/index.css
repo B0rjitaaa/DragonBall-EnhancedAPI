@@ -705,8 +705,9 @@ strong.loc-title { padding: 0.35rem 0; }
   .topbar .btn { padding-inline: 0.7rem; white-space: nowrap; }
   .hide-sm { display: none; }
 
-  /* Mi colección: ubicación a lo ancho; «Scan cards» a lo ancho */
-  .results-head { gap: 0.5rem; }
+  /* Mi colección: resumen, ubicación y «Scan cards», cada uno en su fila a lo ancho */
+  .results-head { gap: 0.5rem; flex-wrap: wrap; }
+  .results-summary { flex: 1 1 100%; line-height: 1.5; }
   .coll-actions { display: grid; width: 100%; }
   .coll-actions .btn { width: 100%; text-align: center; margin: 0; }
   .results-head .coll-actions .scan-link { margin-left: 0; }

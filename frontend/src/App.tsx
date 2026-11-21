@@ -547,7 +547,7 @@ export default function App({ scope = 'all' }: { scope?: Scope }) {
           )}
 
           <div className="results-head">
-            <span>
+            <span className="results-summary">
               {data ? (
                 <>
                   <strong>{data.count.toLocaleString('en-GB')}</strong> cards
